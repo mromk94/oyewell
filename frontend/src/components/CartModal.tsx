@@ -33,6 +33,30 @@ function isManualProvider(provider: string) {
   return provider === 'BANK_TRANSFER' || provider === 'CRYPTO';
 }
 
+function PaymentDetails({ method }: { method: PaymentMethod }) {
+  const config = method.config;
+  if (!config || !isManualProvider(method.provider)) return null;
+
+  return (
+    <div className='mt-3 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-sm'>
+      {method.provider === 'BANK_TRANSFER' ? (
+        <div className='space-y-1 text-white/80'>
+          {config.accountName && <p><span className='text-white/60'>Account name:</span> {config.accountName}</p>}
+          {config.accountNumber && <p><span className='text-white/60'>Account number:</span> {config.accountNumber}</p>}
+          {config.bankName && <p><span className='text-white/60'>Bank:</span> {config.bankName}</p>}
+          {config.instructions && <p className='pt-1 italic text-white/70'>{config.instructions}</p>}
+        </div>
+      ) : (
+        <div className='space-y-1 text-white/80'>
+          {config.address && <p className='break-all'><span className='text-white/60'>Address:</span> {config.address}</p>}
+          {config.network && <p><span className='text-white/60'>Network:</span> {config.network}</p>}
+          {config.instructions && <p className='pt-1 italic text-white/70'>{config.instructions}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CartModal() {
   const { items, isOpen, setIsOpen, updateQuantity, removeItem, totalKobo, clear } = useCart();
   const navigate = useNavigate();
@@ -194,8 +218,9 @@ export default function CartModal() {
                 <div className='mt-6 rounded-2xl border border-white/10 bg-white/5 p-6 text-left'>
                   <h4 className='font-semibold text-white'>Upload payment proof</h4>
                   <p className='mt-1 text-sm text-white/60'>
-                    Complete your {order.payment.provider === 'BANK_TRANSFER' ? 'bank transfer' : 'crypto'} payment and upload proof.
+                    Pay to the {order.payment.provider === 'BANK_TRANSFER' ? 'account' : 'address'} below, then upload proof.
                   </p>
+                  {selectedMethod && <PaymentDetails method={selectedMethod} />}
                   <label className='mt-4 block cursor-pointer rounded-2xl border border-dashed border-white/20 bg-white/5 p-4 text-center text-white/70 hover:bg-white/10'>
                     <Upload className='mx-auto h-6 w-6' />
                     <span className='mt-2 block text-sm'>{proofImage ? 'Change image' : 'Tap to upload proof'}</span>
@@ -373,6 +398,7 @@ export default function CartModal() {
                       ))}
                     </div>
                   )}
+                  {selectedMethod && <PaymentDetails method={selectedMethod} />}
                 </div>
               </div>
 
