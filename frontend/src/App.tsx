@@ -10,6 +10,7 @@ import CartButton from './components/CartButton';
 import CartModal from './components/CartModal';
 import AccountButton from './components/AccountButton';
 import AuthModal from './components/AuthModal';
+import InstallPrompt from './components/InstallPrompt';
 
 function App() {
   const location = useLocation();
@@ -30,6 +31,7 @@ function App() {
       {!isAdmin && <CartModal />}
       {!isAdmin && <AccountButton />}
       {!isAdmin && <AuthModal />}
+      <InstallPrompt />
     </>
   );
 }
