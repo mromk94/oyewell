@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { X, Plus, Minus, Trash2, MapPin, Phone, Upload, CheckCircle, Loader2, CreditCard } from 'lucide-react';
+import { X, Plus, Minus, Trash2, MapPin, Phone, Upload, CheckCircle, Loader2, CreditCard, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
   formatPrice,
@@ -221,25 +221,57 @@ export default function CartModal() {
                     Pay to the {order.payment.provider === 'BANK_TRANSFER' ? 'account' : 'address'} below, then upload proof.
                   </p>
                   {selectedMethod && <PaymentDetails method={selectedMethod} />}
-                  <label className='mt-4 block cursor-pointer rounded-2xl border border-dashed border-white/20 bg-white/5 p-4 text-center text-white/70 hover:bg-white/10'>
-                    <Upload className='mx-auto h-6 w-6' />
-                    <span className='mt-2 block text-sm'>{proofImage ? 'Change image' : 'Tap to upload proof'}</span>
-                    <input type='file' accept='image/*' onChange={handleProofFile} className='hidden' />
-                  </label>
-                  {proofImage && <img src={proofImage} alt='' className='mt-4 max-h-40 w-full rounded-2xl object-contain' />}
-                  <textarea
-                    value={proofNote}
-                    onChange={(e) => setProofNote(e.target.value)}
-                    placeholder='Sender name / reference / note'
-                    className='mt-4 w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white placeholder-white/40'
-                  />
-                  <button
-                    onClick={handleUploadProof}
-                    disabled={!proofImage || proofLoading || proofUploaded}
-                    className='mt-4 w-full rounded-full bg-emerald-500 py-3 font-bold text-white transition hover:bg-emerald-400 disabled:opacity-50'
-                  >
-                    {proofLoading ? 'Uploading…' : proofUploaded ? 'Proof uploaded' : 'Upload proof'}
-                  </button>
+
+                  {proofUploaded ? (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.92, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                      className='mt-6 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-6 text-center'
+                    >
+                      <div className='mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500 text-black'>
+                        <CheckCircle className='h-8 w-8' />
+                      </div>
+                      <h5 className='mt-4 text-lg font-bold text-white'>Proof received!</h5>
+                      <p className='mt-2 text-sm leading-relaxed text-emerald-100'>
+                        Your payment proof has been uploaded. The restaurant will review it and confirm your order. You can track the progress at any time with your order number.
+                      </p>
+                      <button
+                        onClick={handleDone}
+                        className='mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-white px-6 py-3 font-bold text-black transition hover:bg-white/90'
+                      >
+                        Track my order <ArrowRight className='h-5 w-5' />
+                      </button>
+                    </motion.div>
+                  ) : (
+                    <>
+                      <label className='mt-4 block cursor-pointer rounded-2xl border border-dashed border-white/20 bg-white/5 p-4 text-center text-white/70 hover:bg-white/10'>
+                        <Upload className='mx-auto h-6 w-6' />
+                        <span className='mt-2 block text-sm'>{proofImage ? 'Change image' : 'Tap to upload proof'}</span>
+                        <input type='file' accept='image/*' onChange={handleProofFile} className='hidden' />
+                      </label>
+                      {proofImage && <img src={proofImage} alt='' className='mt-4 max-h-40 w-full rounded-2xl object-contain' />}
+                      <textarea
+                        value={proofNote}
+                        onChange={(e) => setProofNote(e.target.value)}
+                        placeholder='Sender name / reference / note'
+                        className='mt-4 w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white placeholder-white/40'
+                      />
+                      <button
+                        onClick={handleUploadProof}
+                        disabled={!proofImage || proofLoading}
+                        className='mt-4 w-full rounded-full bg-emerald-500 py-3 font-bold text-white transition hover:bg-emerald-400 disabled:opacity-50'
+                      >
+                        {proofLoading ? (
+                          <span className='flex items-center justify-center gap-2'>
+                            <Loader2 className='h-5 w-5 animate-spin' /> Uploading…
+                          </span>
+                        ) : (
+                          'Upload proof'
+                        )}
+                      </button>
+                    </>
+                  )}
                 </div>
               ) : verifying ? (
                 <div className='mt-6 flex items-center justify-center gap-2 text-white/70'>

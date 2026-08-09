@@ -1,18 +1,26 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Loader2, CheckCircle, XCircle, Clock, Upload, UserPlus } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { ArrowLeft, Loader2, CheckCircle, XCircle, Clock, Upload, UserPlus, Package, Utensils, Truck, Home } from 'lucide-react';
 import { toast } from '../lib/toast';
 import { fetchOrder, formatPrice, type OrderSummary, uploadPaymentProof, register, getCustomerToken } from '../lib/api';
 import Logo from '../components/Logo';
 
-const TRACK_STATUSES = [
-  { key: 'PENDING_PAYMENT', label: 'Order placed' },
-  { key: 'PAID', label: 'Payment confirmed' },
-  { key: 'CONFIRMED', label: 'Restaurant confirmed' },
-  { key: 'PREPARING', label: 'Preparing' },
-  { key: 'READY_FOR_DISPATCH', label: 'Ready for dispatch' },
-  { key: 'OUT_FOR_DELIVERY', label: 'Out for delivery' },
-  { key: 'DELIVERED', label: 'Delivered' },
+type StatusDef = {
+  key: string;
+  label: string;
+  description: string;
+  Icon: typeof Package;
+};
+
+const TRACK_STATUSES: StatusDef[] = [
+  { key: 'PENDING_PAYMENT', label: 'Order placed', description: 'We received your order and are waiting for payment confirmation.', Icon: Package },
+  { key: 'PAID', label: 'Payment confirmed', description: 'Your payment has been verified. The kitchen is getting ready.', Icon: CheckCircle },
+  { key: 'CONFIRMED', label: 'Restaurant confirmed', description: 'The restaurant has accepted your order and will start preparing it.', Icon: Utensils },
+  { key: 'PREPARING', label: 'Preparing', description: 'Your food is being cooked and packed right now.', Icon: Utensils },
+  { key: 'READY_FOR_DISPATCH', label: 'Ready for dispatch', description: 'Your order is packed and waiting for the delivery rider.', Icon: Package },
+  { key: 'OUT_FOR_DELIVERY', label: 'Out for delivery', description: 'A rider is on the way with your order.', Icon: Truck },
+  { key: 'DELIVERED', label: 'Delivered', description: 'Your order has arrived. Enjoy your meal!', Icon: Home },
 ];
 
 function isManualPayment(provider?: string | null) {
@@ -389,31 +397,53 @@ export default function TrackOrder() {
 
         <div className='mt-8 rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8'>
           <h2 className='text-xl font-bold text-white'>Tracking</h2>
-          <div className='mt-6 space-y-4'>
-            {TRACK_STATUSES.map((status, i) => {
-              const done = i <= currentIndex;
-              const active = i === currentIndex;
-              return (
-                <div key={status.key} className='flex items-center gap-4'>
-                  <div
-                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
-                      done
-                        ? 'border-emerald-400 bg-emerald-400 text-black'
-                        : 'border-white/20 text-white/30'
-                    }`}
+          <div className='relative mt-6 pl-2'>
+            <div className='absolute left-[1.4375rem] top-4 bottom-4 w-0.5 bg-white/10' />
+            <div className='space-y-1'>
+              {TRACK_STATUSES.map((status, i) => {
+                const done = i <= currentIndex;
+                const active = i === currentIndex;
+                const Icon = status.Icon;
+                return (
+                  <motion.div
+                    key={status.key}
+                    initial={active ? { opacity: 0, x: -12 } : false}
+                    animate={active ? { opacity: 1, x: 0 } : false}
+                    transition={{ duration: 0.4 }}
+                    className={`relative z-10 flex gap-4 py-3 ${active ? '' : ''}`}
                   >
-                    {done ? '✓' : '○'}
-                  </div>
-                  <span
-                    className={`${
-                      active ? 'font-bold text-white' : done ? 'text-white/90' : 'text-white/50'
-                    }`}
-                  >
-                    {status.label}
-                  </span>
-                </div>
-              );
-            })}
+                    <div
+                      className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                        done
+                          ? 'border-emerald-400 bg-emerald-400 text-black'
+                          : 'border-white/20 bg-brand-900 text-white/30'
+                      } ${active ? 'shadow-[0_0_0_6px_rgba(52,211,153,0.15)]' : ''}`}
+                    >
+                      <Icon className='h-5 w-5' />
+                      {active && (
+                        <span className='absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/40 opacity-60' />
+                      )}
+                    </div>
+                    <div className='min-w-0 flex-1'>
+                      <p
+                        className={`text-lg font-bold ${
+                          active ? 'text-white' : done ? 'text-white/90' : 'text-white/40'
+                        }`}
+                      >
+                        {status.label}
+                      </p>
+                      <p
+                        className={`mt-1 text-sm leading-relaxed ${
+                          active ? 'text-emerald-100' : done ? 'text-white/60' : 'text-white/40'
+                        }`}
+                      >
+                        {status.description}
+                      </p>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
