@@ -20,7 +20,7 @@ export default function AccountButton() {
     <>
       <button
         onClick={handleClick}
-        className='fixed left-4 top-4 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white shadow-lg backdrop-blur-md transition hover:bg-white/10'
+        className='fixed right-4 top-4 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-white/10 bg-white/5 text-white shadow-lg backdrop-blur-md transition hover:bg-white/10'
         aria-label='Account'
       >
         <User className='h-5 w-5' />

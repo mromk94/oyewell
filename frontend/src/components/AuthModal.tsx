@@ -93,13 +93,13 @@ export default function AuthModal({ open, onClose }: { open: boolean; onClose: (
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ type: 'spring', stiffness: 200, damping: 24 }}
-        className='relative z-10 w-full max-w-md max-h-[85dvh] overflow-hidden rounded-3xl border border-white/10 bg-brand-900/95 shadow-2xl'
+        className='relative z-10 flex h-full max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-white/10 bg-brand-900/95 shadow-2xl'
       >
-        <button onClick={onClose} className='absolute right-4 top-4 rounded-full p-2 text-white/60 hover:bg-white/10'>
+        <button onClick={onClose} className='absolute right-4 top-4 z-20 rounded-full p-2 text-white/60 hover:bg-white/10'>
           <X className='h-5 w-5' />
         </button>
 
-        <div className='h-full overflow-y-auto p-6 sm:p-8'>
+        <div className='flex-1 overflow-y-auto p-6 sm:p-8'>
           <div className='mb-6 flex rounded-2xl border border-white/10 bg-white/5 p-1'>
             {(['signin', 'register', 'forgot'] as Mode[]).map((m) => (
               <button
