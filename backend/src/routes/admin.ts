@@ -437,6 +437,24 @@ router.get('/customers', async (_req, res, next) => {
   }
 });
 
+router.patch('/customers/:id/role', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body as { role?: string };
+    if (!role || !['CUSTOMER', 'ADMIN'].includes(role)) {
+      throw new ApiError(400, 'Valid role (CUSTOMER or ADMIN) required');
+    }
+    const user = await prisma.user.update({
+      where: { id },
+      data: { role: role as any },
+      select: { id: true, email: true, firstName: true, lastName: true, phone: true, role: true },
+    });
+    res.json({ user });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/customers/:id/orders', async (req, res, next) => {
   try {
     const orders = await prisma.order.findMany({

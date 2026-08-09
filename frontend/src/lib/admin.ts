@@ -215,6 +215,17 @@ export async function fetchCustomers() {
   return res.json() as Promise<{ customers: any[] }>;
 }
 
+export async function updateCustomerRole(customerId: string, role: string) {
+  const res = await fetch(`${API_BASE}/api/admin/customers/${customerId}/role`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ role }),
+  });
+  const data = (await res.json()) as { user?: any; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to update role');
+  return data;
+}
+
 export async function fetchCustomerOrders(customerId: string) {
   const res = await fetch(`${API_BASE}/api/admin/customers/${customerId}/orders`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load customer orders');

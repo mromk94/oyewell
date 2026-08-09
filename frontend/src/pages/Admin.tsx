@@ -34,6 +34,7 @@ import {
   fetchSides,
   fetchCustomers,
   fetchCustomerOrders,
+  updateCustomerRole,
 } from '../lib/admin';
 
 type Tab = 'dashboard' | 'menu' | 'orders' | 'sides' | 'customers' | 'delivery' | 'payments' | 'settings' | 'email';
@@ -262,7 +263,7 @@ export default function Admin() {
         {tab === 'orders' && <OrdersTabNew orders={orders} onRefresh={loadTab} />}
         {tab === 'delivery' && <DeliveryTab zones={zones} onRefresh={loadTab} />}
         {tab === 'sides' && <SidesTabNew sides={sides} onRefresh={loadTab} />}
-        {tab === 'customers' && <CustomersTab customers={customers} />}
+        {tab === 'customers' && <CustomersTab customers={customers} onRefresh={loadTab} />}
         {tab === 'payments' && <PaymentsTabNew methods={methods} onRefresh={loadTab} />}
         {tab === 'settings' && <SettingsTab settings={settings} onRefresh={loadTab} />}
         {tab === 'email' && <EmailTab />}
@@ -353,7 +354,7 @@ function DeliveryTab({ zones, onRefresh }: { zones: any[]; onRefresh: () => void
   );
 }
 
-function CustomersTab({ customers }: { customers: any[] }) {
+function CustomersTab({ customers, onRefresh }: { customers: any[]; onRefresh: () => void }) {
   const [selected, setSelected] = useState<any | null>(null);
 
   return (
@@ -372,15 +373,27 @@ function CustomersTab({ customers }: { customers: any[] }) {
                 <p className="text-sm text-white/60">{customer.phone}</p>
                 <p className="text-sm text-white/60">Orders: {customer._count?.orders ?? 0}</p>
               </div>
-              <button
-                onClick={async () => {
-                  const { orders } = await fetchCustomerOrders(customer.id);
-                  setSelected({ customer, orders });
-                }}
-                className="rounded-full bg-white px-4 py-2 text-sm font-bold text-black"
-              >
-                View orders
-              </button>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <button
+                  onClick={async () => {
+                    if (!confirm(`Make ${customer.email} an admin?`)) return;
+                    await updateCustomerRole(customer.id, 'ADMIN');
+                    onRefresh();
+                  }}
+                  className="rounded-full bg-white/10 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/20"
+                >
+                  Make admin
+                </button>
+                <button
+                  onClick={async () => {
+                    const { orders } = await fetchCustomerOrders(customer.id);
+                    setSelected({ customer, orders });
+                  }}
+                  className="rounded-full bg-white px-4 py-2 text-sm font-bold text-black"
+                >
+                  View orders
+                </button>
+              </div>
             </div>
           </div>
         ))}
