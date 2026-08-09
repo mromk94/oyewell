@@ -10,7 +10,6 @@ function safePublicConfig(provider: string, config: any) {
   if (!config) return undefined;
   if (provider === 'BANK_TRANSFER') {
     return {
-      accountNumber: config.accountNumber,
       accountName: config.accountName,
       bankName: config.bankName,
       instructions: config.instructions,
@@ -18,7 +17,6 @@ function safePublicConfig(provider: string, config: any) {
   }
   if (provider === 'CRYPTO') {
     return {
-      address: config.address,
       network: config.network,
       instructions: config.instructions,
     };

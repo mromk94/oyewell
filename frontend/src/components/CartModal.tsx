@@ -35,22 +35,22 @@ function isManualProvider(provider: string) {
 
 function PaymentDetails({ method }: { method: PaymentMethod }) {
   const config = method.config;
-  if (!config || !isManualProvider(method.provider)) return null;
+  if (!isManualProvider(method.provider)) return null;
 
   return (
     <div className='mt-3 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-sm'>
       {method.provider === 'BANK_TRANSFER' ? (
         <div className='space-y-1 text-white/80'>
-          {config.accountName && <p><span className='text-white/60'>Account name:</span> {config.accountName}</p>}
-          {config.accountNumber && <p><span className='text-white/60'>Account number:</span> {config.accountNumber}</p>}
-          {config.bankName && <p><span className='text-white/60'>Bank:</span> {config.bankName}</p>}
-          {config.instructions && <p className='pt-1 italic text-white/70'>{config.instructions}</p>}
+          {config?.accountName && <p><span className='text-white/60'>Account name:</span> {config.accountName}</p>}
+          {method.publicKey && <p className='break-all'><span className='text-white/60'>Account number:</span> {method.publicKey}</p>}
+          {config?.bankName && <p><span className='text-white/60'>Bank:</span> {config.bankName}</p>}
+          {config?.instructions && <p className='pt-1 italic text-white/70'>{config.instructions}</p>}
         </div>
       ) : (
         <div className='space-y-1 text-white/80'>
-          {config.address && <p className='break-all'><span className='text-white/60'>Address:</span> {config.address}</p>}
-          {config.network && <p><span className='text-white/60'>Network:</span> {config.network}</p>}
-          {config.instructions && <p className='pt-1 italic text-white/70'>{config.instructions}</p>}
+          {method.publicKey && <p className='break-all'><span className='text-white/60'>Wallet address:</span> {method.publicKey}</p>}
+          {config?.network && <p><span className='text-white/60'>Network:</span> {config.network}</p>}
+          {config?.instructions && <p className='pt-1 italic text-white/70'>{config.instructions}</p>}
         </div>
       )}
     </div>
