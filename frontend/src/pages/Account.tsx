@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fetchMe, fetchMyOrders, removeCustomerToken, changePassword, type User, type OrderSummary } from '../lib/api';
 import { ArrowLeft, LogOut, Loader2 } from 'lucide-react';
+import Logo from '../components/Logo';
 
 export default function Account() {
   const navigate = useNavigate();
@@ -55,6 +56,7 @@ export default function Account() {
 
   return (
     <div className="min-h-screen bg-brand-900 px-6 py-12 md:px-12">
+      <Logo />
       <div className="mx-auto max-w-2xl">
         <div className="mb-8 flex items-center justify-between">
           <Link to="/" className="inline-flex items-center gap-2 text-white/70 hover:text-white">

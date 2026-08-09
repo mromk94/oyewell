@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Loader2, CheckCircle, XCircle, Clock, Upload, UserPlus } from 'lucide-react';
 import { toast } from '../lib/toast';
 import { fetchOrder, formatPrice, type OrderSummary, uploadPaymentProof, register, getCustomerToken } from '../lib/api';
+import Logo from '../components/Logo';
 
 const TRACK_STATUSES = [
   { key: 'PENDING_PAYMENT', label: 'Order placed' },
@@ -164,6 +165,7 @@ export default function TrackOrder() {
 
   return (
     <div className='min-h-screen bg-brand-900 px-6 py-12 md:px-12'>
+      <Logo />
       <div className='mx-auto max-w-2xl'>
         <Link
           to='/'

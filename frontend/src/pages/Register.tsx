@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { register } from '../lib/api';
+import Logo from '../components/Logo';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -24,6 +25,7 @@ export default function Register() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-brand-900 px-6">
+      <Logo />
       <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-8">
         <h1 className="text-2xl font-bold text-white">Create an account</h1>
         <p className="mt-2 text-white/60">Save your details and track orders.</p>

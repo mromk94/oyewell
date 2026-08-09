@@ -4,6 +4,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { fetchFood, formatPrice, type FoodItem, type FoodOption } from '../lib/api';
 import OrderButton from '../components/OrderButton';
 import OrderModal from '../components/OrderModal';
+import Logo from '../components/Logo';
 
 export default function FoodDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -42,6 +43,7 @@ export default function FoodDetail() {
 
   return (
     <div className="min-h-screen bg-brand-900">
+      <Logo />
       <div className="relative h-[60vh] w-full overflow-hidden md:h-[70vh]">
         {food.heroImage ? (
           <img

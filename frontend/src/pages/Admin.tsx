@@ -10,6 +10,7 @@ import {
   Salad,
   Users,
 } from 'lucide-react';
+import Logo from '../components/Logo';
 import { formatPrice } from '../lib/api';
 import { MenuTab as MenuTabNew } from '../components/admin/MenuTab';
 import { SidesTab as SidesTabNew } from '../components/admin/SidesTab';
@@ -108,6 +109,7 @@ export default function Admin() {
   if (!token) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-brand-900 px-6">
+        <Logo />
         <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-8">
           <h1 className="text-2xl font-bold text-white">Admin Login</h1>
           <p className="mt-2 text-white/60">Sign in to manage OYE Well.</p>
@@ -141,6 +143,7 @@ export default function Admin() {
 
   return (
     <div className="flex min-h-screen flex-col bg-brand-900 md:flex-row">
+      <Logo />
       <aside className="shrink-0 border-b border-white/10 bg-brand-800 p-4 md:w-64 md:border-b-0 md:border-r">
         <h1 className="px-4 text-2xl font-black text-white">OYE Admin</h1>
         <nav className="mt-6 space-y-1">
