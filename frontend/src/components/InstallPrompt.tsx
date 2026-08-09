@@ -59,16 +59,28 @@ export default function InstallPrompt() {
     return !!deferredPrompt || showIOS || isMobile();
   }, [deferredPrompt, showIOS, installed]);
 
+  async function triggerInstall() {
+    if (!deferredPrompt) return false;
+    await deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setInstalled(true);
+    }
+    setDeferredPrompt(null);
+    return outcome === 'accepted';
+  }
+
   useEffect(() => {
-    (window as unknown as { __openPwaInstallPrompt?: (force?: boolean) => boolean }).__openPwaInstallPrompt = (force = false) => {
+    (window as unknown as { __openPwaInstallPrompt?: (force?: boolean) => Promise<boolean> }).__openPwaInstallPrompt = async (force = false) => {
       if (isPWA() || installed) return false;
+      if (deferredPrompt) return triggerInstall();
       if (force || promptAvailable) {
         setIsOpen(true);
         return true;
       }
       return false;
     };
-  }, [promptAvailable, installed]);
+  }, [promptAvailable, installed, deferredPrompt]);
 
   useEffect(() => {
     if (isPWA() || installed) return;
@@ -115,12 +127,7 @@ export default function InstallPrompt() {
 
   const handleInstall = async () => {
     if (deferredPrompt) {
-      await deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        setInstalled(true);
-      }
-      setDeferredPrompt(null);
+      await triggerInstall();
     }
     setIsOpen(false);
   };
