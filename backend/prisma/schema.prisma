@@ -1,0 +1,223 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  firstName String?
+  lastName  String?
+  phone     String?
+  role      UserRole @default(CUSTOMER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+}
+
+enum OrderingMode {
+  PLATE
+  PORTION
+  PIECE
+}
+
+enum FoodStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Food {
+  id           String       @id @default(cuid())
+  name         String
+  slug         String       @unique
+  description  String?
+  heroImage    String?
+  status       FoodStatus   @default(DRAFT)
+  isAvailable  Boolean      @default(true)
+  featured     Boolean      @default(false)
+  displayOrder Int          @default(0)
+  orderingMode OrderingMode @default(PLATE)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  options      FoodOption[]
+}
+
+model FoodOption {
+  id           String  @id @default(cuid())
+  food         Food    @relation(fields: [foodId], references: [id], onDelete: Cascade)
+  foodId       String
+  label        String
+  value        String?
+  priceKobo    Int
+  stock        Int?
+  isAvailable  Boolean @default(true)
+  displayOrder Int     @default(0)
+}
+
+enum DeliveryZoneType {
+  CITY
+  AREA
+  RADIUS
+  POLYGON
+}
+
+model DeliveryZone {
+  id               String           @id @default(cuid())
+  name             String
+  type             DeliveryZoneType
+  boundary         Json
+  isActive         Boolean          @default(true)
+  feeKobo          Int              @default(0)
+  minOrderKobo     Int?
+  estimatedMinutes Int?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  orders           Order[]
+}
+
+model Order {
+  id              String               @id @default(cuid())
+  orderNumber     String               @unique
+  customer        User?                @relation(fields: [customerId], references: [id])
+  customerId      String?
+  status          String               @default("PENDING_PAYMENT")
+  paymentStatus   String               @default("PENDING")
+  items           OrderItem[]
+  sides           OrderSide[]
+  address         String
+  phone           String
+  deliveryZone    DeliveryZone?        @relation(fields: [deliveryZoneId], references: [id])
+  deliveryZoneId  String?
+  deliveryFeeKobo Int
+  subtotalKobo    Int
+  totalKobo       Int
+  currency        String               @default("NGN")
+  payment         Payment?
+  statusHistory   OrderStatusHistory[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+}
+
+model OrderItem {
+  id            String @id @default(cuid())
+  order         Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId       String
+  foodName      String
+  optionLabel   String
+  optionValue   String?
+  unitPriceKobo Int
+  quantity      Int
+  totalKobo     Int
+  orderingMode  String
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+  CANCELLED
+  EXPIRED
+  REFUNDED
+}
+
+enum PaymentProvider {
+  MOCK
+  PAYSTACK
+  FLUTTERWAVE
+  CRYPTO
+  BANK_TRANSFER
+}
+
+model Payment {
+  id             String           @id @default(cuid())
+  order          Order            @relation(fields: [orderId], references: [id])
+  orderId        String           @unique
+  amountKobo     Int
+  currency       String
+  provider       PaymentProvider  @default(MOCK)
+  providerRef    String?
+  status         PaymentStatus    @default(PENDING)
+  idempotencyKey String           @unique
+  attempts       PaymentAttempt[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model PaymentAttempt {
+  id          String        @id @default(cuid())
+  payment     Payment       @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  paymentId   String
+  providerRef String?
+  status      PaymentStatus
+  payload     Json?
+  createdAt   DateTime      @default(now())
+}
+
+model OrderStatusHistory {
+  id        String   @id @default(cuid())
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId   String
+  status    String
+  actor     String?
+  note      String?
+  createdAt DateTime @default(now())
+}
+
+model RestaurantSetting {
+  id           String   @id @default(cuid())
+  name         String   @default("OYE Well")
+  currency     String   @default("NGN")
+  logoUrl      String?
+  contactPhone String?
+  contactEmail String?
+  latitude     Float?
+  longitude    Float?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model PaymentMethodConfig {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  enabled   Boolean  @default(false)
+  provider  String
+  publicKey String?
+  config    Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Side {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  priceKobo   Int
+  isAvailable Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  orders      OrderSide[]
+}
+
+model OrderSide {
+  id          String @id @default(cuid())
+  order       Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId     String
+  side        Side   @relation(fields: [sideId], references: [id])
+  sideId      String
+  name        String
+  priceKobo   Int
+  quantity    Int    @default(1)
+  totalKobo   Int
+}

@@ -1,0 +1,57 @@
+import 'dotenv/config';
+import express, { type Request, type Response, type NextFunction } from 'express';
+import cors from 'cors';
+import morgan from 'morgan';
+import foodsRouter from './routes/foods.js';
+import authRouter from './routes/auth.js';
+import deliveryRouter from './routes/delivery.js';
+import ordersRouter from './routes/orders.js';
+import paymentsRouter from './routes/payments.js';
+import adminRouter from './routes/admin.js';
+import sidesRouter from './routes/sides.js';
+import { rateLimit } from './middleware/rateLimit.js';
+import { ApiError } from './lib/errors.js';
+
+const app = express();
+const PORT = Number(process.env.PORT ?? 4000);
+
+app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(',') ?? true }));
+app.use(express.json({ limit: '5mb' }));
+app.use(rateLimit({ windowMs: 60000, max: 120 }));
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '0');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  next();
+});
+app.use(morgan('dev'));
+
+app.get('/health', (_req, res) => res.json({ ok: true, service: 'oye-well-backend' }));
+
+app.get('/api/ping', (_req, res) => res.json({ ok: true }));
+app.use('/api/foods', foodsRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/delivery', deliveryRouter);
+app.use('/api/orders', ordersRouter);
+app.use('/api/sides', sidesRouter);
+app.use('/api/payments', paymentsRouter);
+app.use('/api/admin', adminRouter);
+
+app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  if (err instanceof ApiError) {
+    res.status(err.status).json({ error: err.message, code: err.code });
+    return;
+  }
+  if (err instanceof Error && err.name === 'ZodError') {
+    res.status(400).json({ error: 'Validation failed', code: 'VALIDATION_ERROR' });
+    return;
+  }
+  console.error(err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`OYE Well backend running on http://0.0.0.0:${PORT}`);
+});
