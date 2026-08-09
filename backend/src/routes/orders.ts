@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createOrder } from '../lib/order.js';
+import { createOrder, serializeOrder } from '../lib/order.js';
 import { prisma } from '../prisma.js';
 import { createOrderSchema } from '../lib/validation.js';
 import jwt from 'jsonwebtoken';
@@ -46,7 +46,7 @@ router.get('/:orderNumber', async (req, res, next) => {
       res.status(404).json({ error: 'Order not found' });
       return;
     }
-    res.json({ order });
+    res.json({ order: serializeOrder(order) });
   } catch (err) {
     next(err);
   }

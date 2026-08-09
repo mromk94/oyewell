@@ -1,8 +1,45 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { fetchMe, fetchMyOrders, removeCustomerToken, changePassword, type User, type OrderSummary } from '../lib/api';
-import { ArrowLeft, LogOut, Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import {
+  fetchMe,
+  fetchMyOrders,
+  removeCustomerToken,
+  changePassword,
+  getCustomerToken,
+  type User,
+  type OrderSummary,
+} from '../lib/api';
+import {
+  ArrowLeft,
+  LogOut,
+  Loader2,
+  Mail,
+  Phone,
+  Package,
+  CheckCircle,
+  Clock,
+  MapPin,
+  Lock,
+} from 'lucide-react';
 import Logo from '../components/Logo';
+import AuthModal from '../components/AuthModal';
+
+const STATUS_COLORS: Record<string, string> = {
+  PENDING_PAYMENT: 'bg-yellow-500/20 text-yellow-300',
+  PAID: 'bg-blue-500/20 text-blue-300',
+  CONFIRMED: 'bg-blue-500/20 text-blue-300',
+  PREPARING: 'bg-purple-500/20 text-purple-300',
+  READY_FOR_DISPATCH: 'bg-indigo-500/20 text-indigo-300',
+  OUT_FOR_DELIVERY: 'bg-cyan-500/20 text-cyan-300',
+  DELIVERED: 'bg-emerald-500/20 text-emerald-300',
+};
+
+const PAYMENT_COLORS: Record<string, string> = {
+  PENDING: 'bg-yellow-500/20 text-yellow-300',
+  PAID: 'bg-emerald-500/20 text-emerald-300',
+  FAILED: 'bg-red-500/20 text-red-300',
+};
 
 export default function Account() {
   const navigate = useNavigate();
@@ -10,21 +47,31 @@ export default function Account() {
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [authOpen, setAuthOpen] = useState(false);
 
   useEffect(() => {
+    if (!getCustomerToken()) {
+      setLoading(false);
+      setAuthOpen(true);
+      return;
+    }
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function load() {
     setLoading(true);
-    Promise.all([fetchMe().catch(() => null), fetchMyOrders().catch(() => ({ orders: [] }))])
-      .then(([me, ordersData]) => {
-        if (!me) {
-          navigate('/login');
-          return;
-        }
-        setUser(me.user);
-        setOrders(ordersData.orders);
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : 'Failed to load account'))
-      .finally(() => setLoading(false));
-  }, [navigate]);
+    setError(null);
+    try {
+      const [me, myOrders] = await Promise.all([fetchMe(), fetchMyOrders()]);
+      setUser(me.user);
+      setOrders(myOrders.orders);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load account');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function handleLogout() {
     removeCustomerToken();
@@ -33,20 +80,40 @@ export default function Account() {
 
   if (loading) {
     return (
-      <div className="flex h-screen w-full items-center justify-center bg-brand-900">
-        <Loader2 className="h-10 w-10 animate-spin text-white/70" />
+      <div className='flex h-screen w-full items-center justify-center bg-brand-900'>
+        <Loader2 className='h-10 w-10 animate-spin text-white/70' />
+      </div>
+    );
+  }
+
+  if (!getCustomerToken()) {
+    return (
+      <div className='flex h-screen w-full flex-col items-center justify-center bg-brand-900 px-6 text-center'>
+        <Logo />
+        <h1 className='mt-8 text-3xl font-black text-white'>Sign in to your account</h1>
+        <p className='mt-3 max-w-md text-white/70'>
+          Your order history, saved address and account details live here. Sign in or create an account to get started.
+        </p>
+        <button
+          onClick={() => setAuthOpen(true)}
+          className='mt-6 rounded-full bg-white px-8 py-3 font-bold text-black'
+        >
+          Sign in or register
+        </button>
+        <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
       </div>
     );
   }
 
   if (error || !user) {
     return (
-      <div className="flex h-screen w-full flex-col items-center justify-center bg-brand-900 px-6 text-center">
-        <h1 className="text-4xl font-black text-white">Something went wrong</h1>
-        <p className="mt-4 text-white/70">{error ?? 'Please sign in again.'}</p>
-        <Link to="/login" className="mt-6 text-white underline">
+      <div className='flex h-screen w-full flex-col items-center justify-center bg-brand-900 px-6 text-center'>
+        <h1 className='text-4xl font-black text-white'>Something went wrong</h1>
+        <p className='mt-4 text-white/70'>{error ?? 'Please sign in again.'}</p>
+        <button onClick={() => setAuthOpen(true)} className='mt-6 text-white underline'>
           Sign in
-        </Link>
+        </button>
+        <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
       </div>
     );
   }
@@ -55,35 +122,169 @@ export default function Account() {
   const previousOrders = orders.filter((o) => o.status === 'DELIVERED');
 
   return (
-    <div className="min-h-screen bg-brand-900 px-6 py-12 md:px-12">
+    <div className='min-h-screen bg-brand-900 px-6 py-12 md:px-12'>
       <Logo />
-      <div className="mx-auto max-w-2xl">
-        <div className="mb-8 flex items-center justify-between">
-          <Link to="/" className="inline-flex items-center gap-2 text-white/70 hover:text-white">
-            <ArrowLeft className="h-5 w-5" /> Back to menu
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className='mx-auto max-w-3xl'
+      >
+        <div className='mb-8 flex items-center justify-between'>
+          <Link to='/' className='inline-flex items-center gap-2 text-white/70 hover:text-white'>
+            <ArrowLeft className='h-5 w-5' /> Back to menu
           </Link>
-          <button onClick={handleLogout} className="inline-flex items-center gap-2 text-white/70 hover:text-white">
-            <LogOut className="h-5 w-5" /> Sign out
+          <button
+            onClick={handleLogout}
+            className='inline-flex items-center gap-2 rounded-full bg-white/5 px-4 py-2 text-white/70 transition hover:bg-white/10 hover:text-white'
+          >
+            <LogOut className='h-4 w-4' /> Sign out
           </button>
         </div>
 
-        <h1 className="text-4xl font-black text-white">
-          Hi, {user.firstName || user.email}
-        </h1>
-        <p className="mt-2 text-white/60">{user.email}</p>
+        <div className='rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8'>
+          <h1 className='text-3xl font-black text-white'>Hi, {user.firstName || user.email.split('@')[0]}</h1>
+          <p className='mt-2 text-white/60'>
+            This is your home for orders, delivery history and account settings.
+          </p>
 
-        <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8">
-          <h2 className="text-xl font-bold text-white">Current Orders</h2>
-          <OrderList orders={currentOrders} />
+          <div className='mt-6 grid gap-4 sm:grid-cols-3'>
+            <ProfileRow icon={<Mail className='h-4 w-4' />} label='Email' value={user.email} />
+            <ProfileRow icon={<Phone className='h-4 w-4' />} label='Phone' value={user.phone ?? 'Not set'} />
+            <ProfileRow
+              icon={<Package className='h-4 w-4' />}
+              label='Total orders'
+              value={orders.length.toString()}
+            />
+          </div>
         </div>
 
-        <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8">
-          <h2 className="text-xl font-bold text-white">Order History</h2>
-          <OrderList orders={previousOrders} />
-        </div>
+        <StatsRow current={currentOrders.length} previous={previousOrders.length} />
+
+        <OrderSection title='Active orders' explanation='Orders that are being prepared or on their way to you.' icon={<Clock className='h-5 w-5' />} orders={currentOrders} />
+        <OrderSection title='Order history' explanation='Completed and delivered orders you can look back on.' icon={<CheckCircle className='h-5 w-5' />} orders={previousOrders} />
 
         <ChangePassword />
+      </motion.div>
+      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+    </div>
+  );
+}
+
+function ProfileRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className='rounded-2xl border border-white/10 bg-white/5 p-4'>
+      <div className='flex items-center gap-2 text-sm text-white/50'>
+        {icon} <span>{label}</span>
       </div>
+      <p className='mt-1 break-words text-sm font-medium text-white'>{value}</p>
+    </div>
+  );
+}
+
+function StatsRow({ current, previous }: { current: number; previous: number }) {
+  return (
+    <div className='mt-6 grid grid-cols-3 gap-4'>
+      {[
+        { label: 'Active', count: current, color: 'bg-yellow-500/10 text-yellow-300' },
+        { label: 'Delivered', count: previous, color: 'bg-emerald-500/10 text-emerald-300' },
+        { label: 'All time', count: current + previous, color: 'bg-blue-500/10 text-blue-300' },
+      ].map((s) => (
+        <div
+          key={s.label}
+          className={`rounded-3xl border border-white/10 p-5 text-center ${s.color}`}
+        >
+          <p className='text-3xl font-black'>{s.count}</p>
+          <p className='mt-1 text-xs font-bold uppercase tracking-wider opacity-80'>{s.label}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function OrderSection({
+  title,
+  explanation,
+  icon,
+  orders,
+}: {
+  title: string;
+  explanation: string;
+  icon: React.ReactNode;
+  orders: OrderSummary[];
+}) {
+  return (
+    <div className='mt-8 rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8'>
+      <div className='flex items-center gap-2'>
+        {icon}
+        <h2 className='text-xl font-bold text-white'>{title}</h2>
+      </div>
+      <p className='mt-1 text-sm text-white/60'>{explanation}</p>
+      <OrderList orders={orders} />
+    </div>
+  );
+}
+
+function OrderList({ orders }: { orders: OrderSummary[] }) {
+  if (orders.length === 0) {
+    return <p className='mt-4 text-white/60'>No orders in this section yet.</p>;
+  }
+  return (
+    <div className='mt-5 space-y-4'>
+      {orders.map((order, i) => (
+        <motion.div
+          key={order.id}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: i * 0.05 }}
+        >
+          <Link
+            to={`/track/${order.orderNumber}`}
+            className='block rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:bg-white/10'
+          >
+            <div className='flex flex-wrap items-start justify-between gap-3'>
+              <div>
+                <div className='flex items-center gap-2'>
+                  <Package className='h-4 w-4 text-white/60' />
+                  <span className='font-bold text-white'>{order.orderNumber}</span>
+                </div>
+                <p className='mt-1 text-xs text-white/50'>
+                  {new Date(order.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
+                </p>
+              </div>
+              <div className='flex flex-wrap gap-2'>
+                <span className={`rounded-full px-3 py-1 text-xs font-bold ${STATUS_COLORS[order.status] ?? 'bg-white/10 text-white/70'}`}>
+                  {order.status.replace(/_/g, ' ')}
+                </span>
+                <span className={`rounded-full px-3 py-1 text-xs font-bold ${PAYMENT_COLORS[order.paymentStatus] ?? 'bg-white/10 text-white/70'}`}>
+                  {order.paymentStatus}
+                </span>
+              </div>
+            </div>
+
+            <div className='mt-4 space-y-1 text-sm text-white/70'>
+              {order.items.map((item, idx) => (
+                <p key={idx}>
+                  {item.quantity}× {item.foodName} — {item.optionLabel}
+                </p>
+              ))}
+              {order.sides.length > 0 && (
+                <p className='text-white/50'>
+                  + {order.sides.map((s) => `${s.quantity}× ${s.name}`).join(', ')}
+                </p>
+              )}
+            </div>
+
+            <div className='mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4'>
+              <div className='flex items-center gap-2 text-sm text-white/60'>
+                <MapPin className='h-4 w-4' />
+                <span className='truncate'>{order.address}</span>
+              </div>
+              <span className='text-lg font-bold text-white'>{order.total}</span>
+            </div>
+          </Link>
+        </motion.div>
+      ))}
     </div>
   );
 }
@@ -107,59 +308,34 @@ function ChangePassword() {
   }
 
   return (
-    <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8">
-      <h2 className="text-xl font-bold text-white">Change password</h2>
-      {msg && <p className="mt-4 text-sm text-white/80">{msg}</p>}
-      <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+    <div className='mt-8 rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8'>
+      <div className='flex items-center gap-2'>
+        <Lock className='h-5 w-5 text-white/70' />
+        <h2 className='text-xl font-bold text-white'>Change password</h2>
+      </div>
+      {msg && <p className='mt-4 text-sm text-white/80'>{msg}</p>}
+      <form onSubmit={handleSubmit} className='mt-4 space-y-4'>
         <input
-          type="password"
+          type='password'
           value={current}
           onChange={(e) => setCurrent(e.target.value)}
-          placeholder="Current password"
+          placeholder='Current password'
           required
-          className="w-full rounded-2xl border border-white/20 bg-white/5 p-4 text-white outline-none focus:border-white"
+          className='w-full rounded-2xl border border-white/20 bg-white/5 p-4 text-white outline-none focus:border-white'
         />
         <input
-          type="password"
+          type='password'
           value={next}
           onChange={(e) => setNext(e.target.value)}
-          placeholder="New password"
+          placeholder='New password'
           required
-          className="w-full rounded-2xl border border-white/20 bg-white/5 p-4 text-white outline-none focus:border-white"
+          minLength={6}
+          className='w-full rounded-2xl border border-white/20 bg-white/5 p-4 text-white outline-none focus:border-white'
         />
-        <button type="submit" className="w-full rounded-full bg-white py-3 font-bold text-black">
+        <button type='submit' className='w-full rounded-full bg-white py-3 font-bold text-black'>
           Update password
         </button>
       </form>
-    </div>
-  );
-}
-
-function OrderList({ orders }: { orders: OrderSummary[] }) {
-  if (orders.length === 0) {
-    return <p className="mt-4 text-white/60">No orders yet.</p>;
-  }
-  return (
-    <div className="mt-4 space-y-4">
-      {orders.map((order) => (
-        <Link
-          key={order.id}
-          to={`/track/${order.orderNumber}`}
-          className="block rounded-2xl border border-white/10 bg-white/5 p-4 transition hover:bg-white/10"
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="font-bold text-white">{order.orderNumber}</span>
-            <span className="text-sm text-white/60">{new Date(order.createdAt).toLocaleDateString()}</span>
-          </div>
-          <p className="mt-1 text-sm text-white/60">
-            {order.items.map((i) => `${i.foodName} × ${i.quantity}`).join(', ')}
-          </p>
-          <div className="mt-2 flex items-center justify-between">
-            <span className="text-white/80">{order.status.replace(/_/g, ' ')}</span>
-            <span className="font-semibold text-white">{order.total}</span>
-          </div>
-        </Link>
-      ))}
     </div>
   );
 }

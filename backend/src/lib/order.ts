@@ -173,3 +173,54 @@ export async function createOrder(payload: OrderPayload) {
     },
   };
 }
+
+export function serializeOrder(order: any) {
+  return {
+    id: order.id,
+    orderNumber: order.orderNumber,
+    status: order.status,
+    paymentStatus: order.paymentStatus,
+    subtotal: formatKobo(order.subtotalKobo),
+    deliveryFee: formatKobo(order.deliveryFeeKobo),
+    total: formatKobo(order.totalKobo),
+    address: order.address,
+    phone: order.phone,
+    estimatedMinutes: order.estimatedMinutes,
+    createdAt: order.createdAt,
+    items: (order.items || []).map((item: any) => ({
+      id: item.id,
+      foodName: item.foodName,
+      optionLabel: item.optionLabel,
+      optionValue: item.optionValue,
+      unitPriceKobo: item.unitPriceKobo,
+      quantity: item.quantity,
+      totalKobo: item.totalKobo,
+      orderingMode: item.orderingMode,
+    })),
+    sides: (order.sides || []).map((side: any) => ({
+      id: side.id,
+      name: side.name,
+      priceKobo: side.priceKobo,
+      quantity: side.quantity,
+      totalKobo: side.totalKobo,
+    })),
+    payment: order.payment
+      ? {
+          id: order.payment.id,
+          provider: order.payment.provider,
+          status: order.payment.status,
+          attempts: (order.payment.attempts || []).map((a: any) => ({
+            id: a.id,
+            status: a.status,
+            payload: a.payload,
+            createdAt: a.createdAt,
+          })),
+        }
+      : null,
+    statusHistory: (order.statusHistory || []).map((h: any) => ({
+      status: h.status,
+      note: h.note,
+      createdAt: h.createdAt,
+    })),
+  };
+}

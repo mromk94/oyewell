@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../prisma.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
+import { serializeOrder } from '../lib/order.js';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET ?? 'change-me';
@@ -100,9 +101,58 @@ router.get('/orders', requireAuth, async (req: AuthRequest, res, next) => {
     const orders = await prisma.order.findMany({
       where: { customerId: req.user!.id },
       orderBy: { createdAt: 'desc' },
-      include: { items: true, payment: true },
+      include: {
+        items: true,
+        sides: true,
+        payment: { include: { attempts: { orderBy: { createdAt: 'desc' } } } },
+        statusHistory: true,
+      },
     });
-    res.json({ orders });
+    res.json({ orders: orders.map(serializeOrder) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/forgot-password', async (req, res, next) => {
+  try {
+    const { email } = req.body as Record<string, string>;
+    if (!email) {
+      res.status(400).json({ error: 'Email is required' });
+      return;
+    }
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      res.status(404).json({ error: 'No account found with this email' });
+      return;
+    }
+    const token = jwt.sign({ email, purpose: 'password-reset' }, JWT_SECRET, { expiresIn: '15m' });
+    res.json({ message: 'Reset token generated. Use it to set a new password.', resetToken: token });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/reset-password', async (req, res, next) => {
+  try {
+    const { email, resetToken, newPassword } = req.body as Record<string, string>;
+    if (!email || !resetToken || !newPassword || newPassword.length < 6) {
+      res.status(400).json({ error: 'Email, reset token and a new password of at least 6 characters are required' });
+      return;
+    }
+    const decoded = jwt.verify(resetToken, JWT_SECRET) as { email: string; purpose: string };
+    if (decoded.purpose !== 'password-reset' || decoded.email !== email) {
+      res.status(400).json({ error: 'Invalid or expired reset token' });
+      return;
+    }
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      res.status(404).json({ error: 'Account not found' });
+      return;
+    }
+    const hashed = bcrypt.hashSync(newPassword, 10);
+    await prisma.user.update({ where: { id: user.id }, data: { password: hashed } });
+    res.json({ ok: true, message: 'Password updated. You can now sign in.' });
   } catch (err) {
     next(err);
   }

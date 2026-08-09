@@ -286,3 +286,24 @@ export async function changePassword(currentPassword: string, newPassword: strin
   return data;
 }
 
+export async function forgotPassword(email: string) {
+  const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  const data = (await res.json()) as { message?: string; resetToken?: string; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to request reset');
+  return data;
+}
+
+export async function resetPassword(email: string, resetToken: string, newPassword: string) {
+  const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, resetToken, newPassword }),
+  });
+  const data = (await res.json()) as { ok?: boolean; message?: string; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to reset password');
+  return data;
+}

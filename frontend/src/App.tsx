@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import Account from './pages/Account';
 import CartButton from './components/CartButton';
 import CartModal from './components/CartModal';
+import AccountButton from './components/AccountButton';
 
 function App() {
   return (
@@ -23,6 +24,7 @@ function App() {
       </Routes>
       <CartButton />
       <CartModal />
+      <AccountButton />
     </>
   );
 }
