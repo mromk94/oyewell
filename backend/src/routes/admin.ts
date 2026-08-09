@@ -11,27 +11,29 @@ router.use(requireAuth, requireAdmin);
 
 router.get('/dashboard', async (_req, res, next) => {
   try {
-    const active = await prisma.order.count({
-      where: { status: { in: ['PENDING_PAYMENT', 'PAID', 'CONFIRMED', 'PREPARING', 'READY_FOR_DISPATCH', 'OUT_FOR_DELIVERY'] } },
-    });
-    const newOrders = await prisma.order.count({ where: { status: 'PENDING_PAYMENT' } });
-    const preparing = await prisma.order.count({ where: { status: 'PREPARING' } });
-    const outForDelivery = await prisma.order.count({ where: { status: 'OUT_FOR_DELIVERY' } });
-    const completed = await prisma.order.count({ where: { status: 'DELIVERED' } });
-    const revenueAgg = await prisma.order.aggregate({
-      where: { paymentStatus: 'PAID' },
-      _sum: { totalKobo: true },
-    });
-    const foods = await prisma.food.findMany({
-      where: { status: 'PUBLISHED' },
-      include: { _count: { select: { options: true } } },
-    });
-    const popularItems = await prisma.orderItem.groupBy({
-      by: ['foodName'],
-      _count: { id: true },
-      take: 5,
-      orderBy: { _count: { id: 'desc' } },
-    });
+    const [active, newOrders, preparing, outForDelivery, completed, revenueAgg, foods, popularItems] = await Promise.all([
+      prisma.order.count({
+        where: { status: { in: ['PENDING_PAYMENT', 'PAID', 'CONFIRMED', 'PREPARING', 'READY_FOR_DISPATCH', 'OUT_FOR_DELIVERY'] } },
+      }),
+      prisma.order.count({ where: { status: 'PENDING_PAYMENT' } }),
+      prisma.order.count({ where: { status: 'PREPARING' } }),
+      prisma.order.count({ where: { status: 'OUT_FOR_DELIVERY' } }),
+      prisma.order.count({ where: { status: 'DELIVERED' } }),
+      prisma.order.aggregate({
+        where: { paymentStatus: 'PAID' },
+        _sum: { totalKobo: true },
+      }),
+      prisma.food.findMany({
+        where: { status: 'PUBLISHED' },
+        include: { _count: { select: { options: true } } },
+      }),
+      prisma.orderItem.groupBy({
+        by: ['foodName'],
+        _count: { id: true },
+        take: 5,
+        orderBy: { _count: { id: 'desc' } },
+      }),
+    ]);
 
     res.json({
       active,
@@ -147,22 +149,30 @@ router.delete('/foods/:id', async (req, res, next) => {
   }
 });
 
-router.get('/orders', async (_req, res, next) => {
+router.get('/orders', async (req, res, next) => {
   try {
-    const orders = await prisma.order.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        items: true,
-        sides: true,
-        deliveryZone: true,
-        payment: {
-          include: {
-            attempts: { orderBy: { createdAt: 'desc' }, take: 1 },
+    const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 200);
+    const skip = Math.max(Number(req.query.skip) || 0, 0);
+    const [orders, total] = await Promise.all([
+      prisma.order.findMany({
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          items: { take: 10 },
+          sides: { take: 10 },
+          deliveryZone: true,
+          rider: { include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } } },
+          payment: {
+            include: {
+              attempts: { orderBy: { createdAt: 'desc' }, take: 1 },
+            },
           },
         },
-      },
-    });
-    res.json({ orders });
+      }),
+      prisma.order.count(),
+    ]);
+    res.json({ orders, total, skip, limit });
   } catch (err) {
     next(err);
   }
@@ -570,19 +580,40 @@ router.post('/riders', async (req, res, next) => {
 router.post('/orders/:orderNumber/assign-rider', async (req: AuthRequest, res, next) => {
   try {
     const { orderNumber } = req.params;
-    const { riderId } = req.body as Record<string, string>;
+    const { riderId, riderFeeKobo } = req.body as { riderId?: string; riderFeeKobo?: number };
     if (!riderId) throw new ApiError(400, 'riderId is required');
-    const order = await prisma.order.findUnique({ where: { orderNumber } });
+    const order = await prisma.order.findUnique({
+      where: { orderNumber },
+      include: { rider: { include: { user: { select: { email: true } } } } },
+    });
     if (!order) throw new ApiError(404, 'Order not found');
+    if (order.status === 'DELIVERED' || order.status === 'CANCELLED') {
+      throw new ApiError(400, 'Cannot assign a delivered or cancelled order');
+    }
+    const rider = await prisma.rider.findUnique({
+      where: { id: riderId },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    });
+    if (!rider || !rider.isApproved) throw new ApiError(400, 'Rider not found or not approved');
+
+    const feeKobo = Number.isFinite(Number(riderFeeKobo)) && Number(riderFeeKobo) >= 0 ? Number(riderFeeKobo) : 0;
     const updated = await prisma.order.update({
       where: { id: order.id },
       data: {
-        riderId,
+        riderId: rider.id,
         riderStatus: 'ASSIGNED',
         status: 'OUT_FOR_DELIVERY',
-        statusHistory: { create: { status: 'OUT_FOR_DELIVERY', note: 'Manually assigned by admin', actor: req.user!.email } },
+        riderFeeKobo: feeKobo,
+        riderPaid: false,
+        statusHistory: {
+          create: {
+            status: 'OUT_FOR_DELIVERY',
+            note: `Manually assigned to ${rider.user?.email ?? rider.id}${feeKobo ? ` with rider fee ${feeKobo} kobo` : ''}`,
+            actor: req.user!.email,
+          },
+        },
       },
-      include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
+      include: { items: true, sides: true, deliveryZone: true, rider: { include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } } }, statusHistory: true },
     });
     res.json({ order: updated });
   } catch (err) {

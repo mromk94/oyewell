@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { CheckCircle, XCircle, Loader2, ArrowRight } from 'lucide-react';
+import { CheckCircle, XCircle, Loader2, ArrowRight, Bike, User } from 'lucide-react';
 import { formatPrice } from '../../lib/api';
-import { updateOrderStatus, verifyOrderPayment } from '../../lib/admin';
+import { updateOrderStatus, verifyOrderPayment, fetchRiders, assignRider } from '../../lib/admin';
 import { toast } from '../../lib/toast';
 
 const STATUSES = [
@@ -30,6 +30,12 @@ export function OrdersTab({ orders, onRefresh }: { orders: any[]; onRefresh: () 
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const [assigning, setAssigning] = useState<any | null>(null);
+  const [riders, setRiders] = useState<any[]>([]);
+  const [riderId, setRiderId] = useState('');
+  const [riderFee, setRiderFee] = useState('');
+  const [ridersLoading, setRidersLoading] = useState(false);
+
   async function handleStatusChange(order: any, status: string) {
     try {
       await updateOrderStatus(order.id, status);
@@ -50,6 +56,44 @@ export function OrdersTab({ orders, onRefresh }: { orders: any[]; onRefresh: () 
       toast.success(accepted ? 'Payment accepted.' : 'Payment rejected.');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Verification failed.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function openAssign(order: any) {
+    setAssigning(order);
+    setRiderId(order.riderId ?? '');
+    setRiderFee(order.riderFeeKobo ? String(order.riderFeeKobo / 100) : '');
+    setRidersLoading(true);
+    try {
+      const { riders } = await fetchRiders();
+      setRiders(riders);
+      if (!order.riderId && riders.length > 0) {
+        const firstApproved = riders.find((r: any) => r.isApproved);
+        if (firstApproved) setRiderId(firstApproved.id);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load riders.');
+    } finally {
+      setRidersLoading(false);
+    }
+  }
+
+  async function handleAssign() {
+    if (!assigning || !riderId) return;
+    const feeNgn = Number(riderFee);
+    const feeKobo = !Number.isNaN(feeNgn) && feeNgn >= 0 ? Math.round(feeNgn * 100) : 0;
+    try {
+      setLoading(true);
+      await assignRider(assigning.orderNumber, riderId, feeKobo);
+      setAssigning(null);
+      setRiderFee('');
+      setRiderId('');
+      onRefresh();
+      toast.success('Rider assigned.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Assignment failed.');
     } finally {
       setLoading(false);
     }
@@ -117,6 +161,23 @@ export function OrdersTab({ orders, onRefresh }: { orders: any[]; onRefresh: () 
                   </option>
                 ))}
               </select>
+
+              {order.riderId && order.rider && (
+                <span className='inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs text-white/80'>
+                  <User className='h-3.5 w-3.5' />
+                  {order.rider.user?.firstName ?? order.rider.user?.email ?? 'Rider'}
+                  {order.riderFeeKobo ? ` · ${formatPrice(order.riderFeeKobo)}` : ''}
+                </span>
+              )}
+
+              {order.status !== 'DELIVERED' && order.status !== 'CANCELLED' && (
+                <button
+                  onClick={() => openAssign(order)}
+                  className='inline-flex items-center gap-2 rounded-full bg-emerald-500/20 px-4 py-2 text-sm font-bold text-emerald-300 hover:bg-emerald-500/30'
+                >
+                  <Bike className='h-4 w-4' /> {order.riderId ? 'Reassign rider' : 'Assign rider'}
+                </button>
+              )}
 
               {isManualProvider(order.payment?.provider) && order.paymentStatus !== 'PAID' && order.paymentStatus !== 'FAILED' && (
                 <button
@@ -199,6 +260,79 @@ export function OrdersTab({ orders, onRefresh }: { orders: any[]; onRefresh: () 
                 >
                   {loading ? <Loader2 className='h-4 w-4 animate-spin' /> : <ArrowRight className='h-4 w-4' />}
                   Accept
+                </button>
+              </div>
+            </motion.div>
+          </div>,
+          document.body
+        )}
+
+      {assigning &&
+        createPortal(
+          <div
+            className='fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm'
+            onClick={() => setAssigning(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              onClick={(e) => e.stopPropagation()}
+              className='w-full max-w-lg rounded-3xl border border-white/10 bg-brand-900 p-6 shadow-2xl'
+            >
+              <h3 className='text-xl font-bold text-white'>
+                {assigning.riderId ? 'Reassign rider' : 'Assign rider'}
+              </h3>
+              <p className='mt-1 text-white/60'>
+                Order {assigning.orderNumber} · {formatPrice(assigning.totalKobo)} · {assigning.address}
+              </p>
+
+              <label className='mt-6 block'>
+                <span className='text-sm text-white/80'>Approved rider</span>
+                <select
+                  value={riderId}
+                  onChange={(e) => setRiderId(e.target.value)}
+                  disabled={ridersLoading}
+                  className='mt-2 w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white'
+                >
+                  <option value='' className='bg-brand-900'>Select a rider</option>
+                  {riders
+                    .filter((r) => r.isApproved)
+                    .map((rider) => (
+                      <option key={rider.id} value={rider.id} className='bg-brand-900'>
+                        {rider.user?.firstName || rider.user?.email || rider.id} — {rider.vehicle || 'No vehicle'}
+                      </option>
+                    ))}
+                </select>
+              </label>
+
+              <label className='mt-4 block'>
+                <span className='text-sm text-white/80'>Delivery fee (NGN)</span>
+                <input
+                  type='number'
+                  min='0'
+                  step='0.01'
+                  value={riderFee}
+                  onChange={(e) => setRiderFee(e.target.value)}
+                  placeholder='Rider fee for this order'
+                  className='mt-2 w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white'
+                />
+              </label>
+
+              <div className='mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end'>
+                <button
+                  onClick={() => setAssigning(null)}
+                  disabled={loading || ridersLoading}
+                  className='rounded-full border border-white/20 px-6 py-2 text-white disabled:opacity-50'
+                >
+                  Close
+                </button>
+                <button
+                  onClick={handleAssign}
+                  disabled={!riderId || loading || ridersLoading}
+                  className='inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 py-2 font-bold text-white hover:bg-emerald-400 disabled:opacity-50'
+                >
+                  {loading ? <Loader2 className='h-4 w-4 animate-spin' /> : <Bike className='h-4 w-4' />}
+                  {assigning.riderId ? 'Reassign' : 'Assign rider'}
                 </button>
               </div>
             </motion.div>

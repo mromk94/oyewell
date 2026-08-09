@@ -64,10 +64,27 @@ export async function archiveFood(id: string) {
   return data;
 }
 
-export async function fetchAdminOrders() {
-  const res = await fetch(`${API_BASE}/api/admin/orders`, { headers: authHeaders() });
+export async function fetchAdminOrders(skip = 0, limit = 100) {
+  const res = await fetch(`${API_BASE}/api/admin/orders?skip=${skip}&limit=${limit}`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load orders');
-  return res.json() as Promise<{ orders: any[] }>;
+  return res.json() as Promise<{ orders: any[]; total: number; skip: number; limit: number }>;
+}
+
+export async function fetchRiders() {
+  const res = await fetch(`${API_BASE}/api/admin/riders`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load riders');
+  return res.json() as Promise<{ riders: any[] }>;
+}
+
+export async function assignRider(orderNumber: string, riderId: string, riderFeeKobo: number) {
+  const res = await fetch(`${API_BASE}/api/admin/orders/${orderNumber}/assign-rider`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ riderId, riderFeeKobo }),
+  });
+  const data = (await res.json()) as { order?: any; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to assign rider');
+  return data;
 }
 
 export async function updateOrderStatus(id: string, status: string) {
