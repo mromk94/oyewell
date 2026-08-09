@@ -3,11 +3,11 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Loader2, Mail, Lock, User, Phone, ArrowRight, CheckCircle } from 'lucide-react';
-import { login, register, forgotPassword, resetPassword, getCustomerToken } from '../lib/api';
+import { login, register, forgotPassword, resetPassword } from '../lib/api';
 
 type Mode = 'signin' | 'register' | 'forgot';
 
-export default function AuthModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function AuthModal({ open, onClose, onAuthenticated }: { open: boolean; onClose: () => void; onAuthenticated?: () => void }) {
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>('signin');
   const [loading, setLoading] = useState(false);
@@ -32,13 +32,6 @@ export default function AuthModal({ open, onClose }: { open: boolean; onClose: (
     }
   }, [open]);
 
-  useEffect(() => {
-    if (getCustomerToken()) {
-      onClose();
-      navigate('/account');
-    }
-  }, [navigate, onClose]);
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -48,13 +41,21 @@ export default function AuthModal({ open, onClose }: { open: boolean; onClose: (
       if (mode === 'signin') {
         await login(email, password);
         onClose();
-        navigate('/account');
+        if (onAuthenticated) {
+          onAuthenticated();
+        } else {
+          navigate('/account');
+        }
         return;
       }
       if (mode === 'register') {
         await register({ email, password, firstName, lastName, phone });
         onClose();
-        navigate('/account');
+        if (onAuthenticated) {
+          onAuthenticated();
+        } else {
+          navigate('/account');
+        }
         return;
       }
       if (mode === 'forgot') {

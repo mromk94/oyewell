@@ -15,6 +15,7 @@ import {
 } from '../lib/api';
 import { useCart } from '../lib/cart';
 import { toast } from '../lib/toast';
+import AuthModal from './AuthModal';
 
 function readImageFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -76,6 +77,7 @@ export default function CartModal() {
   const [proofNote, setProofNote] = useState('');
   const [proofLoading, setProofLoading] = useState(false);
   const [proofUploaded, setProofUploaded] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -108,6 +110,10 @@ export default function CartModal() {
     }
     if (!address.trim() || !phone.trim()) {
       toast.error('Address and phone are required.');
+      return;
+    }
+    if (!getCustomerToken()) {
+      setShowAuth(true);
       return;
     }
     setPlacing(true);
@@ -453,6 +459,11 @@ export default function CartModal() {
           )}
         </div>
       </motion.div>
+      <AuthModal
+        open={showAuth}
+        onClose={() => setShowAuth(false)}
+        onAuthenticated={handlePlaceOrder}
+      />
     </div>,
     document.body,
   );
