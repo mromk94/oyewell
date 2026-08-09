@@ -9,6 +9,7 @@ import ordersRouter from './routes/orders.js';
 import paymentsRouter from './routes/payments.js';
 import adminRouter from './routes/admin.js';
 import sidesRouter from './routes/sides.js';
+import riderRouter from './routes/rider.js';
 import { rateLimit } from './middleware/rateLimit.js';
 import { ApiError } from './lib/errors.js';
 
@@ -38,6 +39,7 @@ app.use('/api/orders', ordersRouter);
 app.use('/api/sides', sidesRouter);
 app.use('/api/payments', paymentsRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/rider', riderRouter);
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof ApiError) {

@@ -11,6 +11,14 @@ function generateOrderNumber(): string {
   return `OW${random}`;
 }
 
+async function generateDeliveryCode(): Promise<string> {
+  while (true) {
+    const code = Math.floor(10000 + Math.random() * 90000).toString();
+    const existing = await prisma.order.findUnique({ where: { deliveryCode: code } });
+    if (!existing) return code;
+  }
+}
+
 interface CartItem {
   foodSlug: string;
   optionId: string;
@@ -132,6 +140,7 @@ export async function createOrder(payload: OrderPayload) {
         deliveryFeeKobo: delivery.feeKobo,
         subtotalKobo,
         totalKobo,
+        deliveryCode: await generateDeliveryCode(),
         items: { create: orderItemInputs },
         sides: {
           create: Array.from(selectedSides.values()).map((side) => ({
@@ -164,6 +173,7 @@ export async function createOrder(payload: OrderPayload) {
       total: formatKobo(totalKobo),
       address,
       phone,
+      deliveryCode: order.deliveryCode,
       estimatedMinutes: delivery.estimatedMinutes,
     },
     payment: {
@@ -185,7 +195,14 @@ export function serializeOrder(order: any) {
     total: formatKobo(order.totalKobo),
     address: order.address,
     phone: order.phone,
+    deliveryCode: order.deliveryCode,
     estimatedMinutes: order.estimatedMinutes,
+    riderId: order.riderId,
+    riderStatus: order.riderStatus,
+    riderFee: formatKobo(order.riderFeeKobo),
+    riderPaid: order.riderPaid,
+    deliveredAt: order.deliveredAt,
+    deliveredCodeVerifiedAt: order.deliveredCodeVerifiedAt,
     createdAt: order.createdAt,
     items: (order.items || []).map((item: any) => ({
       id: item.id,

@@ -11,6 +11,7 @@ datasource db {
 enum UserRole {
   CUSTOMER
   ADMIN
+  RIDER
 }
 
 model User {
@@ -24,6 +25,7 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   orders    Order[]
+  rider     Rider?
 }
 
 enum OrderingMode {
@@ -87,27 +89,50 @@ model DeliveryZone {
   orders           Order[]
 }
 
+model Rider {
+  id                String   @id @default(cuid())
+  user              User     @relation(fields: [userId], references: [id])
+  userId            String   @unique
+  vehicle           String?
+  bankName          String?
+  bankAccountName   String?
+  bankAccountNumber String?
+  isActive          Boolean  @default(true)
+  available         Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  orders            Order[]
+}
+
 model Order {
-  id              String               @id @default(cuid())
-  orderNumber     String               @unique
-  customer        User?                @relation(fields: [customerId], references: [id])
-  customerId      String?
-  status          String               @default("PENDING_PAYMENT")
-  paymentStatus   String               @default("PENDING")
-  items           OrderItem[]
-  sides           OrderSide[]
-  address         String
-  phone           String
-  deliveryZone    DeliveryZone?        @relation(fields: [deliveryZoneId], references: [id])
-  deliveryZoneId  String?
-  deliveryFeeKobo Int
-  subtotalKobo    Int
-  totalKobo       Int
-  currency        String               @default("NGN")
-  payment         Payment?
-  statusHistory   OrderStatusHistory[]
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
+  id                       String               @id @default(cuid())
+  orderNumber              String               @unique
+  customer                 User?                @relation(fields: [customerId], references: [id])
+  customerId               String?
+  status                   String               @default("PENDING_PAYMENT")
+  paymentStatus            String               @default("PENDING")
+  items                    OrderItem[]
+  sides                    OrderSide[]
+  address                  String
+  phone                    String
+  deliveryZone             DeliveryZone?        @relation(fields: [deliveryZoneId], references: [id])
+  deliveryZoneId           String?
+  deliveryFeeKobo          Int
+  subtotalKobo             Int
+  totalKobo                Int
+  currency                 String               @default("NGN")
+  payment                  Payment?
+  statusHistory            OrderStatusHistory[]
+  deliveryCode             String?              @unique
+  rider                    Rider?               @relation(fields: [riderId], references: [id])
+  riderId                  String?
+  riderStatus              String               @default("UNASSIGNED")
+  riderFeeKobo             Int                  @default(0)
+  riderPaid                Boolean              @default(false)
+  deliveredAt              DateTime?
+  deliveredCodeVerifiedAt  DateTime?
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
 }
 
 model OrderItem {

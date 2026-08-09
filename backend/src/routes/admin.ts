@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import { prisma } from '../prisma.js';
 import { requireAuth, requireAdmin, type AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../lib/errors.js';
@@ -502,6 +503,61 @@ router.post('/email-config/test', async (req, res, next) => {
     if (!to || !subject || !text) throw new ApiError(400, 'to, subject and text are required');
     const result = await sendEmail({ to, subject, text });
     res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/riders', async (_req, res, next) => {
+  try {
+    const riders = await prisma.rider.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    });
+    res.json({ riders });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/riders', async (req, res, next) => {
+  try {
+    const { email, password, firstName, lastName, phone, vehicle, bankName, bankAccountName, bankAccountNumber } = req.body as Record<string, string>;
+    if (!email || !password) throw new ApiError(400, 'Email and password are required');
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) throw new ApiError(409, 'Email already in use');
+    const hashed = bcrypt.hashSync(password, 10);
+    const user = await prisma.user.create({
+      data: { email, password: hashed, firstName, lastName, phone, role: 'RIDER' },
+    });
+    const rider = await prisma.rider.create({
+      data: { userId: user.id, vehicle, bankName, bankAccountName, bankAccountNumber },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    });
+    res.json({ rider });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/orders/:orderNumber/assign-rider', async (req: AuthRequest, res, next) => {
+  try {
+    const { orderNumber } = req.params;
+    const { riderId } = req.body as Record<string, string>;
+    if (!riderId) throw new ApiError(400, 'riderId is required');
+    const order = await prisma.order.findUnique({ where: { orderNumber } });
+    if (!order) throw new ApiError(404, 'Order not found');
+    const updated = await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        riderId,
+        riderStatus: 'ASSIGNED',
+        status: 'OUT_FOR_DELIVERY',
+        statusHistory: { create: { status: 'OUT_FOR_DELIVERY', note: 'Manually assigned by admin', actor: req.user!.email } },
+      },
+      include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
+    });
+    res.json({ order: updated });
   } catch (err) {
     next(err);
   }

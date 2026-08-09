@@ -162,6 +162,10 @@ export interface OrderSummary {
   total: string;
   address: string;
   phone: string;
+  deliveryCode?: string;
+  riderFee?: string;
+  riderStatus?: string;
+  deliveredAt?: string;
   createdAt: string;
   items: {
     foodName: string;

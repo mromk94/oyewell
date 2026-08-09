@@ -1,0 +1,442 @@
+import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Loader2,
+  Bike,
+  Package,
+  ClipboardList,
+  CheckCircle,
+  AlertCircle,
+  Banknote,
+  MapPin,
+  Phone,
+  ArrowRight,
+  LogOut,
+  ShieldCheck,
+} from 'lucide-react';
+import { riderLogin, riderLogout, fetchRiderMe, updateRiderMe, fetchRiderOrders, fetchAvailableOrders, claimOrder, verifyDeliveryCode, fetchRiderEarnings, type RiderOrder, type Rider } from '../lib/rider';
+
+export default function Rider() {
+  const [token, setToken] = useState(localStorage.getItem('rider_token') || '');
+  const [rider, setRider] = useState<Rider | null>(null);
+  const [tab, setTab] = useState<'orders' | 'available' | 'earnings' | 'profile' | 'verify'>('orders');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    setLoading(true);
+    fetchRiderMe()
+      .then((res) => setRider(res.rider))
+      .catch((e) => {
+        setError(e.message);
+        riderLogout();
+        setToken('');
+      })
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  if (!token) {
+    return <RiderLogin onLogin={setToken} />;
+  }
+
+  if (loading && !rider) {
+    return (
+      <div className='flex h-screen w-full items-center justify-center bg-brand-900'>
+        <Loader2 className='h-10 w-10 animate-spin text-white/70' />
+      </div>
+    );
+  }
+
+  return (
+    <div className='min-h-screen bg-brand-900 text-white'>
+      <header className='sticky top-0 z-30 border-b border-white/10 bg-brand-900/95 backdrop-blur-sm'>
+        <div className='mx-auto flex max-w-4xl items-center justify-between px-4 py-4'>
+          <div className='flex items-center gap-2'>
+            <Bike className='h-6 w-6 text-emerald-400' />
+            <h1 className='text-lg font-black'>Rider Portal</h1>
+          </div>
+          <button
+            onClick={() => {
+              riderLogout();
+              setToken('');
+              setRider(null);
+            }}
+            className='inline-flex items-center gap-1.5 rounded-full bg-white/5 px-3 py-1.5 text-sm text-white/70 transition hover:bg-white/10 hover:text-white'
+          >
+            <LogOut className='h-4 w-4' /> Sign out
+          </button>
+        </div>
+      </header>
+
+      <main className='mx-auto max-w-4xl p-4'>
+        {rider && (
+          <div className='mb-6 rounded-2xl border border-white/10 bg-white/5 p-4'>
+            <p className='text-sm text-white/60'>Welcome back</p>
+            <p className='text-xl font-black'>{rider.user?.firstName || 'Rider'} {rider.user?.lastName}</p>
+            <p className='text-xs text-white/40'>{rider.user?.email}</p>
+          </div>
+        )}
+
+        {error && (
+          <div className='mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200'>
+            <AlertCircle className='mb-1 h-4 w-4' /> {error}
+          </div>
+        )}
+
+        <nav className='mb-6 grid grid-cols-3 gap-2 sm:grid-cols-5'>
+          {[
+            { id: 'orders', label: 'My Orders', icon: Package },
+            { id: 'available', label: 'Available', icon: ClipboardList },
+            { id: 'verify', label: 'Verify', icon: ShieldCheck },
+            { id: 'earnings', label: 'Earnings', icon: Banknote },
+            { id: 'profile', label: 'Profile', icon: Bike },
+          ].map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id as any)}
+              className={`flex flex-col items-center gap-1 rounded-2xl p-3 text-xs font-bold transition ${
+                tab === t.id ? 'bg-emerald-500 text-black' : 'bg-white/5 text-white/70 hover:bg-white/10'
+              }`}
+            >
+              <t.icon className='h-5 w-5' />
+              {t.label}
+            </button>
+          ))}
+        </nav>
+
+        <AnimatePresence mode='wait'>
+          {tab === 'orders' && <MyOrdersPanel onError={setError} key='orders' />}
+          {tab === 'available' && <AvailableOrdersPanel onClaim={() => setTab('orders')} onError={setError} key='available' />}
+          {tab === 'verify' && <VerifyPanel onError={setError} key='verify' />}
+          {tab === 'earnings' && <EarningsPanel onError={setError} key='earnings' />}
+          {tab === 'profile' && <ProfilePanel rider={rider} onUpdate={setRider} onError={setError} key='profile' />}
+        </AnimatePresence>
+      </main>
+    </div>
+  );
+}
+
+function RiderLogin({ onLogin }: { onLogin: (token: string) => void }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await riderLogin({ email, password });
+      onLogin(res.token);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Login failed');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className='flex min-h-screen w-full items-center justify-center bg-brand-900 p-4'>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className='w-full max-w-sm rounded-3xl border border-white/10 bg-white/5 p-6'
+      >
+        <div className='mb-6 flex items-center gap-2'>
+          <Bike className='h-8 w-8 text-emerald-400' />
+          <h1 className='text-2xl font-black'>Rider Login</h1>
+        </div>
+        {error && <p className='mb-4 text-sm text-red-300'>{error}</p>}
+        <form onSubmit={handleSubmit} className='space-y-4'>
+          <input
+            type='email'
+            placeholder='Email'
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+          />
+          <input
+            type='password'
+            placeholder='Password'
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+          />
+          <button
+            type='submit'
+            disabled={loading}
+            className='w-full rounded-full bg-emerald-500 py-3 font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50'
+          >
+            {loading ? <Loader2 className='mx-auto h-5 w-5 animate-spin' /> : 'Sign in'}
+          </button>
+        </form>
+      </motion.div>
+    </div>
+  );
+}
+
+function MyOrdersPanel({ onError }: { onError: (m: string) => void }) {
+  const [orders, setOrders] = useState<RiderOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchRiderOrders()
+      .then(setOrders)
+      .catch((e) => onError(e.message))
+      .finally(() => setLoading(false));
+  }, [onError]);
+
+  if (loading) return <PanelLoader />;
+  if (!orders.length) return <Empty message='No assigned orders yet.' />;
+
+  return (
+    <div className='space-y-4'>
+      {orders.map((order) => (
+        <OrderCard key={order.id} order={order} />
+      ))}
+    </div>
+  );
+}
+
+function AvailableOrdersPanel({ onClaim, onError }: { onClaim: () => void; onError: (m: string) => void }) {
+  const [orders, setOrders] = useState<RiderOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  async function load() {
+    try {
+      setLoading(true);
+      const data = await fetchAvailableOrders();
+      setOrders(data);
+    } catch (e: any) {
+      onError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, [onError]);
+
+  async function handleClaim(orderNumber: string) {
+    try {
+      await claimOrder(orderNumber);
+      onClaim();
+    } catch (e: any) {
+      onError(e.message);
+    }
+  }
+
+  if (loading) return <PanelLoader />;
+  if (!orders.length) return <Empty message='No available orders right now.' action={{ label: 'Refresh', onClick: load }} />;
+
+  return (
+    <div className='space-y-4'>
+      {orders.map((order) => (
+        <OrderCard key={order.id} order={order} actions={[
+          { label: 'Claim delivery', icon: ArrowRight, onClick: () => handleClaim(order.orderNumber), primary: true },
+        ]} />
+      ))}
+    </div>
+  );
+}
+
+function VerifyPanel({ onError }: { onError: (m: string) => void }) {
+  const [orderNumber, setOrderNumber] = useState('');
+  const [code, setCode] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setSuccess(null);
+    try {
+      await verifyDeliveryCode(orderNumber, code);
+      setSuccess('Delivery confirmed. Order marked as delivered.');
+      setOrderNumber('');
+      setCode('');
+    } catch (e: any) {
+      onError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className='rounded-2xl border border-white/10 bg-white/5 p-4 space-y-4'>
+      {success && <p className='rounded-xl bg-emerald-500/10 p-3 text-sm text-emerald-300'>{success}</p>}
+      <div>
+        <label className='mb-1 block text-sm text-white/60'>Order number</label>
+        <input
+          value={orderNumber}
+          onChange={(e) => setOrderNumber(e.target.value)}
+          className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+        />
+      </div>
+      <div>
+        <label className='mb-1 block text-sm text-white/60'>Customer delivery code</label>
+        <input
+          value={code}
+          maxLength={5}
+          onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+          className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+          placeholder='12345'
+        />
+      </div>
+      <button
+        type='submit'
+        disabled={loading}
+        className='w-full rounded-full bg-emerald-500 py-3 font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50'
+      >
+        {loading ? <Loader2 className='mx-auto h-5 w-5 animate-spin' /> : 'Confirm delivery'}
+      </button>
+    </form>
+  );
+}
+
+function EarningsPanel({ onError }: { onError: (m: string) => void }) {
+  const [earnings, setEarnings] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchRiderEarnings()
+      .then(setEarnings)
+      .catch((e) => onError(e.message))
+      .finally(() => setLoading(false));
+  }, [onError]);
+
+  if (loading) return <PanelLoader />;
+  if (!earnings) return <Empty message='No earnings data.' />;
+
+  return (
+    <div className='grid gap-4 sm:grid-cols-2'>
+      <StatCard label='Total delivered' value={earnings.totalDelivered} />
+      <StatCard label='Total earnings' value={earnings.totalEarnings} />
+      <StatCard label='Paid out' value={earnings.paidOut} />
+      <StatCard label='Pending payout' value={earnings.pendingPayout} />
+    </div>
+  );
+}
+
+function ProfilePanel({ rider, onUpdate, onError }: { rider: Rider | null; onUpdate: (r: Rider) => void; onError: (m: string) => void }) {
+  const [form, setForm] = useState({
+    vehicle: rider?.vehicle || '',
+    bankName: rider?.bankName || '',
+    bankAccountName: rider?.bankAccountName || '',
+    bankAccountNumber: rider?.bankAccountNumber || '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const updated = await updateRiderMe(form);
+      onUpdate(updated);
+    } catch (e: any) {
+      onError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className='rounded-2xl border border-white/10 bg-white/5 p-4 space-y-4'>
+      {[
+        { key: 'vehicle', label: 'Vehicle type / number' },
+        { key: 'bankName', label: 'Bank name' },
+        { key: 'bankAccountName', label: 'Account name' },
+        { key: 'bankAccountNumber', label: 'Account number' },
+      ].map((f) => (
+        <div key={f.key}>
+          <label className='mb-1 block text-sm text-white/60'>{f.label}</label>
+          <input
+            value={(form as any)[f.key]}
+            onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
+            className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+          />
+        </div>
+      ))}
+      <button
+        type='submit'
+        disabled={saving}
+        className='w-full rounded-full bg-emerald-500 py-3 font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50'
+      >
+        {saving ? <Loader2 className='mx-auto h-5 w-5 animate-spin' /> : 'Save profile'}
+      </button>
+    </form>
+  );
+}
+
+function OrderCard({ order, actions }: { order: RiderOrder; actions?: { label: string; icon?: any; onClick: () => void; primary?: boolean }[] }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className='rounded-2xl border border-white/10 bg-white/5 p-4'
+    >
+      <div className='flex flex-wrap items-start justify-between gap-2'>
+        <div>
+          <p className='text-sm font-bold'>{order.orderNumber}</p>
+          <p className='text-xs text-white/50'>{new Date(order.createdAt).toLocaleString()}</p>
+        </div>
+        <span className='rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-300'>
+          {order.status.replace(/_/g, ' ')}
+        </span>
+      </div>
+      <div className='mt-3 space-y-1 text-sm text-white/70'>
+        <p><MapPin className='mr-1 inline h-4 w-4' /> {order.address}</p>
+        <p><Phone className='mr-1 inline h-4 w-4' /> {order.phone}</p>
+        <p className='font-bold'>Total: {order.total}</p>
+        {order.riderFee && <p className='text-emerald-300'>Rider fee: {order.riderFee}</p>}
+      </div>
+      {actions && (
+        <div className='mt-4 flex flex-wrap gap-2'>
+          {actions.map((a, i) => (
+            <button
+              key={i}
+              onClick={a.onClick}
+              className={`inline-flex items-center gap-1 rounded-full px-4 py-2 text-sm font-bold ${
+                a.primary ? 'bg-emerald-500 text-black' : 'bg-white/10 text-white'
+              }`}
+            >
+              {a.icon && <a.icon className='h-4 w-4' />} {a.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className='rounded-2xl border border-white/10 bg-white/5 p-5 text-center'>
+      <p className='text-2xl font-black text-emerald-300'>{value}</p>
+      <p className='mt-1 text-xs font-bold uppercase tracking-wider text-white/60'>{label}</p>
+    </div>
+  );
+}
+
+function PanelLoader() {
+  return (
+    <div className='flex h-64 items-center justify-center'>
+      <Loader2 className='h-8 w-8 animate-spin text-white/70' />
+    </div>
+  );
+}
+
+function Empty({ message, action }: { message: string; action?: { label: string; onClick: () => void } }) {
+  return (
+    <div className='flex h-64 flex-col items-center justify-center rounded-2xl border border-white/10 bg-white/5 p-6 text-center'>
+      <CheckCircle className='h-10 w-10 text-white/20' />
+      <p className='mt-4 text-white/60'>{message}</p>
+      {action && (
+        <button onClick={action.onClick} className='mt-4 rounded-full bg-emerald-500 px-5 py-2 text-sm font-bold text-black'>
+          {action.label}
+        </button>
+      )}
+    </div>
+  );
+}

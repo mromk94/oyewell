@@ -263,6 +263,13 @@ export default function TrackOrder() {
             {order.paymentStatus === 'PAID' && (
               <p className='mt-4 text-sm text-white/70'>Your payment has been confirmed.</p>
             )}
+
+            {order.deliveryCode && order.paymentStatus === 'PAID' && (
+              <div className='mt-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center'>
+                <p className='text-sm text-emerald-200'>Show this code to the delivery rider</p>
+                <p className='mt-1 text-4xl font-black tracking-widest text-emerald-300'>{order.deliveryCode}</p>
+              </div>
+            )}
             {order.paymentStatus === 'FAILED' && (
               <p className='mt-4 text-sm text-white/70'>
                 Your payment was not accepted. Contact support or place a new order.
