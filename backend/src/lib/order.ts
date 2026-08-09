@@ -11,54 +11,90 @@ function generateOrderNumber(): string {
   return `OW${random}`;
 }
 
-interface OrderPayload {
+interface CartItem {
   foodSlug: string;
   optionId: string;
   quantity: number;
+  sideIds: string[];
+}
+
+interface OrderPayload {
+  items: CartItem[];
   address: string;
   phone: string;
   paymentProvider: string;
-  sideIds: string[];
   customerId?: string;
 }
 
 export async function createOrder(payload: OrderPayload) {
-  const { foodSlug, optionId, quantity, address, phone, paymentProvider, sideIds, customerId } = payload;
-
-  if (!Number.isInteger(quantity) || quantity < 1) {
-    throw new ApiError(400, 'Invalid quantity');
-  }
+  const { items, address, phone, paymentProvider, customerId } = payload;
 
   if (!address.trim() || !phone.trim()) {
     throw new ApiError(400, 'Address and phone are required');
   }
 
-  const food = await prisma.food.findUnique({
-    where: { slug: foodSlug },
-    include: { options: true },
-  });
+  const orderItemInputs: {
+    foodName: string;
+    optionLabel: string;
+    optionValue: string | null;
+    unitPriceKobo: number;
+    quantity: number;
+    totalKobo: number;
+    orderingMode: string;
+  }[] = [];
 
-  if (!food || food.status !== 'PUBLISHED' || !food.isAvailable) {
-    throw new ApiError(404, 'Food not available');
+  const selectedSides = new Map<string, { id: string; name: string; priceKobo: number; count: number }>();
+  const stockDecrements = new Map<string, number>();
+  let subtotalKobo = 0;
+
+  for (const item of items) {
+    const food = await prisma.food.findUnique({
+      where: { slug: item.foodSlug },
+      include: { options: true },
+    });
+
+    if (!food || food.status !== 'PUBLISHED' || !food.isAvailable) {
+      throw new ApiError(404, 'Food not available');
+    }
+
+    const option = food.options.find((o) => o.id === item.optionId);
+    if (!option) {
+      throw new ApiError(400, 'Selected option not found');
+    }
+    if (!option.isAvailable || (option.stock !== null && option.stock < item.quantity)) {
+      throw new ApiError(400, 'Selected option is unavailable or out of stock');
+    }
+
+    const sides = item.sideIds.length
+      ? await prisma.side.findMany({
+          where: { id: { in: item.sideIds }, isAvailable: true },
+        })
+      : [];
+
+    let itemSubtotalKobo = option.priceKobo * item.quantity;
+    for (const side of sides) {
+      itemSubtotalKobo += side.priceKobo * item.quantity;
+      const existing = selectedSides.get(side.id);
+      if (existing) {
+        existing.count += item.quantity;
+      } else {
+        selectedSides.set(side.id, { id: side.id, name: side.name, priceKobo: side.priceKobo, count: item.quantity });
+      }
+    }
+
+    subtotalKobo += itemSubtotalKobo;
+    stockDecrements.set(option.id, (stockDecrements.get(option.id) ?? 0) + item.quantity);
+
+    orderItemInputs.push({
+      foodName: food.name,
+      optionLabel: option.label,
+      optionValue: option.value,
+      unitPriceKobo: option.priceKobo,
+      quantity: item.quantity,
+      totalKobo: option.priceKobo * item.quantity,
+      orderingMode: food.orderingMode,
+    });
   }
-
-  const option = food.options.find((o) => o.id === optionId);
-  if (!option) {
-    throw new ApiError(400, 'Selected option not found');
-  }
-  if (!option.isAvailable || (option.stock !== null && option.stock < quantity)) {
-    throw new ApiError(400, 'Selected option is unavailable or out of stock');
-  }
-
-  const sides = sideIds.length
-    ? await prisma.side.findMany({
-        where: { id: { in: sideIds }, isAvailable: true },
-      })
-    : [];
-
-  const sidesKobo = sides.reduce((sum: number, s: { priceKobo: number }) => sum + s.priceKobo, 0);
-  const mainSubtotalKobo = option.priceKobo * quantity;
-  const subtotalKobo = mainSubtotalKobo + sidesKobo;
 
   const delivery = await resolveDelivery(address, subtotalKobo);
   if (!delivery || !delivery.available) {
@@ -74,11 +110,14 @@ export async function createOrder(payload: OrderPayload) {
 
   const orderNumber = generateOrderNumber();
   const order = await prisma.$transaction(async (tx) => {
-    if (option.stock !== null) {
-      await tx.foodOption.update({
-        where: { id: option.id },
-        data: { stock: { decrement: quantity } },
-      });
+    for (const [optionId, qty] of stockDecrements) {
+      const opt = await tx.foodOption.findUnique({ where: { id: optionId } });
+      if (opt && opt.stock !== null) {
+        await tx.foodOption.update({
+          where: { id: optionId },
+          data: { stock: { decrement: qty } },
+        });
+      }
     }
 
     const created = await tx.order.create({
@@ -93,24 +132,14 @@ export async function createOrder(payload: OrderPayload) {
         deliveryFeeKobo: delivery.feeKobo,
         subtotalKobo,
         totalKobo,
-        items: {
-          create: {
-            foodName: food.name,
-            optionLabel: option.label,
-            optionValue: option.value,
-            unitPriceKobo: option.priceKobo,
-            quantity,
-            totalKobo: mainSubtotalKobo,
-            orderingMode: food.orderingMode,
-          },
-        },
+        items: { create: orderItemInputs },
         sides: {
-          create: sides.map((side: { id: string; name: string; priceKobo: number }) => ({
+          create: Array.from(selectedSides.values()).map((side) => ({
             sideId: side.id,
             name: side.name,
             priceKobo: side.priceKobo,
-            quantity: 1,
-            totalKobo: side.priceKobo,
+            quantity: side.count,
+            totalKobo: side.priceKobo * side.count,
           })),
         },
         statusHistory: {

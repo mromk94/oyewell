@@ -10,33 +10,48 @@ const router = Router();
 router.post('/check', async (req, res, next) => {
   try {
     const body = deliveryCheckSchema.parse(req.body);
-    const { address, foodSlug, optionId, quantity, sideIds } = body;
+    const { address, items } = body;
 
-    const food = await prisma.food.findUnique({
-      where: { slug: foodSlug },
-      include: { options: true },
-    });
+    let subtotalKobo = 0;
+    const selectedSides = new Map<string, { id: string; name: string; priceKobo: number; count: number }>();
 
-    if (!food || food.status !== 'PUBLISHED' || !food.isAvailable) {
-      throw new ApiError(404, 'Food not available');
+    for (const item of items) {
+      const food = await prisma.food.findUnique({
+        where: { slug: item.foodSlug },
+        include: { options: true },
+      });
+
+      if (!food || food.status !== 'PUBLISHED' || !food.isAvailable) {
+        throw new ApiError(404, 'Food not available');
+      }
+
+      const option = food.options.find((o) => o.id === item.optionId);
+      if (!option) {
+        throw new ApiError(400, 'Option not found');
+      }
+
+      if (item.quantity < 1 || (option.stock !== null && item.quantity > option.stock)) {
+        throw new ApiError(400, 'Invalid quantity');
+      }
+
+      subtotalKobo += option.priceKobo * item.quantity;
+
+      if (item.sideIds.length) {
+        const sides = await prisma.side.findMany({
+          where: { id: { in: item.sideIds }, isAvailable: true },
+        });
+        for (const side of sides) {
+          subtotalKobo += side.priceKobo * item.quantity;
+          const existing = selectedSides.get(side.id);
+          if (existing) {
+            existing.count += item.quantity;
+          } else {
+            selectedSides.set(side.id, { id: side.id, name: side.name, priceKobo: side.priceKobo, count: item.quantity });
+          }
+        }
+      }
     }
 
-    const option = food.options.find((o) => o.id === optionId);
-    if (!option) {
-      throw new ApiError(400, 'Option not found');
-    }
-
-    if (quantity < 1 || (option.stock !== null && quantity > option.stock)) {
-      throw new ApiError(400, 'Invalid quantity');
-    }
-
-    const sides = sideIds.length
-      ? await prisma.side.findMany({
-          where: { id: { in: sideIds }, isAvailable: true },
-        })
-      : [];
-    const sidesKobo = sides.reduce((sum, s) => sum + s.priceKobo, 0);
-    const subtotalKobo = option.priceKobo * quantity + sidesKobo;
     const delivery = await resolveDelivery(address, subtotalKobo);
 
     if (!delivery || !delivery.available) {
@@ -46,6 +61,8 @@ router.post('/check', async (req, res, next) => {
       });
       return;
     }
+
+    const sidesKobo = Array.from(selectedSides.values()).reduce((sum, s) => sum + s.priceKobo * s.count, 0);
 
     res.json({
       available: true,
@@ -62,7 +79,7 @@ router.post('/check', async (req, res, next) => {
       deliveryFee: formatKobo(delivery.feeKobo),
       totalKobo: subtotalKobo + delivery.feeKobo,
       total: formatKobo(subtotalKobo + delivery.feeKobo),
-      sides: sides.map((s) => ({ id: s.id, name: s.name, priceKobo: s.priceKobo })),
+      sides: Array.from(selectedSides.values()).map((s) => ({ id: s.id, name: s.name, priceKobo: s.priceKobo })),
       sidesKobo,
     });
   } catch (err) {

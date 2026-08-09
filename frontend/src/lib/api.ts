@@ -70,13 +70,17 @@ export interface DeliveryResult {
   sidesKobo: number;
 }
 
-export async function checkDelivery(payload: {
-  address: string;
-  phone: string;
+export interface CartItemPayload {
   foodSlug: string;
   optionId: string;
   quantity: number;
   sideIds: string[];
+}
+
+export async function checkDelivery(payload: {
+  address: string;
+  phone: string;
+  items: CartItemPayload[];
 }): Promise<DeliveryResult> {
   const res = await fetch(`${API_BASE}/api/delivery/check`, {
     method: 'POST',
@@ -106,12 +110,9 @@ export interface CreatedOrder {
 
 export async function createOrder(
   payload: {
-    foodSlug: string;
-    optionId: string;
-    quantity: number;
+    items: CartItemPayload[];
     address: string;
     phone: string;
-    sideIds: string[];
     paymentProvider: string;
   },
   customerToken?: string | null
