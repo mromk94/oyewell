@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Download, Share, Home, Sparkles, MoreVertical, PlusSquare, CircleChevronDown } from 'lucide-react';
+import { X, Download, Share, Home, Sparkles, MoreVertical, PlusSquare, Plus } from 'lucide-react';
 
 const VISIT_KEY = 'pwa-visit-count';
 const LAST_PATH_KEY = 'pwa-last-path';
@@ -58,6 +58,17 @@ export default function InstallPrompt() {
     if (isPWA() || installed) return false;
     return !!deferredPrompt || showIOS || isMobile();
   }, [deferredPrompt, showIOS, installed]);
+
+  useEffect(() => {
+    (window as unknown as { __openPwaInstallPrompt?: (force?: boolean) => boolean }).__openPwaInstallPrompt = (force = false) => {
+      if (isPWA() || installed) return false;
+      if (force || promptAvailable) {
+        setIsOpen(true);
+        return true;
+      }
+      return false;
+    };
+  }, [promptAvailable, installed]);
 
   useEffect(() => {
     if (isPWA() || installed) return;
@@ -166,8 +177,8 @@ export default function InstallPrompt() {
                     <span>Tap the Share button in Safari.</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <CircleChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
-                    <span>Tap “View More” (down arrow in a circle).</span>
+                    <Plus className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+                    <span>Tap “View More” (+, on newer iOS models).</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <PlusSquare className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />

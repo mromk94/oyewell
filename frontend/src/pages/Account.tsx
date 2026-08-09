@@ -23,6 +23,7 @@ import {
   Lock,
   Pencil,
   Check,
+  Download,
 } from 'lucide-react';
 import Logo from '../components/Logo';
 
@@ -152,6 +153,13 @@ export default function Account() {
           <p className='mt-2 text-white/60'>
             This is your home for orders, delivery history and account settings.
           </p>
+
+          <button
+            onClick={() => (window as unknown as { __openPwaInstallPrompt?: (force?: boolean) => boolean }).__openPwaInstallPrompt?.(true)}
+            className='mt-4 inline-flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-400'
+          >
+            <Download className='h-4 w-4' /> Install app
+          </button>
 
           <div className='mt-6 grid gap-4 sm:grid-cols-3'>
             <ProfileRow icon={<Mail className='h-4 w-4' />} label='Email' value={user.email} />
