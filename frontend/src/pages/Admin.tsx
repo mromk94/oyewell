@@ -12,6 +12,7 @@ import {
   Mail,
   TrendingUp,
   AlertTriangle,
+  Bike,
 } from 'lucide-react';
 import Logo from '../components/Logo';
 import { formatPrice } from '../lib/api';
@@ -35,9 +36,11 @@ import {
   fetchCustomers,
   fetchCustomerOrders,
   updateCustomerRole,
+  fetchPendingRiders,
+  approveRider,
 } from '../lib/admin';
 
-type Tab = 'dashboard' | 'menu' | 'orders' | 'sides' | 'customers' | 'delivery' | 'payments' | 'settings' | 'email';
+type Tab = 'dashboard' | 'menu' | 'orders' | 'sides' | 'customers' | 'delivery' | 'payments' | 'settings' | 'email' | 'riders';
 
 export default function Admin() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('admin_token'));
@@ -56,6 +59,7 @@ export default function Admin() {
   const [sides, setSides] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>({});
+  const [pendingRiders, setPendingRiders] = useState<any[]>([]);
 
   useEffect(() => {
     if (!token) return;
@@ -91,6 +95,9 @@ export default function Admin() {
         setSettings(settings ?? {});
       } else if (tab === 'email') {
         // EmailTab loads its own data
+      } else if (tab === 'riders') {
+        const { riders } = await fetchPendingRiders();
+        setPendingRiders(riders);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load');
@@ -162,6 +169,7 @@ export default function Admin() {
             { id: 'customers', label: 'Customers', icon: Users },
             { id: 'delivery', label: 'Delivery', icon: Truck },
             { id: 'payments', label: 'Payments', icon: CreditCard },
+            { id: 'riders', label: 'Riders', icon: Bike },
             { id: 'settings', label: 'Settings', icon: Settings },
             { id: 'email', label: 'Email', icon: Mail },
           ].map(({ id, label, icon: Icon }) => (
@@ -267,6 +275,7 @@ export default function Admin() {
         {tab === 'payments' && <PaymentsTabNew methods={methods} onRefresh={loadTab} />}
         {tab === 'settings' && <SettingsTab settings={settings} onRefresh={loadTab} />}
         {tab === 'email' && <EmailTab />}
+        {tab === 'riders' && <RidersTab riders={pendingRiders} onRefresh={loadTab} />}
       </main>
     </div>
   );
@@ -350,6 +359,57 @@ function DeliveryTab({ zones, onRefresh }: { zones: any[]; onRefresh: () => void
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function RidersTab({ riders, onRefresh }: { riders: any[]; onRefresh: () => void }) {
+  const [processing, setProcessing] = useState<string | null>(null);
+
+  async function handleApprove(id: string) {
+    if (!confirm('Approve this rider?')) return;
+    setProcessing(id);
+    try {
+      await approveRider(id);
+      onRefresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Approval failed');
+    } finally {
+      setProcessing(null);
+    }
+  }
+
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-white">Rider applications</h2>
+      <p className="mt-1 text-white/60">Approve new riders to let them claim and deliver orders.</p>
+      {riders.length === 0 ? (
+        <p className="mt-6 text-white/50">No pending rider applications.</p>
+      ) : (
+        <div className="mt-6 space-y-4">
+          {riders.map((rider) => (
+            <div key={rider.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-bold text-white">{rider.user?.firstName} {rider.user?.lastName}</p>
+                  <p className="text-sm text-white/60">{rider.user?.email}</p>
+                  <p className="text-sm text-white/60">{rider.user?.phone}</p>
+                  <p className="mt-2 text-sm text-white/60">Vehicle: {rider.vehicle || '—'}</p>
+                  <p className="text-sm text-white/60">Bank: {rider.bankName || '—'}</p>
+                  <p className="text-sm text-white/60">Account: {rider.bankAccountName || '—'}</p>
+                </div>
+                <button
+                  onClick={() => handleApprove(rider.id)}
+                  disabled={processing === rider.id}
+                  className="shrink-0 rounded-full bg-emerald-500 px-6 py-2 font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50"
+                >
+                  {processing === rider.id ? '...' : 'Approve'}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

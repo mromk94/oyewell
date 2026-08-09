@@ -29,6 +29,18 @@ export interface RiderOrder {
   statusHistory: { status: string; note: string; createdAt: string }[];
 }
 
+export interface RiderRegisterInput {
+  email: string;
+  password: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  vehicle?: string;
+  bankName?: string;
+  bankAccountName?: string;
+  bankAccountNumber?: string;
+}
+
 export interface Rider {
   id: string;
   userId: string;
@@ -38,6 +50,7 @@ export interface Rider {
   bankAccountNumber?: string;
   isActive: boolean;
   available: boolean;
+  isApproved: boolean;
   createdAt: string;
   updatedAt: string;
   user?: { id: string; email: string; firstName?: string; lastName?: string; phone?: string };
@@ -46,6 +59,13 @@ export interface Rider {
 export interface RiderLoginInput {
   email: string;
   password: string;
+}
+
+export async function riderRegister(body: RiderRegisterInput) {
+  const res = await fetch(R('/register'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || 'Registration failed');
+  return json as { message: string; rider: Rider };
 }
 
 export async function riderLogin(body: RiderLoginInput) {

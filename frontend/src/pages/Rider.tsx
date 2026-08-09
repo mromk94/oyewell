@@ -14,7 +14,7 @@ import {
   LogOut,
   ShieldCheck,
 } from 'lucide-react';
-import { riderLogin, riderLogout, fetchRiderMe, updateRiderMe, fetchRiderOrders, fetchAvailableOrders, claimOrder, verifyDeliveryCode, fetchRiderEarnings, type RiderOrder, type Rider } from '../lib/rider';
+import { riderLogin, riderRegister, riderLogout, fetchRiderMe, updateRiderMe, fetchRiderOrders, fetchAvailableOrders, claimOrder, verifyDeliveryCode, fetchRiderEarnings, type RiderOrder, type Rider } from '../lib/rider';
 
 export default function Rider() {
   const [token, setToken] = useState(localStorage.getItem('rider_token') || '');
@@ -118,23 +118,36 @@ export default function Rider() {
 }
 
 function RiderLogin({ onLogin }: { onLogin: (token: string) => void }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [isRegister, setIsRegister] = useState(false);
+  const [form, setForm] = useState({ email: '', password: '', firstName: '', lastName: '', phone: '', vehicle: '', bankName: '', bankAccountName: '', bankAccountNumber: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccess(null);
     try {
-      const res = await riderLogin({ email, password });
-      onLogin(res.token);
+      if (isRegister) {
+        const res = await riderRegister(form);
+        setSuccess(res.message);
+        setForm({ email: '', password: '', firstName: '', lastName: '', phone: '', vehicle: '', bankName: '', bankAccountName: '', bankAccountNumber: '' });
+        setIsRegister(false);
+      } else {
+        const res = await riderLogin({ email: form.email, password: form.password });
+        onLogin(res.token);
+      }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Login failed');
+      setError(e instanceof Error ? e.message : 'Authentication failed');
     } finally {
       setLoading(false);
     }
+  }
+
+  function update(key: string, value: string) {
+    setForm((f) => ({ ...f, [key]: value }));
   }
 
   return (
@@ -142,36 +155,98 @@ function RiderLogin({ onLogin }: { onLogin: (token: string) => void }) {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className='w-full max-w-sm rounded-3xl border border-white/10 bg-white/5 p-6'
+        className='w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-6'
       >
         <div className='mb-6 flex items-center gap-2'>
           <Bike className='h-8 w-8 text-emerald-400' />
-          <h1 className='text-2xl font-black'>Rider Login</h1>
+          <h1 className='text-2xl font-black'>{isRegister ? 'Rider Registration' : 'Rider Login'}</h1>
         </div>
         {error && <p className='mb-4 text-sm text-red-300'>{error}</p>}
+        {success && <p className='mb-4 text-sm text-emerald-300'>{success}</p>}
         <form onSubmit={handleSubmit} className='space-y-4'>
           <input
             type='email'
             placeholder='Email'
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={form.email}
+            onChange={(e) => update('email', e.target.value)}
             className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+            required
           />
           <input
             type='password'
             placeholder='Password'
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            value={form.password}
+            onChange={(e) => update('password', e.target.value)}
             className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+            required
+            minLength={6}
           />
+          {isRegister && (
+            <>
+              <div className='grid gap-4 sm:grid-cols-2'>
+                <input
+                  placeholder='First name'
+                  value={form.firstName}
+                  onChange={(e) => update('firstName', e.target.value)}
+                  className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+                />
+                <input
+                  placeholder='Last name'
+                  value={form.lastName}
+                  onChange={(e) => update('lastName', e.target.value)}
+                  className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+                />
+              </div>
+              <input
+                placeholder='Phone'
+                value={form.phone}
+                onChange={(e) => update('phone', e.target.value)}
+                className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+              />
+              <input
+                placeholder='Vehicle type / number'
+                value={form.vehicle}
+                onChange={(e) => update('vehicle', e.target.value)}
+                className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+              />
+              <input
+                placeholder='Bank name'
+                value={form.bankName}
+                onChange={(e) => update('bankName', e.target.value)}
+                className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+              />
+              <input
+                placeholder='Bank account name'
+                value={form.bankAccountName}
+                onChange={(e) => update('bankAccountName', e.target.value)}
+                className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+              />
+              <input
+                placeholder='Bank account number'
+                value={form.bankAccountNumber}
+                onChange={(e) => update('bankAccountNumber', e.target.value)}
+                className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+              />
+            </>
+          )}
           <button
             type='submit'
             disabled={loading}
             className='w-full rounded-full bg-emerald-500 py-3 font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50'
           >
-            {loading ? <Loader2 className='mx-auto h-5 w-5 animate-spin' /> : 'Sign in'}
+            {loading ? <Loader2 className='mx-auto h-5 w-5 animate-spin' /> : isRegister ? 'Submit application' : 'Sign in'}
           </button>
         </form>
+        <p className='mt-4 text-center text-sm text-white/60'>
+          {isRegister ? 'Already applied? ' : 'Want to deliver with us? '}{' '}
+          <button
+            type='button'
+            onClick={() => setIsRegister((v) => !v)}
+            className='text-emerald-300 underline underline-offset-4'
+          >
+            {isRegister ? 'Sign in' : 'Register as rider'}
+          </button>
+        </p>
       </motion.div>
     </div>
   );

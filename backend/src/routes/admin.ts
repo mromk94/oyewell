@@ -520,6 +520,33 @@ router.get('/riders', async (_req, res, next) => {
   }
 });
 
+router.get('/riders/pending', async (_req, res, next) => {
+  try {
+    const riders = await prisma.rider.findMany({
+      where: { isApproved: false },
+      orderBy: { createdAt: 'desc' },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    });
+    res.json({ riders });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/riders/:id/approve', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const rider = await prisma.rider.update({
+      where: { id },
+      data: { isApproved: true },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    });
+    res.json({ rider });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/riders', async (req, res, next) => {
   try {
     const { email, password, firstName, lastName, phone, vehicle, bankName, bankAccountName, bankAccountNumber } = req.body as Record<string, string>;

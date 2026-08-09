@@ -20,6 +20,9 @@ router.post('/login', async (req, res, next) => {
       throw new ApiError(401, 'Invalid credentials');
     }
     const rider = await prisma.rider.findUnique({ where: { userId: user.id } });
+    if (!rider || !rider.isApproved) {
+      throw new ApiError(403, 'Your rider registration is pending admin approval');
+    }
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, {
       expiresIn: JWT_EXPIRES_IN,
     });
@@ -37,6 +40,26 @@ router.post('/login', async (req, res, next) => {
         },
       },
     });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post('/register', async (req, res, next) => {
+  try {
+    const { email, password, firstName, lastName, phone, vehicle, bankName, bankAccountName, bankAccountNumber } = req.body as Record<string, string>;
+    if (!email || !password) throw new ApiError(400, 'Email and password are required');
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) throw new ApiError(409, 'Email already in use');
+    const hashed = bcrypt.hashSync(password, 10);
+    const user = await prisma.user.create({
+      data: { email, password: hashed, firstName, lastName, phone, role: 'RIDER' },
+    });
+    const rider = await prisma.rider.create({
+      data: { userId: user.id, vehicle, bankName, bankAccountName, bankAccountNumber, isApproved: false },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    });
+    res.status(201).json({ message: 'Registration submitted. Awaiting admin approval.', rider });
   } catch (e) {
     next(e);
   }

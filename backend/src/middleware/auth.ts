@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { prisma } from '../prisma.js';
 
 const JWT_SECRET = process.env.JWT_SECRET ?? 'change-me';
 
@@ -31,10 +32,19 @@ export function requireAdmin(req: AuthRequest, res: Response, next: NextFunction
   next();
 }
 
-export function requireRider(req: AuthRequest, res: Response, next: NextFunction) {
+export async function requireRider(req: AuthRequest, res: Response, next: NextFunction) {
   if (req.user?.role !== 'RIDER') {
     res.status(403).json({ error: 'Forbidden' });
     return;
   }
-  next();
+  try {
+    const rider = await prisma.rider.findUnique({ where: { userId: req.user!.id } });
+    if (!rider || !rider.isApproved) {
+      res.status(403).json({ error: 'Rider account not approved yet' });
+      return;
+    }
+    next();
+  } catch {
+    res.status(500).json({ error: 'Could not verify rider status' });
+  }
 }

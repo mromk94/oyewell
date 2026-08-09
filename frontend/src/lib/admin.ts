@@ -249,6 +249,22 @@ export async function updateEmailConfig(body: any) {
   return data;
 }
 
+export async function fetchPendingRiders() {
+  const res = await fetch(`${API_BASE}/api/admin/riders/pending`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load pending riders');
+  return res.json() as Promise<{ riders: any[] }>;
+}
+
+export async function approveRider(id: string) {
+  const res = await fetch(`${API_BASE}/api/admin/riders/${id}/approve`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  const data = (await res.json()) as { rider?: any; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to approve rider');
+  return data;
+}
+
 export async function sendTestEmail(to: string, subject: string, text: string) {
   const res = await fetch(`${API_BASE}/api/admin/email-config/test`, {
     method: 'POST',
