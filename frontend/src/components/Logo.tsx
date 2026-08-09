@@ -1,7 +1,7 @@
 export default function Logo() {
   return (
     <div
-      className="pointer-events-none fixed left-4 top-4 z-50 flex items-center gap-2 drop-shadow-lg"
+      className="pointer-events-none fixed left-16 top-4 z-50 flex items-center gap-2 drop-shadow-lg"
       aria-label="Oye Well"
     >
       <svg
