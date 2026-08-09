@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { fetchFood, formatPrice, type FoodItem, type FoodOption } from '../lib/api';
 import OrderButton from '../components/OrderButton';
 import OrderModal from '../components/OrderModal';
+import Preloader from '../components/Preloader';
 import Logo from '../components/Logo';
 
 export default function FoodDetail() {
@@ -22,11 +23,7 @@ export default function FoodDetail() {
   }, [slug]);
 
   if (loading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-white/70" />
-      </div>
-    );
+    return <Preloader />;
   }
 
   if (error || !food) {

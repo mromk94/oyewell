@@ -2,18 +2,20 @@ import { useEffect, useRef, useState } from 'react';
 import { fetchFoods, type FoodItem } from '../lib/api';
 import FoodCard from '../components/FoodCard';
 import Logo from '../components/Logo';
+import Preloader from '../components/Preloader';
 import ScrollHint from '../components/ScrollHint';
-import { Loader2 } from 'lucide-react';
 
 export default function Home() {
   const [foods, setFoods] = useState<FoodItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [minReady, setMinReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [canScrollUp, setCanScrollUp] = useState(false);
   const [canScrollDown, setCanScrollDown] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
+    const minTimer = setTimeout(() => setMinReady(true), 2500);
     fetchFoods()
       .then((data) => {
         setFoods(data.foods);
@@ -23,6 +25,7 @@ export default function Home() {
         setError(e.message);
         setLoading(false);
       });
+    return () => clearTimeout(minTimer);
   }, []);
 
   useEffect(() => {
@@ -46,12 +49,8 @@ export default function Home() {
     el.scrollBy({ top: distance, behavior: 'smooth' });
   }
 
-  if (loading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-white/70" />
-      </div>
-    );
+  if (loading || !minReady) {
+    return <Preloader />;
   }
 
   if (error || !foods.length) {

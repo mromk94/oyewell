@@ -146,7 +146,7 @@ export default function Admin() {
       <Logo />
       <aside className="shrink-0 border-b border-white/10 bg-brand-800 p-4 md:w-64 md:border-b-0 md:border-r">
         <h1 className="px-4 text-2xl font-black text-white">OYE Admin</h1>
-        <nav className="mt-6 space-y-1">
+        <nav className="mt-4 flex gap-2 overflow-x-auto pb-2 md:mt-6 md:flex-col md:gap-0 md:space-y-1 md:overflow-visible">
           {[
             { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
             { id: 'menu', label: 'Menu', icon: Utensils },
@@ -160,12 +160,13 @@ export default function Admin() {
             <button
               key={id}
               onClick={() => setTab(id as Tab)}
-              className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-medium ${
+              className={`flex shrink-0 items-center gap-2 rounded-2xl p-3 text-sm font-medium transition md:w-full md:gap-3 md:px-4 md:py-3 md:text-left ${
                 tab === id ? 'bg-white text-black' : 'text-white/70 hover:bg-white/5'
               }`}
+              title={label}
             >
               <Icon className="h-5 w-5" />
-              {label}
+              <span className="hidden md:inline">{label}</span>
             </button>
           ))}
         </nav>
@@ -174,9 +175,10 @@ export default function Admin() {
             localStorage.removeItem('admin_token');
             setToken(null);
           }}
-          className="mt-8 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-medium text-white/70 hover:bg-white/5"
+          className="mt-4 flex w-full shrink-0 items-center gap-2 rounded-2xl p-3 text-sm font-medium text-white/70 transition hover:bg-white/5 md:mt-8 md:gap-3 md:px-4 md:py-3"
+          title="Sign out"
         >
-          <LogOut className="h-5 w-5" /> Sign out
+          <LogOut className="h-5 w-5" /> <span className="hidden md:inline">Sign out</span>
         </button>
       </aside>
 

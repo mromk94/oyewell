@@ -1,5 +1,4 @@
 import { Routes, Route } from 'react-router-dom';
-import Preloader from './components/Preloader';
 import Home from './pages/Home';
 import FoodDetail from './pages/FoodDetail';
 import TrackOrder from './pages/TrackOrder';
@@ -10,9 +9,7 @@ import Account from './pages/Account';
 
 function App() {
   return (
-    <>
-      <Preloader />
-      <Routes>
+    <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/food/:slug" element={<FoodDetail />} />
       <Route path="/track/:orderNumber" element={<TrackOrder />} />
@@ -21,7 +18,6 @@ function App() {
       <Route path="/account" element={<Account />} />
       <Route path="/admin" element={<Admin />} />
     </Routes>
-    </>
   );
 }
 

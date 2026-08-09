@@ -1,27 +1,13 @@
-import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChefHat } from 'lucide-react';
 
 export default function Preloader() {
-  const [fade, setFade] = useState(false);
-  const [gone, setGone] = useState(false);
-
-  useEffect(() => {
-    const fadeTimer = setTimeout(() => setFade(true), 2500);
-    const removeTimer = setTimeout(() => setGone(true), 3000);
-    return () => {
-      clearTimeout(fadeTimer);
-      clearTimeout(removeTimer);
-    };
-  }, []);
-
-  if (gone) return null;
-
   return (
     <motion.div
-      initial={{ opacity: 1 }}
-      animate={{ opacity: fade ? 0 : 1 }}
-      transition={{ duration: 0.5, ease: 'easeInOut' }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.4, ease: 'easeInOut' }}
       className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-brand-900"
     >
       <motion.div

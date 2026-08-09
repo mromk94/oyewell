@@ -94,6 +94,8 @@ function optionsToPayload(options: OptionDraft[]) {
 export function MenuTab({ foods, onRefresh }: { foods: any[]; onRefresh: () => void }) {
   const [mode, setMode] = useState<'closed' | 'create' | 'edit'>('closed');
   const [draft, setDraft] = useState<FoodDraft>(emptyDraft());
+  const [saving, setSaving] = useState(false);
+  const [workingId, setWorkingId] = useState<string | null>(null);
 
   const setField = <K extends keyof FoodDraft>(field: K, value: FoodDraft[K]) => {
     setDraft((d) => ({ ...d, [field]: value } as FoodDraft));
@@ -132,6 +134,7 @@ export function MenuTab({ foods, onRefresh }: { foods: any[]; onRefresh: () => v
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    setSaving(true);
     try {
       const name = draft.name.trim();
       const slug = cleanSlug(draft.slug);
@@ -163,10 +166,13 @@ export function MenuTab({ foods, onRefresh }: { foods: any[]; onRefresh: () => v
       onRefresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not save food.');
+    } finally {
+      setSaving(false);
     }
   }
 
   async function handleToggle(food: any, field: string) {
+    setWorkingId(food.id);
     try {
       const next =
         field === 'status'
@@ -179,16 +185,21 @@ export function MenuTab({ foods, onRefresh }: { foods: any[]; onRefresh: () => v
       toast.success('Updated.');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Update failed.');
+    } finally {
+      setWorkingId(null);
     }
   }
 
   async function handleArchive(id: string) {
+    setWorkingId(id);
     try {
       await archiveFood(id);
       onRefresh();
       toast.success('Food removed.');
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Could not remove food.');
+    } finally {
+      setWorkingId(null);
     }
   }
 
@@ -227,7 +238,10 @@ export function MenuTab({ foods, onRefresh }: { foods: any[]; onRefresh: () => v
               <span className='text-sm font-medium text-white/90'>Food name</span>
               <input
                 value={draft.name}
-                onChange={(e) => setField('name', e.target.value)}
+                onChange={(e) => {
+                  setField('name', e.target.value);
+                  if (!draft.id) setField('slug', cleanSlug(e.target.value));
+                }}
                 placeholder='e.g. Jollof Rice'
                 className='mt-1 w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white'
               />
@@ -237,7 +251,7 @@ export function MenuTab({ foods, onRefresh }: { foods: any[]; onRefresh: () => v
               <span className='text-sm font-medium text-white/90'>Slug (URL name)</span>
               <input
                 value={draft.slug}
-                onChange={(e) => setField('slug', e.target.value)}
+                onChange={(e) => setField('slug', cleanSlug(e.target.value))}
                 placeholder='e.g. jollof-rice'
                 className='mt-1 w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white'
               />
@@ -381,8 +395,12 @@ export function MenuTab({ foods, onRefresh }: { foods: any[]; onRefresh: () => v
           </div>
 
           <div className='mt-6 flex gap-3'>
-            <button type='submit' className='rounded-full bg-white px-6 py-2 font-bold text-black'>
-              {draft.id ? 'Update food' : 'Save food'}
+            <button
+              type='submit'
+              disabled={saving}
+              className='rounded-full bg-white px-6 py-2 font-bold text-black disabled:opacity-60'
+            >
+              {saving ? 'Saving…' : draft.id ? 'Update food' : 'Save food'}
             </button>
             <button
               type='button'
@@ -412,6 +430,8 @@ export function MenuTab({ foods, onRefresh }: { foods: any[]; onRefresh: () => v
                 <img
                   src={food.heroImage}
                   alt=''
+                  loading='lazy'
+                  decoding='async'
                   className='h-full w-full object-cover'
                 />
               ) : (
@@ -456,50 +476,60 @@ export function MenuTab({ foods, onRefresh }: { foods: any[]; onRefresh: () => v
                 ))}
               </div>
 
-              <div className='mt-auto flex flex-wrap gap-2 pt-4'>
-                <button
-                  onClick={() => startEdit(food)}
-                  className='rounded-full border border-white/20 px-4 py-2 text-sm font-bold text-white hover:bg-white/10'
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleToggle(food, 'isAvailable')}
-                  className={`rounded-full px-4 py-2 text-sm font-bold ${
-                    food.isAvailable
-                      ? 'bg-emerald-500/20 text-emerald-300'
-                      : 'bg-red-500/20 text-red-300'
-                  }`}
-                >
-                  {food.isAvailable ? 'Available' : 'Unavailable'}
-                </button>
-                <button
-                  onClick={() => handleToggle(food, 'featured')}
-                  className={`rounded-full px-4 py-2 text-sm font-bold ${
-                    food.featured
-                      ? 'bg-yellow-500/20 text-yellow-300'
-                      : 'border border-white/20 text-white/70'
-                  }`}
-                >
-                  {food.featured ? 'Featured' : 'Feature'}
-                </button>
-                <button
-                  onClick={() => handleToggle(food, 'status')}
-                  className={`rounded-full px-4 py-2 text-sm font-bold ${
-                    food.status === 'PUBLISHED'
-                      ? 'bg-white text-black'
-                      : 'border border-white/20 text-white/70'
-                  }`}
-                >
-                  {food.status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
-                </button>
-                <button
-                  onClick={() => handleArchive(food.id)}
-                  className='ml-auto rounded-full bg-red-500/20 px-4 py-2 text-sm font-bold text-red-300 hover:bg-red-500/30'
-                >
-                  Delete
-                </button>
-              </div>
+              {(() => {
+                const isWorking = workingId === food.id;
+                return (
+                  <div className='mt-auto flex flex-wrap gap-2 pt-4'>
+                    <button
+                      onClick={() => startEdit(food)}
+                      disabled={isWorking}
+                      className='rounded-full border border-white/20 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/10 disabled:opacity-50'
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleToggle(food, 'isAvailable')}
+                      disabled={isWorking}
+                      className={`rounded-full px-4 py-2 text-sm font-bold transition disabled:opacity-50 ${
+                        food.isAvailable
+                          ? 'bg-emerald-500/20 text-emerald-300'
+                          : 'bg-red-500/20 text-red-300'
+                      }`}
+                    >
+                      {food.isAvailable ? 'Available' : 'Unavailable'}
+                    </button>
+                    <button
+                      onClick={() => handleToggle(food, 'featured')}
+                      disabled={isWorking}
+                      className={`rounded-full px-4 py-2 text-sm font-bold transition disabled:opacity-50 ${
+                        food.featured
+                          ? 'bg-yellow-500/20 text-yellow-300'
+                          : 'border border-white/20 text-white/70'
+                      }`}
+                    >
+                      {food.featured ? 'Featured' : 'Feature'}
+                    </button>
+                    <button
+                      onClick={() => handleToggle(food, 'status')}
+                      disabled={isWorking}
+                      className={`rounded-full px-4 py-2 text-sm font-bold transition disabled:opacity-50 ${
+                        food.status === 'PUBLISHED'
+                          ? 'bg-white text-black'
+                          : 'border border-white/20 text-white/70'
+                      }`}
+                    >
+                      {food.status === 'PUBLISHED' ? 'Unpublish' : 'Publish'}
+                    </button>
+                    <button
+                      onClick={() => handleArchive(food.id)}
+                      disabled={isWorking}
+                      className='ml-auto rounded-full bg-red-500/20 px-4 py-2 text-sm font-bold text-red-300 transition hover:bg-red-500/30 disabled:opacity-50'
+                    >
+                      {isWorking ? 'Working…' : 'Delete'}
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         ))}
