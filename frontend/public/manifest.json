@@ -2,12 +2,15 @@
   "short_name": "OYE Well",
   "name": "OYE Well",
   "description": "Fresh, flavourful Nigerian dishes made to order and delivered to you.",
+  "lang": "en",
+  "dir": "ltr",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f0f0f",
   "theme_color": "#0f0f0f",
-  "orientation": "portrait",
+  "orientation": "any",
   "scope": "/",
+  "categories": ["food", "lifestyle", "shopping"],
   "icons": [
     {
       "src": "/pwa-icon.svg",

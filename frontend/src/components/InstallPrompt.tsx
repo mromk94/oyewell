@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Download, Share2, Home, Sparkles } from 'lucide-react';
+import { X, Download, Share2, Home, Sparkles, MoreVertical, PlusSquare } from 'lucide-react';
 
 const VISIT_KEY = 'pwa-visit-count';
 const LAST_PATH_KEY = 'pwa-last-path';
@@ -16,13 +16,28 @@ function isPWA() {
   if (typeof window === 'undefined') return false;
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
+    window.matchMedia('(display-mode: minimal-ui)').matches ||
     (window.navigator as unknown as { standalone?: boolean }).standalone === true
   );
 }
 
+function isMobile() {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+}
+
 function isIOS() {
-  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as unknown as { MSStream?: unknown }).MSStream;
+  if (typeof navigator === 'undefined' || typeof window === 'undefined') return false;
+  const ua = navigator.userAgent;
+  const isAppleDevice = /iPad|iPhone|iPod/.test(ua);
+  const isIPadPro = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+  return (isAppleDevice || isIPadPro) && !(window as unknown as { MSStream?: unknown }).MSStream;
+}
+
+function isAndroid() {
+  if (typeof navigator === 'undefined') return false;
+  return /Android/i.test(navigator.userAgent);
 }
 
 function isDismissed() {
@@ -39,6 +54,11 @@ export default function InstallPrompt() {
   const [isOpen, setIsOpen] = useState(false);
   const [showIOS, setShowIOS] = useState(false);
 
+  const promptAvailable = useMemo(() => {
+    if (isPWA() || installed) return false;
+    return !!deferredPrompt || showIOS || isMobile();
+  }, [deferredPrompt, showIOS, installed]);
+
   useEffect(() => {
     if (isPWA() || installed) return;
 
@@ -51,7 +71,6 @@ export default function InstallPrompt() {
     window.addEventListener('beforeinstallprompt', handler);
     window.addEventListener('appinstalled', installedHandler);
 
-    // iOS doesn't fire beforeinstallprompt, but we can still nudge.
     if (isIOS() && !deferredPrompt) {
       setShowIOS(true);
     }
@@ -72,10 +91,10 @@ export default function InstallPrompt() {
     const count = (parseInt(localStorage.getItem(VISIT_KEY) || '0', 10) % 5) + 1;
     localStorage.setItem(VISIT_KEY, String(count));
 
-    if (count === 5 && !isDismissed()) {
+    if (count === 5 && !isDismissed() && promptAvailable) {
       setIsOpen(true);
     }
-  }, [location.pathname, installed]);
+  }, [location.pathname, installed, promptAvailable]);
 
   const handleDismiss = () => {
     const tomorrow = Date.now() + 24 * 60 * 60 * 1000;
@@ -97,11 +116,11 @@ export default function InstallPrompt() {
 
   if (isPWA() || installed) return null;
 
-  const canInstall = !!deferredPrompt || showIOS;
+  const platform = deferredPrompt ? 'native' : isIOS() ? 'ios' : isAndroid() ? 'android' : 'generic';
 
   return (
     <AnimatePresence>
-      {isOpen && canInstall && (
+      {isOpen && promptAvailable && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -113,7 +132,8 @@ export default function InstallPrompt() {
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: '100%', opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-brand-900 p-6 text-center shadow-2xl"
+            className="relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-3xl border border-white/10 bg-brand-900 p-6 text-center shadow-2xl"
+            style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
           >
             <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/5" />
             <div className="absolute -left-8 top-1/2 h-24 w-24 rounded-full bg-white/5" />
@@ -133,27 +153,40 @@ export default function InstallPrompt() {
             </p>
 
             <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4 text-left">
-              {deferredPrompt ? (
-                <div className="flex items-center gap-3 text-sm text-white/80">
-                  <Download className="h-5 w-5 text-emerald-300" />
+              {platform === 'native' && (
+                <div className="flex items-start gap-3 text-sm text-white/80">
+                  <Download className="mt-0.5 h-5 w-5 shrink-0 text-emerald-300" />
                   <span>One tap and the app lives on your device.</span>
                 </div>
-              ) : (
+              )}
+              {platform === 'ios' && (
                 <div className="space-y-3 text-sm text-white/80">
-                  <div className="flex items-center gap-2">
-                    <Share2 className="h-4 w-4 text-emerald-300" />
-                    <span>Tap the Share button in your browser.</span>
+                  <div className="flex items-start gap-2">
+                    <Share2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+                    <span>Tap the Share button in Safari, then scroll and choose “Add to Home Screen”.</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Home className="h-4 w-4 text-emerald-300" />
-                    <span>Then choose "Add to Home Screen".</span>
+                </div>
+              )}
+              {platform === 'android' && (
+                <div className="space-y-3 text-sm text-white/80">
+                  <div className="flex items-start gap-2">
+                    <MoreVertical className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+                    <span>Tap the menu (⋮) in your browser and choose “Add to Home screen”.</span>
+                  </div>
+                </div>
+              )}
+              {platform === 'generic' && (
+                <div className="space-y-3 text-sm text-white/80">
+                  <div className="flex items-start gap-2">
+                    <PlusSquare className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+                    <span>Use your browser’s menu and choose “Add to Home screen”.</span>
                   </div>
                 </div>
               )}
             </div>
 
             <div className="mt-6 grid gap-3">
-              {deferredPrompt ? (
+              {platform === 'native' ? (
                 <button
                   onClick={handleInstall}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-white px-6 py-3.5 font-bold text-black transition hover:bg-white/90"
