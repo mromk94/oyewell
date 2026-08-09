@@ -267,8 +267,8 @@ export default function OrderModal({ food, open, onClose }: OrderModalProps) {
     }
   }
 
-  const stepLabels = STEPS.map((s) => s.label);
-  const activeStepIndex = STEPS.findIndex((s) => s.key === step);
+  const isManual = step === 'manual-payment';
+  const activeStepIndex = isManual ? 2 : STEPS.findIndex((s) => s.key === step);
 
   if (!open) return null;
 
@@ -291,8 +291,8 @@ export default function OrderModal({ food, open, onClose }: OrderModalProps) {
         <div className='flex items-center justify-between border-b border-white/10 px-6 py-4'>
           <div className='flex gap-3'>
             {STEPS.map(({ key, label }, i) => {
-              const passed = step !== 'manual-payment' && i <= activeStepIndex;
-              const current = step === 'manual-payment' ? key === 'payment' : key === step;
+              const passed = !isManual && i <= activeStepIndex;
+              const current = isManual ? key === 'payment' : key === step;
               return (
                 <div key={key} className='flex items-center gap-2'>
                   <span
@@ -300,7 +300,7 @@ export default function OrderModal({ food, open, onClose }: OrderModalProps) {
                       current ? 'bg-white text-black' : passed ? 'bg-emerald-500 text-black' : 'bg-white/10 text-white/60'
                     }`}
                   >
-                    {passed && step !== 'manual-payment' ? '✓' : i + 1}
+                    {passed ? '✓' : i + 1}
                   </span>
                   <span
                     className={`hidden text-sm font-medium sm:inline ${

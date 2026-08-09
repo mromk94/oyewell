@@ -105,7 +105,7 @@ export default function TrackOrder() {
   }
 
   async function handleUpload() {
-    if (!proofImage || !order.payment) return;
+    if (!proofImage || !order || !order.payment) return;
     setUploading(true);
     setError(null);
     try {

@@ -175,6 +175,7 @@ export interface OrderSummary {
     totalKobo: number;
   }[];
   payment: {
+    id: string;
     provider: string;
     status: string;
     attempts: { id: string; status: string; payload: any; createdAt: string }[];

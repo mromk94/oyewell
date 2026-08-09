@@ -177,7 +177,7 @@ export async function fetchSides() {
   return res.json() as Promise<{ sides: any[] }>;
 }
 
-export async function createSide(body: { name: string; description: string; priceKobo: number; isAvailable: boolean }) {
+export async function createSide(body: { name: string; description: string | null; priceKobo: number; isAvailable: boolean }) {
   const res = await fetch(`${API_BASE}/api/admin/sides`, {
     method: 'POST',
     headers: authHeaders(),
