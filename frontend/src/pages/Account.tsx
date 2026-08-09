@@ -1,16 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   fetchMe,
   fetchMyOrders,
-  removeCustomerToken,
   changePassword,
   updateProfile,
-  getCustomerToken,
   type User,
   type OrderSummary,
 } from '../lib/api';
+import { useAuth } from '../lib/auth';
 import {
   ArrowLeft,
   LogOut,
@@ -26,7 +25,6 @@ import {
   Check,
 } from 'lucide-react';
 import Logo from '../components/Logo';
-import AuthModal from '../components/AuthModal';
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING_PAYMENT: 'bg-yellow-500/20 text-yellow-300',
@@ -45,22 +43,21 @@ const PAYMENT_COLORS: Record<string, string> = {
 };
 
 export default function Account() {
-  const navigate = useNavigate();
+  const { isAuthenticated, openAuth, logout } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [authOpen, setAuthOpen] = useState(false);
 
   useEffect(() => {
-    if (!getCustomerToken()) {
+    if (!isAuthenticated) {
       setLoading(false);
-      setAuthOpen(true);
+      openAuth();
       return;
     }
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isAuthenticated]);
 
   async function load() {
     setLoading(true);
@@ -77,8 +74,7 @@ export default function Account() {
   }
 
   function handleLogout() {
-    removeCustomerToken();
-    navigate('/');
+    logout();
   }
 
   if (loading) {
@@ -89,7 +85,7 @@ export default function Account() {
     );
   }
 
-  if (!getCustomerToken()) {
+  if (!isAuthenticated) {
     return (
       <div className='flex h-screen w-full flex-col items-center justify-center bg-brand-900 px-6 text-center'>
         <Logo />
@@ -98,12 +94,11 @@ export default function Account() {
           Your order history, saved address and account details live here. Sign in or create an account to get started.
         </p>
         <button
-          onClick={() => setAuthOpen(true)}
+          onClick={() => openAuth()}
           className='mt-6 rounded-full bg-white px-8 py-3 font-bold text-black'
         >
           Sign in or register
         </button>
-        <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
       </div>
     );
   }
@@ -113,10 +108,9 @@ export default function Account() {
       <div className='flex h-screen w-full flex-col items-center justify-center bg-brand-900 px-6 text-center'>
         <h1 className='text-4xl font-black text-white'>Something went wrong</h1>
         <p className='mt-4 text-white/70'>{error ?? 'Please sign in again.'}</p>
-        <button onClick={() => setAuthOpen(true)} className='mt-6 text-white underline'>
+        <button onClick={() => openAuth()} className='mt-6 text-white underline'>
           Sign in
         </button>
-        <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
       </div>
     );
   }
@@ -177,7 +171,6 @@ export default function Account() {
 
         <ChangePassword />
       </motion.div>
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
     </div>
   );
 }

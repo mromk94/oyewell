@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { login } from '../lib/api';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../lib/auth';
 import Logo from '../components/Logo';
 
 export default function Login() {
-  const navigate = useNavigate();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -14,7 +14,6 @@ export default function Login() {
     setError(null);
     try {
       await login(email, password);
-      navigate('/account');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Login failed');
     }

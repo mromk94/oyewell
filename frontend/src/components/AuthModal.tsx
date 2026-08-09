@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Loader2, Mail, Lock, User, Phone, ArrowRight, CheckCircle } from 'lucide-react';
-import { login, register, forgotPassword, resetPassword } from '../lib/api';
+import { forgotPassword, resetPassword } from '../lib/api';
+import { useAuth } from '../lib/auth';
 
 type Mode = 'signin' | 'register' | 'forgot';
 
-export default function AuthModal({ open, onClose, onAuthenticated }: { open: boolean; onClose: () => void; onAuthenticated?: () => void }) {
-  const navigate = useNavigate();
+export default function AuthModal() {
+  const { authOpen, closeAuth, login, register } = useAuth();
   const [mode, setMode] = useState<Mode>('signin');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -23,14 +23,14 @@ export default function AuthModal({ open, onClose, onAuthenticated }: { open: bo
   const [newPassword, setNewPassword] = useState('');
 
   useEffect(() => {
-    if (open) {
+    if (authOpen) {
       setMode('signin');
       setError(null);
       setSuccess(null);
       setResetToken('');
       setNewPassword('');
     }
-  }, [open]);
+  }, [authOpen]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,22 +40,10 @@ export default function AuthModal({ open, onClose, onAuthenticated }: { open: bo
     try {
       if (mode === 'signin') {
         await login(email, password);
-        onClose();
-        if (onAuthenticated) {
-          onAuthenticated();
-        } else {
-          navigate('/account');
-        }
         return;
       }
       if (mode === 'register') {
         await register({ email, password, firstName, lastName, phone });
-        onClose();
-        if (onAuthenticated) {
-          onAuthenticated();
-        } else {
-          navigate('/account');
-        }
         return;
       }
       if (mode === 'forgot') {
@@ -78,7 +66,7 @@ export default function AuthModal({ open, onClose, onAuthenticated }: { open: bo
     }
   }
 
-  if (!open) return null;
+  if (!authOpen) return null;
 
   return createPortal(
     <div className='fixed inset-0 z-50 flex items-center justify-center p-4'>
@@ -86,7 +74,7 @@ export default function AuthModal({ open, onClose, onAuthenticated }: { open: bo
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        onClick={onClose}
+        onClick={closeAuth}
         className='absolute inset-0 bg-black/80 backdrop-blur-sm'
       />
       <motion.div
@@ -96,7 +84,7 @@ export default function AuthModal({ open, onClose, onAuthenticated }: { open: bo
         transition={{ type: 'spring', stiffness: 200, damping: 24 }}
         className='relative z-10 flex h-full max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-white/10 bg-brand-900/95 shadow-2xl'
       >
-        <button onClick={onClose} className='absolute right-4 top-4 z-20 rounded-full p-2 text-white/60 hover:bg-white/10'>
+        <button onClick={closeAuth} className='absolute right-4 top-4 z-20 rounded-full p-2 text-white/60 hover:bg-white/10'>
           <X className='h-5 w-5' />
         </button>
 

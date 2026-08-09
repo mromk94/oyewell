@@ -1,4 +1,4 @@
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import Home from './pages/Home';
 import FoodDetail from './pages/FoodDetail';
 import TrackOrder from './pages/TrackOrder';
@@ -9,8 +9,12 @@ import Account from './pages/Account';
 import CartButton from './components/CartButton';
 import CartModal from './components/CartModal';
 import AccountButton from './components/AccountButton';
+import AuthModal from './components/AuthModal';
 
 function App() {
+  const location = useLocation();
+  const isAdmin = location.pathname === '/admin';
+
   return (
     <>
       <Routes>
@@ -22,9 +26,10 @@ function App() {
         <Route path="/account" element={<Account />} />
         <Route path="/admin" element={<Admin />} />
       </Routes>
-      <CartButton />
-      <CartModal />
-      <AccountButton />
+      {!isAdmin && <CartButton />}
+      {!isAdmin && <CartModal />}
+      {!isAdmin && <AccountButton />}
+      {!isAdmin && <AuthModal />}
     </>
   );
 }
