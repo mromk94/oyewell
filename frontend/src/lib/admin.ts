@@ -220,3 +220,31 @@ export async function fetchCustomerOrders(customerId: string) {
   if (!res.ok) throw new Error('Failed to load customer orders');
   return res.json() as Promise<{ orders: any[] }>;
 }
+
+export async function fetchEmailConfig() {
+  const res = await fetch(`${API_BASE}/api/admin/email-config`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load email config');
+  return res.json() as Promise<{ config: any }>;
+}
+
+export async function updateEmailConfig(body: any) {
+  const res = await fetch(`${API_BASE}/api/admin/email-config`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json()) as { config?: any; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to save email config');
+  return data;
+}
+
+export async function sendTestEmail(to: string, subject: string, text: string) {
+  const res = await fetch(`${API_BASE}/api/admin/email-config/test`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ to, subject, text }),
+  });
+  const data = (await res.json()) as { ok?: boolean; message?: string; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to send test email');
+  return data;
+}

@@ -133,6 +133,24 @@ router.post('/forgot-password', async (req, res, next) => {
   }
 });
 
+router.put('/me', requireAuth, async (req: AuthRequest, res, next) => {
+  try {
+    const { firstName, lastName, phone } = req.body as Record<string, string>;
+    if (firstName === undefined && lastName === undefined && phone === undefined) {
+      res.status(400).json({ error: 'No fields provided' });
+      return;
+    }
+    const user = await prisma.user.update({
+      where: { id: req.user!.id },
+      data: { firstName, lastName, phone },
+      select: { id: true, email: true, firstName: true, lastName: true, phone: true, role: true },
+    });
+    res.json({ user });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/reset-password', async (req, res, next) => {
   try {
     const { email, resetToken, newPassword } = req.body as Record<string, string>;

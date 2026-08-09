@@ -275,6 +275,17 @@ export async function fetchPaymentMethods() {
   return res.json() as Promise<{ methods: PaymentMethod[] }>;
 }
 
+export async function updateProfile(profile: { firstName?: string; lastName?: string; phone?: string }) {
+  const res = await fetch(`${API_BASE}/api/auth/me`, {
+    method: 'PUT',
+    headers: authHeaders(getCustomerToken()),
+    body: JSON.stringify(profile),
+  });
+  const data = (await res.json()) as { user?: User; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to update profile');
+  return data as { user: User };
+}
+
 export async function changePassword(currentPassword: string, newPassword: string) {
   const res = await fetch(`${API_BASE}/api/auth/change-password`, {
     method: 'POST',

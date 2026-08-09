@@ -6,6 +6,7 @@ import {
   fetchMyOrders,
   removeCustomerToken,
   changePassword,
+  updateProfile,
   getCustomerToken,
   type User,
   type OrderSummary,
@@ -21,6 +22,8 @@ import {
   Clock,
   MapPin,
   Lock,
+  Pencil,
+  Check,
 } from 'lucide-react';
 import Logo from '../components/Logo';
 import AuthModal from '../components/AuthModal';
@@ -143,7 +146,15 @@ export default function Account() {
         </div>
 
         <div className='rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8'>
-          <h1 className='text-3xl font-black text-white'>Hi, {user.firstName || user.email.split('@')[0]}</h1>
+          <div className='flex flex-wrap items-center gap-3'>
+            <h1 className='text-3xl font-black text-white'>
+              Hi, {user.firstName || user.email.split('@')[0] || 'customer'}
+            </h1>
+            <span className='rounded-full bg-white/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-white/70'>
+              Customer
+            </span>
+            <ProfileEditor user={user} onUpdate={setUser} />
+          </div>
           <p className='mt-2 text-white/60'>
             This is your home for orders, delivery history and account settings.
           </p>
@@ -286,6 +297,75 @@ function OrderList({ orders }: { orders: OrderSummary[] }) {
         </motion.div>
       ))}
     </div>
+  );
+}
+
+function ProfileEditor({ user, onUpdate }: { user: User; onUpdate: (user: User) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [firstName, setFirstName] = useState(user.firstName ?? '');
+  const [lastName, setLastName] = useState(user.lastName ?? '');
+  const [phone, setPhone] = useState(user.phone ?? '');
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setMsg(null);
+    try {
+      const { user: updated } = await updateProfile({ firstName, lastName, phone });
+      onUpdate(updated);
+      setEditing(false);
+      setMsg('Profile updated.');
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : 'Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <button
+        onClick={() => setEditing(true)}
+        className='inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-white/20'
+      >
+        <Pencil className='h-3.5 w-3.5' /> Rename
+      </button>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSave} className='mt-4 grid w-full gap-3 sm:grid-cols-3'>
+      <input
+        value={firstName}
+        onChange={(e) => setFirstName(e.target.value)}
+        placeholder='First name'
+        className='w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white outline-none focus:border-white'
+      />
+      <input
+        value={lastName}
+        onChange={(e) => setLastName(e.target.value)}
+        placeholder='Last name'
+        className='w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white outline-none focus:border-white'
+      />
+      <input
+        value={phone}
+        onChange={(e) => setPhone(e.target.value)}
+        placeholder='Phone number'
+        className='w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white outline-none focus:border-white'
+      />
+      <div className='sm:col-span-3'>
+        {msg && <p className='mb-2 text-sm text-white/80'>{msg}</p>}
+        <button
+          disabled={saving}
+          type='submit'
+          className='inline-flex items-center gap-2 rounded-full bg-white px-5 py-2 font-bold text-black disabled:opacity-50'
+        >
+          {saving ? <Loader2 className='h-4 w-4 animate-spin' /> : <Check className='h-4 w-4' />} Save
+        </button>
+      </div>
+    </form>
   );
 }
 

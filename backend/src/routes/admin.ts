@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { requireAuth, requireAdmin, type AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../lib/errors.js';
+import { getEmailConfig, saveEmailConfig, sendEmail, sendOrderStatusEmail } from '../lib/email.js';
 
 const router = Router();
 
@@ -176,6 +177,7 @@ router.patch('/orders/:id/status', async (req: AuthRequest, res, next) => {
       const updated = await tx.order.update({
         where: { id },
         data: { status },
+        include: { customer: true },
       });
       await tx.orderStatusHistory.create({
         data: {
@@ -187,6 +189,7 @@ router.patch('/orders/:id/status', async (req: AuthRequest, res, next) => {
       });
       return updated;
     });
+    sendOrderStatusEmail(order).catch(() => {});
     res.json({ order });
   } catch (err) {
     next(err);
@@ -225,6 +228,7 @@ router.post('/orders/:id/verify-payment', async (req: AuthRequest, res, next) =>
       const updated = await tx.order.update({
         where: { id },
         data: { status: newOrderStatus, paymentStatus: newPaymentStatus },
+        include: { customer: true },
       });
       await tx.orderStatusHistory.create({
         data: {
@@ -236,6 +240,7 @@ router.post('/orders/:id/verify-payment', async (req: AuthRequest, res, next) =>
       });
       return updated;
     });
+    sendOrderStatusEmail(result).catch(() => {});
     res.json({ ok: true, order: result });
   } catch (err) {
     next(err);
@@ -440,6 +445,45 @@ router.get('/customers/:id/orders', async (req, res, next) => {
       include: { items: true, payment: true },
     });
     res.json({ orders });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/email-config', async (_req, res, next) => {
+  try {
+    const config = await getEmailConfig();
+    res.json({ config });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/email-config', async (req, res, next) => {
+  try {
+    const body = req.body as Record<string, unknown>;
+    const data = {
+      host: String(body.host ?? ''),
+      port: Number(body.port ?? 587),
+      secure: Boolean(body.secure ?? false),
+      user: String(body.user ?? ''),
+      pass: String(body.pass ?? ''),
+      from: String(body.from ?? ''),
+      enabled: Boolean(body.enabled ?? false),
+    };
+    const config = await saveEmailConfig(data);
+    res.json({ config });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/email-config/test', async (req, res, next) => {
+  try {
+    const { to, subject, text } = req.body as Record<string, string>;
+    if (!to || !subject || !text) throw new ApiError(400, 'to, subject and text are required');
+    const result = await sendEmail({ to, subject, text });
+    res.json(result);
   } catch (err) {
     next(err);
   }

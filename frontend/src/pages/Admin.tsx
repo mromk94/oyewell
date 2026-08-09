@@ -9,6 +9,9 @@ import {
   Package,
   Salad,
   Users,
+  Mail,
+  TrendingUp,
+  AlertTriangle,
 } from 'lucide-react';
 import Logo from '../components/Logo';
 import { formatPrice } from '../lib/api';
@@ -16,6 +19,7 @@ import { MenuTab as MenuTabNew } from '../components/admin/MenuTab';
 import { SidesTab as SidesTabNew } from '../components/admin/SidesTab';
 import { PaymentsTab as PaymentsTabNew } from '../components/admin/PaymentsTab';
 import { OrdersTab as OrdersTabNew } from '../components/admin/OrdersTab';
+import EmailTab from '../components/admin/EmailTab';
 import {
   adminLogin,
   fetchDashboard,
@@ -32,7 +36,7 @@ import {
   fetchCustomerOrders,
 } from '../lib/admin';
 
-type Tab = 'dashboard' | 'menu' | 'orders' | 'sides' | 'customers' | 'delivery' | 'payments' | 'settings';
+type Tab = 'dashboard' | 'menu' | 'orders' | 'sides' | 'customers' | 'delivery' | 'payments' | 'settings' | 'email';
 
 export default function Admin() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('admin_token'));
@@ -84,6 +88,8 @@ export default function Admin() {
       } else if (tab === 'settings') {
         const { settings } = await fetchSettings();
         setSettings(settings ?? {});
+      } else if (tab === 'email') {
+        // EmailTab loads its own data
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load');
@@ -156,6 +162,7 @@ export default function Admin() {
             { id: 'delivery', label: 'Delivery', icon: Truck },
             { id: 'payments', label: 'Payments', icon: CreditCard },
             { id: 'settings', label: 'Settings', icon: Settings },
+            { id: 'email', label: 'Email', icon: Mail },
           ].map(({ id, label, icon: Icon }) => (
             <button
               key={id}
@@ -187,40 +194,68 @@ export default function Admin() {
         {error && <p className="text-red-300">{error}</p>}
 
         {tab === 'dashboard' && dashboard && (
-          <>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-6">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-2xl font-black text-white">Dashboard overview</h2>
+                <p className="text-white/60">Today's snapshot of orders, revenue and activity.</p>
+              </div>
+              <span className="text-sm text-white/50">{new Date().toLocaleDateString('en-NG', { dateStyle: 'long' })}</span>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {[
-                { label: 'Active orders', value: dashboard.active },
-                { label: 'New orders', value: dashboard.new },
-                { label: 'Preparing', value: dashboard.preparing },
-                { label: 'Out for delivery', value: dashboard.outForDelivery },
-                { label: 'Completed', value: dashboard.completed },
-                { label: 'Revenue', value: formatPrice(dashboard.revenueKobo ?? 0) },
+                { label: 'Active orders', value: dashboard.active, color: 'bg-blue-500/10 text-blue-300' },
+                { label: 'New orders', value: dashboard.new, color: 'bg-yellow-500/10 text-yellow-300' },
+                { label: 'Preparing', value: dashboard.preparing, color: 'bg-purple-500/10 text-purple-300' },
+                { label: 'Out for delivery', value: dashboard.outForDelivery, color: 'bg-cyan-500/10 text-cyan-300' },
+                { label: 'Completed', value: dashboard.completed, color: 'bg-emerald-500/10 text-emerald-300' },
+                { label: 'Revenue', value: formatPrice(dashboard.revenueKobo ?? 0), color: 'bg-white/10 text-white' },
               ].map((stat) => (
                 <div
                   key={stat.label}
-                  className="rounded-2xl border border-white/10 bg-white/5 p-6"
+                  className={`rounded-2xl border border-white/10 p-5 ${stat.color}`}
                 >
-                  <p className="text-sm text-white/60">{stat.label}</p>
-                  <p className="mt-2 text-3xl font-bold text-white">{stat.value}</p>
+                  <p className="text-sm opacity-80">{stat.label}</p>
+                  <p className="mt-2 text-3xl font-black">{stat.value}</p>
                 </div>
               ))}
             </div>
 
-            {dashboard.popularItems?.length > 0 && (
-              <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-6">
-                <h2 className="text-lg font-bold text-white">Popular items</h2>
-                <div className="mt-4 space-y-3">
-                  {dashboard.popularItems.map((item: any) => (
-                    <div key={item.foodName} className="flex justify-between text-white/90">
-                      <span>{item.foodName}</span>
-                      <span className="font-semibold text-white">{item._count.id} orders</span>
-                    </div>
-                  ))}
+            <div className="grid gap-4 lg:grid-cols-2">
+              {dashboard.popularItems?.length > 0 && (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                  <h3 className="flex items-center gap-2 text-lg font-bold text-white">
+                    <TrendingUp className="h-5 w-5 text-emerald-300" /> Popular items
+                  </h3>
+                  <div className="mt-4 space-y-3">
+                    {dashboard.popularItems.map((item: any) => (
+                      <div key={item.foodName} className="flex items-center justify-between text-white/90">
+                        <span>{item.foodName}</span>
+                        <span className="rounded-full bg-white/10 px-2 py-1 text-xs font-bold text-white">{item._count.id} orders</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-          </>
+              )}
+
+              {dashboard.lowStockFoods?.length > 0 && (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                  <h3 className="flex items-center gap-2 text-lg font-bold text-white">
+                    <AlertTriangle className="h-5 w-5 text-yellow-300" /> Low stock alerts
+                  </h3>
+                  <div className="mt-4 space-y-3">
+                    {dashboard.lowStockFoods.map((item: any) => (
+                      <div key={item.id} className="flex items-center justify-between text-white/90">
+                        <span>{item.name}</span>
+                        <span className="rounded-full bg-red-500/20 px-2 py-1 text-xs font-bold text-red-300">No options</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
         {tab === 'menu' && <MenuTabNew foods={foods} onRefresh={loadTab} />}
@@ -230,6 +265,7 @@ export default function Admin() {
         {tab === 'customers' && <CustomersTab customers={customers} />}
         {tab === 'payments' && <PaymentsTabNew methods={methods} onRefresh={loadTab} />}
         {tab === 'settings' && <SettingsTab settings={settings} onRefresh={loadTab} />}
+        {tab === 'email' && <EmailTab />}
       </main>
     </div>
   );
