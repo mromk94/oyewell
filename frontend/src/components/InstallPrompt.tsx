@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Download, Share2, Home, Sparkles, MoreVertical, PlusSquare } from 'lucide-react';
+import { X, Download, Share, Home, Sparkles, MoreVertical, PlusSquare, CircleChevronDown } from 'lucide-react';
 
 const VISIT_KEY = 'pwa-visit-count';
 const LAST_PATH_KEY = 'pwa-last-path';
@@ -160,12 +160,24 @@ export default function InstallPrompt() {
                 </div>
               )}
               {platform === 'ios' && (
-                <div className="space-y-3 text-sm text-white/80">
-                  <div className="flex items-start gap-2">
-                    <Share2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
-                    <span>Tap the Share button in Safari, then scroll and choose “Add to Home Screen”.</span>
-                  </div>
-                </div>
+                <ol className="space-y-3 text-sm text-white/80 list-decimal pl-4">
+                  <li className="flex items-start gap-2">
+                    <Share className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+                    <span>Tap the Share button in Safari.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CircleChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+                    <span>Tap “View More” (down arrow in a circle).</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <PlusSquare className="mt-0.5 h-4 w-4 shrink-0 text-emerald-300" />
+                    <span>Scroll and choose “Add to Home Screen”.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-0.5 h-4 w-4 shrink-0 rounded border border-emerald-300/50 text-center text-[10px] font-bold leading-4 text-emerald-300">+</span>
+                    <span>Tap “Add” in the top-left corner.</span>
+                  </li>
+                </ol>
               )}
               {platform === 'android' && (
                 <div className="space-y-3 text-sm text-white/80">
