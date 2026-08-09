@@ -1,6 +1,6 @@
 import { prisma } from '../prisma.js';
 import { DeliveryZone, DeliveryZoneType } from '@prisma/client';
-import { getMapProvider, type GeoPoint } from './maps.js';
+import { getMapProvider } from './maps.js';
 
 export interface Coords {
   lat: number;
