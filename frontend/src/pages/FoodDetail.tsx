@@ -46,7 +46,8 @@ export default function FoodDetail() {
           <img
             src={food.heroImage}
             alt={food.name}
-            className="h-full w-full object-cover"
+            onClick={() => setOrderOpen(true)}
+            className="h-full w-full cursor-pointer object-cover"
           />
         ) : null}
         <div className="absolute inset-0 bg-gradient-to-t from-brand-900 via-brand-900/40 to-transparent" />
