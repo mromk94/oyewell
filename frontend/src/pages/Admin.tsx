@@ -13,6 +13,9 @@ import {
   TrendingUp,
   AlertTriangle,
   Bike,
+  ChefHat,
+  ClipboardList,
+  Banknote,
 } from 'lucide-react';
 import Logo from '../components/Logo';
 import { formatPrice } from '../lib/api';
@@ -38,9 +41,16 @@ import {
   updateCustomerRole,
   fetchPendingRiders,
   approveRider,
+  fetchAdminCooks,
+  approveCook,
+  rejectCook,
+  fetchAdminCookListings,
+  approveCookListing,
+  rejectCookListing,
+  fetchAdminCookEarnings,
 } from '../lib/admin';
 
-type Tab = 'dashboard' | 'menu' | 'orders' | 'sides' | 'customers' | 'delivery' | 'payments' | 'settings' | 'email' | 'riders';
+type Tab = 'dashboard' | 'menu' | 'orders' | 'sides' | 'customers' | 'delivery' | 'payments' | 'settings' | 'email' | 'riders' | 'cooks' | 'cook-listings' | 'cook-earnings';
 
 export default function Admin() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('admin_token'));
@@ -60,6 +70,9 @@ export default function Admin() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>({});
   const [pendingRiders, setPendingRiders] = useState<any[]>([]);
+  const [cooks, setCooks] = useState<any[]>([]);
+  const [cookListings, setCookListings] = useState<any[]>([]);
+  const [cookEarnings, setCookEarnings] = useState<any>({});
 
   useEffect(() => {
     if (!token) return;
@@ -98,6 +111,15 @@ export default function Admin() {
       } else if (tab === 'riders') {
         const { riders } = await fetchPendingRiders();
         setPendingRiders(riders);
+      } else if (tab === 'cooks') {
+        const { cooks } = await fetchAdminCooks();
+        setCooks(cooks);
+      } else if (tab === 'cook-listings') {
+        const { listings } = await fetchAdminCookListings();
+        setCookListings(listings);
+      } else if (tab === 'cook-earnings') {
+        const earnings = await fetchAdminCookEarnings();
+        setCookEarnings(earnings);
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load');
@@ -170,6 +192,9 @@ export default function Admin() {
             { id: 'delivery', label: 'Delivery', icon: Truck },
             { id: 'payments', label: 'Payments', icon: CreditCard },
             { id: 'riders', label: 'Riders', icon: Bike },
+            { id: 'cooks', label: 'Cooks', icon: ChefHat },
+            { id: 'cook-listings', label: 'Cook Listings', icon: ClipboardList },
+            { id: 'cook-earnings', label: 'Cook Earnings', icon: Banknote },
             { id: 'settings', label: 'Settings', icon: Settings },
             { id: 'email', label: 'Email', icon: Mail },
           ].map(({ id, label, icon: Icon }) => (
@@ -276,6 +301,9 @@ export default function Admin() {
         {tab === 'settings' && <SettingsTab settings={settings} onRefresh={loadTab} />}
         {tab === 'email' && <EmailTab />}
         {tab === 'riders' && <RidersTab riders={pendingRiders} onRefresh={loadTab} />}
+        {tab === 'cooks' && <CooksTab cooks={cooks} onRefresh={loadTab} />}
+        {tab === 'cook-listings' && <CookListingsTab listings={cookListings} onRefresh={loadTab} />}
+        {tab === 'cook-earnings' && <CookEarningsTab earnings={cookEarnings} />}
       </main>
     </div>
   );
@@ -526,6 +554,166 @@ function SettingsTab({ settings, onRefresh }: { settings: any; onRefresh: () => 
           Save settings
         </button>
       </form>
+    </div>
+  );
+}
+
+function CooksTab({ cooks, onRefresh }: { cooks: any[]; onRefresh: () => void }) {
+  const [processing, setProcessing] = useState<string | null>(null);
+
+  async function handleApprove(id: string) {
+    if (!confirm('Approve this cook?')) return;
+    setProcessing(id);
+    try {
+      await approveCook(id);
+      onRefresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Approval failed');
+    } finally {
+      setProcessing(null);
+    }
+  }
+
+  async function handleReject(id: string) {
+    if (!confirm('Reject this cook?')) return;
+    setProcessing(id);
+    try {
+      await rejectCook(id);
+      onRefresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Rejection failed');
+    } finally {
+      setProcessing(null);
+    }
+  }
+
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-white">Home cook applications</h2>
+      <p className="mt-1 text-white/60">Approve or reject new cook registrations.</p>
+      {cooks.length === 0 ? (
+        <p className="mt-6 text-white/50">No cooks registered.</p>
+      ) : (
+        <div className="mt-6 space-y-4">
+          {cooks.map((cook) => (
+            <div key={cook.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-bold text-white">{cook.displayName}</p>
+                  <p className="text-sm text-white/60">{cook.user?.email}</p>
+                  <p className="text-sm text-white/60">{cook.user?.phone}</p>
+                  <p className="mt-2 text-sm text-white/60">Status: {cook.profileStatus}</p>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <button
+                    onClick={() => handleApprove(cook.id)}
+                    disabled={processing === cook.id || cook.profileStatus === 'APPROVED'}
+                    className="rounded-full bg-emerald-500 px-6 py-2 font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50"
+                  >
+                    {processing === cook.id ? '...' : 'Approve'}
+                  </button>
+                  <button
+                    onClick={() => handleReject(cook.id)}
+                    disabled={processing === cook.id}
+                    className="rounded-full bg-red-500/20 px-6 py-2 font-bold text-red-300 transition hover:bg-red-500/30 disabled:opacity-50"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CookListingsTab({ listings, onRefresh }: { listings: any[]; onRefresh: () => void }) {
+  const [processing, setProcessing] = useState<string | null>(null);
+
+  async function handleApprove(id: string) {
+    if (!confirm('Approve this listing?')) return;
+    setProcessing(id);
+    try {
+      await approveCookListing(id);
+      onRefresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Approval failed');
+    } finally {
+      setProcessing(null);
+    }
+  }
+
+  async function handleReject(id: string) {
+    if (!confirm('Reject this listing?')) return;
+    setProcessing(id);
+    try {
+      await rejectCookListing(id);
+      onRefresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Rejection failed');
+    } finally {
+      setProcessing(null);
+    }
+  }
+
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-white">Home cook listings</h2>
+      <p className="mt-1 text-white/60">Moderate new cook listings.</p>
+      {listings.length === 0 ? (
+        <p className="mt-6 text-white/50">No cook listings yet.</p>
+      ) : (
+        <div className="mt-6 space-y-4">
+          {listings.map((listing) => (
+            <div key={listing.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-bold text-white">{listing.title}</p>
+                  <p className="text-sm text-white/60">{listing.cook?.displayName}</p>
+                  <p className="text-sm text-white/60">{formatPrice(listing.priceKobo)} · {listing.status}</p>
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <button
+                    onClick={() => handleApprove(listing.id)}
+                    disabled={processing === listing.id || listing.status === 'APPROVED'}
+                    className="rounded-full bg-emerald-500 px-6 py-2 font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50"
+                  >
+                    {processing === listing.id ? '...' : 'Approve'}
+                  </button>
+                  <button
+                    onClick={() => handleReject(listing.id)}
+                    disabled={processing === listing.id}
+                    className="rounded-full bg-red-500/20 px-6 py-2 font-bold text-red-300 transition hover:bg-red-500/30 disabled:opacity-50"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CookEarningsTab({ earnings }: { earnings: any }) {
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-white">Cook earnings</h2>
+      <p className="mt-1 text-white/60">Pending and settled cook payouts.</p>
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-yellow-300">
+          <p className="text-sm opacity-80">Pending</p>
+          <p className="mt-2 text-3xl font-black">{formatPrice(earnings.pendingKobo ?? 0)}</p>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-emerald-300">
+          <p className="text-sm opacity-80">Settled</p>
+          <p className="mt-2 text-3xl font-black">{formatPrice(earnings.settledKobo ?? 0)}</p>
+        </div>
+      </div>
     </div>
   );
 }

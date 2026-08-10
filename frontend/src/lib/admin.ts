@@ -292,3 +292,57 @@ export async function sendTestEmail(to: string, subject: string, text: string) {
   if (!res.ok) throw new Error(data.error ?? 'Failed to send test email');
   return data;
 }
+
+export async function fetchAdminCooks() {
+  const res = await fetch(`${API_BASE}/api/admin/cooks`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load cooks');
+  return res.json() as Promise<{ cooks: any[] }>;
+}
+
+export async function approveCook(id: string) {
+  const res = await fetch(`${API_BASE}/api/admin/cooks/${id}/approve`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to approve cook');
+  return res.json();
+}
+
+export async function rejectCook(id: string) {
+  const res = await fetch(`${API_BASE}/api/admin/cooks/${id}/reject`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to reject cook');
+  return res.json();
+}
+
+export async function fetchAdminCookListings() {
+  const res = await fetch(`${API_BASE}/api/admin/cook-listings`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load cook listings');
+  return res.json() as Promise<{ listings: any[] }>;
+}
+
+export async function approveCookListing(id: string) {
+  const res = await fetch(`${API_BASE}/api/admin/cook-listings/${id}/approve`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to approve listing');
+  return res.json();
+}
+
+export async function rejectCookListing(id: string) {
+  const res = await fetch(`${API_BASE}/api/admin/cook-listings/${id}/reject`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to reject listing');
+  return res.json();
+}
+
+export async function fetchAdminCookEarnings() {
+  const res = await fetch(`${API_BASE}/api/admin/cook-earnings`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load cook earnings');
+  return res.json() as Promise<{ pendingKobo: number; settledKobo: number }>;
+}
