@@ -220,6 +220,12 @@ export interface User {
   lastName: string | null;
   phone: string | null;
   role: string;
+  roles?: string[];
+}
+
+export function hasRole(user: User | null, ...roles: string[]) {
+  if (!user) return false;
+  return (user.roles ?? [user.role]).some((r) => roles.includes(r));
 }
 
 export async function register(body: {

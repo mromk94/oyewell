@@ -12,20 +12,24 @@ enum UserRole {
   CUSTOMER
   ADMIN
   RIDER
+  COOK
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
+  id        String     @id @default(cuid())
+  email     String     @unique
   password  String
   firstName String?
   lastName  String?
   phone     String?
-  role      UserRole @default(CUSTOMER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  role      UserRole   @default(CUSTOMER)
+  roles     String[]   @default([])
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
   orders    Order[]
   rider     Rider?
+  cookProfile CookProfile?
+  addresses UserAddress[]
 }
 
 enum OrderingMode {
@@ -99,10 +103,17 @@ model Rider {
   bankAccountNumber String?
   isActive          Boolean  @default(true)
   available         Boolean  @default(true)
-  isApproved        Boolean  @default(false)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  isApproved        Boolean         @default(false)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
   orders            Order[]
+  location          RiderLocation?
+}
+
+enum OrderSource {
+  RESTAURANT
+  COOK
+  OTHER_FUTURE
 }
 
 model Order {
@@ -110,6 +121,11 @@ model Order {
   orderNumber              String               @unique
   customer                 User?                @relation(fields: [customerId], references: [id])
   customerId               String?
+  source                   OrderSource          @default(RESTAURANT)
+  cook                     CookProfile?         @relation(fields: [cookId], references: [id])
+  cookId                   String?
+  cookListing              CookListing?         @relation(fields: [cookListingId], references: [id])
+  cookListingId            String?
   status                   String               @default("PENDING_PAYMENT")
   paymentStatus            String               @default("PENDING")
   items                    OrderItem[]
@@ -124,22 +140,32 @@ model Order {
   currency                 String               @default("NGN")
   payment                  Payment?
   statusHistory            OrderStatusHistory[]
+  messages                 Message[]
+  review                   Review?
+  earning                  CookEarning?
   deliveryCode             String?              @unique
   rider                    Rider?               @relation(fields: [riderId], references: [id])
   riderId                  String?
   riderStatus              String               @default("UNASSIGNED")
   riderFeeKobo             Int                  @default(0)
   riderPaid                Boolean              @default(false)
+  cookAcceptedAt           DateTime?
+  cookReadyAt              DateTime?
   deliveredAt              DateTime?
   deliveredCodeVerifiedAt  DateTime?
   createdAt                DateTime             @default(now())
   updatedAt                DateTime             @updatedAt
+
+  @@index([cookId, status])
+  @@index([customerId, createdAt])
 }
 
 model OrderItem {
-  id            String @id @default(cuid())
-  order         Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id            String        @id @default(cuid())
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
   orderId       String
+  cookListing   CookListing?  @relation(fields: [cookListingId], references: [id])
+  cookListingId String?
   foodName      String
   optionLabel   String
   optionValue   String?
@@ -147,6 +173,8 @@ model OrderItem {
   quantity      Int
   totalKobo     Int
   orderingMode  String
+
+  @@index([cookListingId])
 }
 
 enum PaymentStatus {
@@ -260,4 +288,180 @@ model OrderSide {
   priceKobo   Int
   quantity    Int    @default(1)
   totalKobo   Int
+}
+
+enum CookProfileStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  SUSPENDED
+  BANNED
+}
+
+enum CookKitchenStatus {
+  OPEN
+  CLOSED
+  PAUSED
+  SUSPENDED
+  PENDING_APPROVAL
+  ADMIN_DISABLED
+}
+
+enum CookListingStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  PAUSED
+  SOLD_OUT
+  ARCHIVED
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum CookEarningStatus {
+  PENDING
+  SETTLED
+  CANCELLED
+}
+
+model CookProfile {
+  id                   String            @id @default(cuid())
+  user                 User              @relation(fields: [userId], references: [id])
+  userId               String            @unique
+  displayName          String
+  profilePhoto         String?
+  bio                  String?
+  latitude             Float?
+  longitude            Float?
+  serviceRadiusKm      Float             @default(5)
+  cuisineSpecialty     String?
+  profileStatus        CookProfileStatus @default(PENDING_APPROVAL)
+  kitchenStatus        CookKitchenStatus @default(PENDING_APPROVAL)
+  rating               Float             @default(0)
+  totalOrders          Int               @default(0)
+  isActive             Boolean           @default(true)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  listings             CookListing[]
+  orders               Order[]
+  earnings             CookEarning[]
+  reviews              Review[]
+}
+
+model CookListing {
+  id                   String            @id @default(cuid())
+  cook                 CookProfile       @relation(fields: [cookId], references: [id], onDelete: Cascade)
+  cookId               String
+  title                String
+  description          String?
+  priceKobo            Int
+  currency             String            @default("NGN")
+  portionDescription   String?
+  prepTimeMinutesMin   Int?
+  prepTimeMinutesMax   Int?
+  availability         String?
+  quantity             Int               @default(0)
+  stock                Int               @default(0)
+  ingredients          String?
+  allergens            String?
+  cuisine              String?
+  status               CookListingStatus @default(DRAFT)
+  isActive             Boolean           @default(false)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  media                CookListingMedia[]
+  orderItems           OrderItem[]
+  orders               Order[]
+  reviews              Review[]
+
+  @@index([status, isActive, createdAt])
+  @@index([cookId, status])
+}
+
+model CookListingMedia {
+  id          String   @id @default(cuid())
+  listing     CookListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingId   String
+  type        MediaType
+  url         String
+  thumbnailUrl String?
+  ordering    Int      @default(0)
+  width       Int?
+  height      Int?
+  duration    Int?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([listingId, ordering])
+}
+
+model UserAddress {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  label     String?
+  address   String
+  latitude  Float?
+  longitude Float?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId    String
+  senderId   String
+  recipientId String
+  content    String
+  createdAt  DateTime @default(now())
+
+  @@index([orderId, createdAt])
+}
+
+model Review {
+  id          String      @id @default(cuid())
+  order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId     String      @unique
+  customerId  String
+  cookId      String?
+  listingId   String?
+  riderId     String?
+  rating      Int
+  comment     String?
+  createdAt   DateTime    @default(now())
+  cook        CookProfile? @relation(fields: [cookId], references: [id], onDelete: SetNull)
+  listing     CookListing? @relation(fields: [listingId], references: [id], onDelete: SetNull)
+
+  @@index([cookId])
+  @@index([listingId])
+}
+
+model CookEarning {
+  id          String            @id @default(cuid())
+  cook        CookProfile       @relation(fields: [cookId], references: [id], onDelete: Cascade)
+  cookId      String
+  order       Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId     String            @unique
+  amountKobo  Int
+  status      CookEarningStatus @default(PENDING)
+  settledAt   DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+model RiderLocation {
+  id        String   @id @default(cuid())
+  rider     Rider    @relation(fields: [riderId], references: [id], onDelete: Cascade)
+  riderId   String   @unique
+  latitude  Float
+  longitude Float
+  updatedAt DateTime @updatedAt
 }
