@@ -23,7 +23,8 @@ router.post('/login', async (req, res, next) => {
     if (!rider || !rider.isApproved) {
       throw new ApiError(403, 'Your rider registration is pending admin approval');
     }
-    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, {
+    const roles = user.roles.length ? user.roles : [user.role];
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role, roles }, JWT_SECRET, {
       expiresIn: JWT_EXPIRES_IN,
     });
     res.json({
@@ -37,6 +38,7 @@ router.post('/login', async (req, res, next) => {
           lastName: user.lastName,
           phone: user.phone,
           role: user.role,
+          roles,
         },
       },
     });
@@ -53,7 +55,7 @@ router.post('/register', async (req, res, next) => {
     if (existing) throw new ApiError(409, 'Email already in use');
     const hashed = bcrypt.hashSync(password, 10);
     const user = await prisma.user.create({
-      data: { email, password: hashed, firstName, lastName, phone, role: 'RIDER' },
+      data: { email, password: hashed, firstName, lastName, phone, role: 'RIDER', roles: ['RIDER'] },
     });
     const rider = await prisma.rider.create({
       data: { userId: user.id, vehicle, bankName, bankAccountName, bankAccountNumber, isApproved: false },
@@ -124,7 +126,7 @@ router.get('/available', requireAuth, requireRider, async (req: AuthRequest, res
       where: {
         riderId: null,
         paymentStatus: 'SUCCESS',
-        status: { in: ['PAID', 'CONFIRMED', 'PREPARING', 'READY_FOR_DISPATCH'] },
+        status: { in: ['PAID', 'CONFIRMED', 'PREPARING', 'READY_FOR_PICKUP', 'READY_FOR_DISPATCH'] },
       },
       orderBy: { createdAt: 'desc' },
       include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
@@ -140,25 +142,33 @@ router.post('/orders/:orderNumber/claim', requireAuth, requireRider, async (req:
     const { orderNumber } = req.params;
     const rider = await prisma.rider.findUnique({ where: { userId: req.user!.id } });
     if (!rider) throw new ApiError(404, 'Rider not found');
-    const order = await prisma.order.findUnique({ where: { orderNumber } });
-    if (!order) throw new ApiError(404, 'Order not found');
-    if (order.riderId) throw new ApiError(409, 'Order already assigned');
-    if (order.paymentStatus !== 'SUCCESS') throw new ApiError(400, 'Order not paid');
-    if (order.status === 'DELIVERED' || order.status === 'CANCELLED') {
-      throw new ApiError(400, 'Order already delivered or cancelled');
-    }
-    const updated = await prisma.order.update({
-      where: { id: order.id },
-      data: {
-        riderId: rider.id,
-        riderStatus: 'ASSIGNED',
-        status: 'OUT_FOR_DELIVERY',
-        statusHistory: {
-          create: { status: 'OUT_FOR_DELIVERY', note: `Assigned to rider ${rider.id}`, actor: req.user!.email },
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const order = await tx.order.findUnique({
+        where: { orderNumber },
+        include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
+      });
+      if (!order) throw new ApiError(404, 'Order not found');
+      if (order.riderId) throw new ApiError(409, 'Order already assigned');
+      if (order.paymentStatus !== 'SUCCESS') throw new ApiError(400, 'Order not paid');
+      if (order.status === 'DELIVERED' || order.status === 'CANCELLED') {
+        throw new ApiError(400, 'Order already delivered or cancelled');
+      }
+      const claimed = await tx.order.update({
+        where: { id: order.id, riderId: null },
+        data: {
+          riderId: rider.id,
+          riderStatus: 'ASSIGNED',
+          status: 'OUT_FOR_DELIVERY',
+          statusHistory: {
+            create: { status: 'OUT_FOR_DELIVERY', note: `Assigned to rider ${rider.id}`, actor: req.user!.email },
+          },
         },
-      },
-      include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
-    });
+        include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
+      });
+      return claimed;
+    }, { isolationLevel: 'Serializable' });
+
     res.json({ order: serializeOrder(updated) });
   } catch (e) {
     next(e);
@@ -189,6 +199,36 @@ router.post('/orders/:orderNumber/verify', requireAuth, requireRider, async (req
       include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
     });
     res.json({ order: serializeOrder(updated) });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post('/location', requireAuth, requireRider, async (req: AuthRequest, res, next) => {
+  try {
+    const { latitude, longitude } = req.body as { latitude?: number; longitude?: number };
+    if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+      throw new ApiError(400, 'latitude and longitude are required');
+    }
+    const rider = await prisma.rider.findUnique({ where: { userId: req.user!.id } });
+    if (!rider) throw new ApiError(404, 'Rider not found');
+    const location = await prisma.riderLocation.upsert({
+      where: { riderId: rider.id },
+      create: { riderId: rider.id, latitude, longitude },
+      update: { latitude, longitude },
+    });
+    res.json({ location });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.get('/me/location', requireAuth, requireRider, async (req: AuthRequest, res, next) => {
+  try {
+    const rider = await prisma.rider.findUnique({ where: { userId: req.user!.id } });
+    if (!rider) throw new ApiError(404, 'Rider not found');
+    const location = await prisma.riderLocation.findUnique({ where: { riderId: rider.id } });
+    res.json({ location });
   } catch (e) {
     next(e);
   }
