@@ -20,6 +20,7 @@ export interface CookListing {
   createdAt: string;
   updatedAt: string;
   media: { id: string; type: 'IMAGE' | 'VIDEO'; url: string; thumbnailUrl?: string | null }[];
+  distanceKm?: number;
   cook: {
     id: string;
     displayName: string;

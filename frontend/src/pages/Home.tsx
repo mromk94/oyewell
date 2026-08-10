@@ -3,6 +3,7 @@ import { fetchFoods, type FoodItem } from '../lib/api';
 import { fetchCookListingsPublic, type CookListing } from '../lib/listings';
 import FoodCard from '../components/FoodCard';
 import CookListingsSection from '../components/CookListingsSection';
+import FoodAroundMe from '../components/FoodAroundMe';
 import Logo from '../components/Logo';
 import Preloader from '../components/Preloader';
 import ScrollHint from '../components/ScrollHint';
@@ -90,6 +91,7 @@ export default function Home() {
           listings={cookListings}
           loading={cooksLoading}
         />
+        <FoodAroundMe />
       </main>
       <ScrollHint
         canScrollUp={canScrollUp}
