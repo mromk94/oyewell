@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { login as apiLogin, register as apiRegister, fetchMe, getCustomerToken, setCustomerToken, removeCustomerToken, type User } from './api';
+import { login as apiLogin, register as apiRegister, fetchMe, getCustomerToken, setCustomerToken, removeCustomerToken, type User, hasRole as apiHasRole } from './api';
 
 export interface AuthState {
   customer: User | null;
@@ -113,4 +113,8 @@ export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
+}
+
+export function hasRole(user: User | null, ...roles: string[]) {
+  return apiHasRole(user, ...roles);
 }

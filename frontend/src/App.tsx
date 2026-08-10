@@ -3,6 +3,7 @@ import Home from './pages/Home';
 import FoodDetail from './pages/FoodDetail';
 import TrackOrder from './pages/TrackOrder';
 import Rider from './pages/Rider';
+import Cook from './pages/Cook';
 import Admin from './pages/Admin';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -24,6 +25,7 @@ function App() {
         <Route path="/food/:slug" element={<FoodDetail />} />
         <Route path="/track/:orderNumber" element={<TrackOrder />} />
         <Route path="/rider" element={<Rider />} />
+        <Route path="/cook" element={<Cook />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/account" element={<Account />} />
