@@ -630,4 +630,98 @@ router.post('/orders/:orderNumber/assign-rider', async (req: AuthRequest, res, n
   }
 });
 
+router.get('/cooks', async (_req, res, next) => {
+  try {
+    const cooks = await prisma.cookProfile.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } }, _count: { select: { listings: true, orders: true } } },
+    });
+    res.json({ cooks });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/cooks/:id/approve', async (req, res, next) => {
+  try {
+    const cook = await prisma.cookProfile.update({
+      where: { id: req.params.id },
+      data: { profileStatus: 'APPROVED', kitchenStatus: 'OPEN' },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    });
+    emitEvent('cook:approved', { cookId: cook.id, displayName: cook.displayName });
+    res.json({ cook });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/cooks/:id/reject', async (req, res, next) => {
+  try {
+    const cook = await prisma.cookProfile.update({
+      where: { id: req.params.id },
+      data: { profileStatus: 'REJECTED', isActive: false },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    });
+    res.json({ cook });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/cook-listings', async (_req, res, next) => {
+  try {
+    const listings = await prisma.cookListing.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+      include: { cook: true, media: { orderBy: { ordering: 'asc' } } },
+    });
+    res.json({ listings });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/cook-listings/:id/approve', async (req, res, next) => {
+  try {
+    const listing = await prisma.cookListing.update({
+      where: { id: req.params.id },
+      data: { status: 'APPROVED', isActive: true },
+      include: { cook: true, media: { orderBy: { ordering: 'asc' } } },
+    });
+    emitEvent('listing:approved', { listingId: listing.id, title: listing.title });
+    res.json({ listing });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/cook-listings/:id/reject', async (req, res, next) => {
+  try {
+    const listing = await prisma.cookListing.update({
+      where: { id: req.params.id },
+      data: { status: 'REJECTED', isActive: false },
+      include: { cook: true, media: { orderBy: { ordering: 'asc' } } },
+    });
+    res.json({ listing });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/cook-earnings', async (_req, res, next) => {
+  try {
+    const [pending, settled] = await Promise.all([
+      prisma.cookEarning.aggregate({ where: { status: 'PENDING' }, _sum: { amountKobo: true } }),
+      prisma.cookEarning.aggregate({ where: { status: 'SETTLED' }, _sum: { amountKobo: true } }),
+    ]);
+    res.json({
+      pendingKobo: pending._sum.amountKobo ?? 0,
+      settledKobo: settled._sum.amountKobo ?? 0,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;
