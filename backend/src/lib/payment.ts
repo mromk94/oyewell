@@ -89,6 +89,13 @@ export async function verifyPayment(
       },
     });
 
+    if (updatedOrder.source === 'COOK') {
+      await tx.cookEarning.update({
+        where: { orderId: updatedOrder.id },
+        data: { status: 'SETTLED' },
+      });
+    }
+
     await tx.orderStatusHistory.create({
       data: {
         orderId: payment.orderId,

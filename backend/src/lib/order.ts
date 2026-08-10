@@ -19,22 +19,146 @@ async function generateDeliveryCode(): Promise<string> {
   }
 }
 
-interface CartItem {
+interface RestaurantCartItem {
   foodSlug: string;
   optionId: string;
   quantity: number;
   sideIds: string[];
 }
 
-interface OrderPayload {
-  items: CartItem[];
+interface RestaurantOrderPayload {
+  source: 'RESTAURANT';
+  items: RestaurantCartItem[];
   address: string;
   phone: string;
   paymentProvider: string;
   customerId?: string;
 }
 
+interface CookOrderPayload {
+  source: 'COOK';
+  cookListingId: string;
+  quantity: number;
+  address: string;
+  phone: string;
+  paymentProvider: string;
+  customerId?: string;
+}
+
+type OrderPayload = RestaurantOrderPayload | CookOrderPayload;
+
+async function createCookOrder(payload: CookOrderPayload) {
+  const { cookListingId, quantity, address, phone, paymentProvider, customerId } = payload;
+
+  if (!address.trim() || !phone.trim()) {
+    throw new ApiError(400, 'Address and phone are required');
+  }
+
+  const listing = await prisma.cookListing.findUnique({
+    where: { id: cookListingId },
+    include: { cook: true },
+  });
+  if (!listing || listing.status !== 'APPROVED' || !listing.isActive) {
+    throw new ApiError(404, 'Listing not available');
+  }
+  if (listing.cook.kitchenStatus !== 'OPEN' || listing.cook.profileStatus !== 'APPROVED') {
+    throw new ApiError(400, 'Cook kitchen is not open');
+  }
+  if (listing.stock < quantity) {
+    throw new ApiError(400, 'Not enough stock');
+  }
+
+  const subtotalKobo = listing.priceKobo * quantity;
+  const delivery = await resolveDelivery(address, subtotalKobo);
+  if (!delivery || !delivery.available) {
+    throw new ApiError(400, 'Delivery is not available for this address', 'DELIVERY_UNAVAILABLE');
+  }
+
+  const totalKobo = subtotalKobo + delivery.feeKobo;
+  const provider = paymentProvider.toUpperCase() as PaymentProvider;
+  if (!Object.values(PaymentProvider).includes(provider)) {
+    throw new ApiError(400, 'Invalid payment provider');
+  }
+
+  const orderNumber = generateOrderNumber();
+  const order = await prisma.$transaction(async (tx) => {
+    await tx.cookListing.update({
+      where: { id: listing.id },
+      data: { stock: { decrement: quantity } },
+    });
+
+    const created = await tx.order.create({
+      data: {
+        orderNumber,
+        source: 'COOK',
+        status: 'PENDING_PAYMENT',
+        paymentStatus: 'PENDING',
+        customerId,
+        cookId: listing.cookId,
+        cookListingId: listing.id,
+        address,
+        phone,
+        deliveryZoneId: delivery.zone.id,
+        deliveryFeeKobo: delivery.feeKobo,
+        subtotalKobo,
+        totalKobo,
+        deliveryCode: await generateDeliveryCode(),
+        items: {
+          create: {
+            cookListingId: listing.id,
+            foodName: listing.title,
+            optionLabel: listing.portionDescription ?? 'Unit',
+            optionValue: null,
+            unitPriceKobo: listing.priceKobo,
+            quantity,
+            totalKobo: subtotalKobo,
+            orderingMode: 'PLATE',
+          },
+        },
+        statusHistory: {
+          create: { status: 'PENDING_PAYMENT', note: 'Cook order created' },
+        },
+      },
+    });
+
+    await tx.cookEarning.create({
+      data: {
+        cookId: listing.cookId,
+        orderId: created.id,
+        amountKobo: subtotalKobo,
+        status: 'PENDING',
+      },
+    });
+
+    const payment = await createPaymentForOrder(tx, created.id, totalKobo, provider);
+    return { ...created, payment };
+  });
+
+  return {
+    order: {
+      id: order.id,
+      orderNumber: order.orderNumber,
+      source: order.source,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      subtotal: formatKobo(subtotalKobo),
+      deliveryFee: formatKobo(delivery.feeKobo),
+      total: formatKobo(totalKobo),
+      address,
+      phone,
+      deliveryCode: order.deliveryCode,
+      estimatedMinutes: delivery.estimatedMinutes,
+    },
+    payment: {
+      id: order.payment.id,
+      idempotencyKey: order.payment.idempotencyKey,
+      provider: order.payment.provider,
+    },
+  };
+}
+
 export async function createOrder(payload: OrderPayload) {
+  if (payload.source === 'COOK') return createCookOrder(payload);
   const { items, address, phone, paymentProvider, customerId } = payload;
 
   if (!address.trim() || !phone.trim()) {
