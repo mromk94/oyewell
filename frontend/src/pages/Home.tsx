@@ -1,12 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { fetchFoods, type FoodItem } from '../lib/api';
+import { fetchCookListingsPublic, type CookListing } from '../lib/listings';
 import FoodCard from '../components/FoodCard';
+import CookListingsSection from '../components/CookListingsSection';
 import Logo from '../components/Logo';
 import Preloader from '../components/Preloader';
 import ScrollHint from '../components/ScrollHint';
 
 export default function Home() {
   const [foods, setFoods] = useState<FoodItem[]>([]);
+  const [cookListings, setCookListings] = useState<CookListing[]>([]);
+  const [cooksLoading, setCooksLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [minReady, setMinReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -16,13 +20,19 @@ export default function Home() {
 
   useEffect(() => {
     const minTimer = setTimeout(() => setMinReady(true), 2500);
-    fetchFoods()
-      .then((data) => {
+    Promise.all([
+      fetchFoods(),
+      fetchCookListingsPublic({ take: 20 }),
+    ])
+      .then(([data, listings]) => {
         setFoods(data.foods);
+        setCookListings(listings.listings);
+        setCooksLoading(false);
         setLoading(false);
       })
       .catch((e) => {
         setError(e.message);
+        setCooksLoading(false);
         setLoading(false);
       });
     return () => clearTimeout(minTimer);
@@ -75,6 +85,11 @@ export default function Home() {
         {foods.map((food) => (
           <FoodCard key={food.id} food={food} />
         ))}
+        <CookListingsSection
+          title='Home Cooks Near You'
+          listings={cookListings}
+          loading={cooksLoading}
+        />
       </main>
       <ScrollHint
         canScrollUp={canScrollUp}
