@@ -32,7 +32,7 @@ function pointInPolygon(point: GeoPoint, polygon: GeoPoint[]): boolean {
   return inside;
 }
 
-function distanceKm(a: GeoPoint, b: GeoPoint): number {
+export function distanceKm(a: GeoPoint, b: GeoPoint): number {
   const R = 6371;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
   const dLng = ((b.lng - a.lng) * Math.PI) / 180;

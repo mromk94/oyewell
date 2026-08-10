@@ -10,6 +10,9 @@ import paymentsRouter from './routes/payments.js';
 import adminRouter from './routes/admin.js';
 import sidesRouter from './routes/sides.js';
 import riderRouter from './routes/rider.js';
+import cooksRouter from './routes/cooks.js';
+import listingsRouter from './routes/listings.js';
+import messagesRouter from './routes/messages.js';
 import { rateLimit } from './middleware/rateLimit.js';
 import { ApiError } from './lib/errors.js';
 
@@ -40,6 +43,9 @@ app.use('/api/sides', sidesRouter);
 app.use('/api/payments', paymentsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/rider', riderRouter);
+app.use('/api/cooks', cooksRouter);
+app.use('/api/listings', listingsRouter);
+app.use('/api/messages', messagesRouter);
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof ApiError) {
