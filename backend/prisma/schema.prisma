@@ -50,6 +50,8 @@ model Food {
   slug         String       @unique
   description  String?
   heroImage    String?
+  galleryImages String[]
+  videos       String[]
   status       FoodStatus   @default(DRAFT)
   isAvailable  Boolean      @default(true)
   featured     Boolean      @default(false)

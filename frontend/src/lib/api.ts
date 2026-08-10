@@ -43,6 +43,8 @@ export interface FoodItem {
   name: string;
   description: string | null;
   heroImage: string | null;
+  galleryImages: string[];
+  videos: string[];
   isAvailable: boolean;
   featured: boolean;
   orderingMode: 'PLATE' | 'PORTION' | 'PIECE';
