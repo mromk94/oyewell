@@ -3,6 +3,7 @@ import { prisma } from '../prisma.js';
 import { requireAuth, requireRole, type AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../lib/errors.js';
 import { serializeOrder } from '../lib/order.js';
+import { emitEvent } from '../lib/realtime.js';
 
 const router = Router();
 
@@ -237,6 +238,14 @@ router.post('/me/orders/:orderNumber/accept', requireAuth, requireRole('COOK'), 
       },
       include: { items: true, sides: true, payment: true, statusHistory: true },
     });
+    emitEvent('order:status', {
+      orderId: updated.id,
+      orderNumber: updated.orderNumber,
+      status: updated.status,
+      cookId: updated.cookId,
+      cookAcceptedAt: updated.cookAcceptedAt,
+      cookReadyAt: updated.cookReadyAt,
+    });
     res.json({ order: serializeOrder(updated) });
   } catch (err) {
     next(err);
@@ -258,6 +267,14 @@ router.post('/me/orders/:orderNumber/preparing', requireAuth, requireRole('COOK'
         statusHistory: { create: { status: 'PREPARING', note: 'Cook started preparing', actor: req.user!.email } },
       },
       include: { items: true, sides: true, payment: true, statusHistory: true },
+    });
+    emitEvent('order:status', {
+      orderId: updated.id,
+      orderNumber: updated.orderNumber,
+      status: updated.status,
+      cookId: updated.cookId,
+      cookAcceptedAt: updated.cookAcceptedAt,
+      cookReadyAt: updated.cookReadyAt,
     });
     res.json({ order: serializeOrder(updated) });
   } catch (err) {
@@ -281,6 +298,14 @@ router.post('/me/orders/:orderNumber/ready', requireAuth, requireRole('COOK'), a
         statusHistory: { create: { status: 'READY_FOR_PICKUP', note: 'Food is ready', actor: req.user!.email } },
       },
       include: { items: true, sides: true, payment: true, statusHistory: true },
+    });
+    emitEvent('order:status', {
+      orderId: updated.id,
+      orderNumber: updated.orderNumber,
+      status: updated.status,
+      cookId: updated.cookId,
+      cookAcceptedAt: updated.cookAcceptedAt,
+      cookReadyAt: updated.cookReadyAt,
     });
     res.json({ order: serializeOrder(updated) });
   } catch (err) {

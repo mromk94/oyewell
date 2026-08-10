@@ -2,6 +2,7 @@ import { PrismaClient, PaymentStatus, PaymentProvider, Prisma } from '@prisma/cl
 import crypto from 'node:crypto';
 import { ApiError } from './errors.js';
 import { getProvider } from './payment-providers.js';
+import { emitEvent } from './realtime.js';
 
 export async function createPaymentForOrder(
   prisma: PrismaClient | Prisma.TransactionClient,
@@ -103,6 +104,13 @@ export async function verifyPayment(
         actor: 'payment-system',
         note: 'Payment verified',
       },
+    });
+
+    emitEvent('order:status', {
+      orderId: updatedOrder.id,
+      orderNumber: updatedOrder.orderNumber,
+      status: updatedOrder.status,
+      paymentStatus: updatedOrder.paymentStatus,
     });
 
     return { payment: updatedPayment, order: updatedOrder };

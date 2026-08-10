@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../prisma.js';
 import { requireAuth, requireAdmin, type AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../lib/errors.js';
+import { emitEvent } from '../lib/realtime.js';
 import { getEmailConfig, saveEmailConfig, sendEmail, sendOrderStatusEmail } from '../lib/email.js';
 
 const router = Router();
@@ -614,6 +615,14 @@ router.post('/orders/:orderNumber/assign-rider', async (req: AuthRequest, res, n
         },
       },
       include: { items: true, sides: true, deliveryZone: true, rider: { include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } } }, statusHistory: true },
+    });
+    emitEvent('order:status', {
+      orderId: updated.id,
+      orderNumber: updated.orderNumber,
+      status: updated.status,
+      riderId: updated.riderId,
+      riderStatus: updated.riderStatus,
+      riderFeeKobo: updated.riderFeeKobo,
     });
     res.json({ order: updated });
   } catch (err) {

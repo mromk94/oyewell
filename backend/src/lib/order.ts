@@ -4,6 +4,7 @@ import { ApiError } from './errors.js';
 import { resolveDelivery } from './delivery.js';
 import { createPaymentForOrder } from './payment.js';
 import { formatKobo } from './money.js';
+import { emitEvent } from './realtime.js';
 import crypto from 'node:crypto';
 
 function generateOrderNumber(): string {
@@ -132,6 +133,15 @@ async function createCookOrder(payload: CookOrderPayload) {
 
     const payment = await createPaymentForOrder(tx, created.id, totalKobo, provider);
     return { ...created, payment };
+  });
+
+  emitEvent('order:created', {
+    orderId: order.id,
+    orderNumber: order.orderNumber,
+    source: order.source,
+    status: order.status,
+    paymentStatus: order.paymentStatus,
+    totalKobo,
   });
 
   return {
@@ -284,6 +294,15 @@ export async function createOrder(payload: OrderPayload) {
     const payment = await createPaymentForOrder(tx, created.id, totalKobo, provider);
 
     return { ...created, payment };
+  });
+
+  emitEvent('order:created', {
+    orderId: order.id,
+    orderNumber: order.orderNumber,
+    source: order.source,
+    status: order.status,
+    paymentStatus: order.paymentStatus,
+    totalKobo,
   });
 
   return {

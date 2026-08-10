@@ -6,6 +6,7 @@ import { requireAuth, requireRider, type AuthRequest } from '../middleware/auth.
 import { serializeOrder } from '../lib/order.js';
 import { ApiError } from '../lib/errors.js';
 import { formatKobo } from '../lib/money.js';
+import { emitEvent } from '../lib/realtime.js';
 
 const JWT_SECRET = process.env.JWT_SECRET ?? 'change-me';
 const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN ?? '7d') as any;
@@ -169,6 +170,13 @@ router.post('/orders/:orderNumber/claim', requireAuth, requireRider, async (req:
       return claimed;
     }, { isolationLevel: 'Serializable' });
 
+    emitEvent('order:status', {
+      orderId: updated.id,
+      orderNumber: updated.orderNumber,
+      status: updated.status,
+      riderStatus: updated.riderStatus,
+      riderId: updated.riderId,
+    });
     res.json({ order: serializeOrder(updated) });
   } catch (e) {
     next(e);
@@ -197,6 +205,13 @@ router.post('/orders/:orderNumber/verify', requireAuth, requireRider, async (req
         },
       },
       include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
+    });
+    emitEvent('order:status', {
+      orderId: updated.id,
+      orderNumber: updated.orderNumber,
+      status: updated.status,
+      riderStatus: updated.riderStatus,
+      deliveredAt: updated.deliveredAt,
     });
     res.json({ order: serializeOrder(updated) });
   } catch (e) {
