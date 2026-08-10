@@ -18,6 +18,7 @@ import { rateLimit } from './middleware/rateLimit.js';
 import { ApiError } from './lib/errors.js';
 
 const app = express();
+app.disable('x-powered-by');
 const PORT = Number(process.env.PORT ?? 4000);
 
 app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(',') ?? true }));
