@@ -14,7 +14,7 @@ import {
   LogOut,
   ShieldCheck,
 } from 'lucide-react';
-import { riderLogin, riderRegister, riderLogout, fetchRiderMe, updateRiderMe, fetchRiderOrders, fetchAvailableOrders, claimOrder, verifyDeliveryCode, fetchRiderEarnings, type RiderOrder, type Rider } from '../lib/rider';
+import { riderLogin, riderRegister, riderLogout, fetchRiderMe, updateRiderMe, updateRiderAvailability, fetchRiderOrders, fetchAvailableOrders, claimOrder, verifyDeliveryCode, fetchRiderEarnings, type RiderOrder, type Rider } from '../lib/rider';
 
 export default function Rider() {
   const [token, setToken] = useState(localStorage.getItem('rider_token') || '');
@@ -72,9 +72,14 @@ export default function Rider() {
       <main className='mx-auto max-w-4xl p-4'>
         {rider && (
           <div className='mb-6 rounded-2xl border border-white/10 bg-white/5 p-4'>
-            <p className='text-sm text-white/60'>Welcome back</p>
-            <p className='text-xl font-black'>{rider.user?.firstName || 'Rider'} {rider.user?.lastName}</p>
-            <p className='text-xs text-white/40'>{rider.user?.email}</p>
+            <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
+              <div>
+                <p className='text-sm text-white/60'>Welcome back</p>
+                <p className='text-xl font-black'>{rider.user?.firstName || 'Rider'} {rider.user?.lastName}</p>
+                <p className='text-xs text-white/40'>{rider.user?.email}</p>
+              </div>
+              <OnlineToggle rider={rider} onUpdate={setRider} onError={setError} />
+            </div>
           </div>
         )}
 
@@ -491,6 +496,46 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
       <p className='text-2xl font-black text-emerald-300'>{value}</p>
       <p className='mt-1 text-xs font-bold uppercase tracking-wider text-white/60'>{label}</p>
     </div>
+  );
+}
+
+function OnlineToggle({ rider, onUpdate, onError }: { rider: Rider; onUpdate: (r: Rider) => void; onError: (m: string) => void }) {
+  const [saving, setSaving] = useState(false);
+
+  async function toggle() {
+    if (saving) return;
+    setSaving(true);
+    try {
+      const updated = await updateRiderAvailability(!rider.available);
+      onUpdate(updated);
+    } catch (e: any) {
+      onError(e.message || 'Failed to update availability');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!rider.isApproved || !rider.isActive) {
+    return (
+      <div className="rounded-full bg-red-500/20 px-4 py-2 text-sm font-bold text-red-300">
+        Account inactive
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={toggle}
+      disabled={saving}
+      className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-bold transition disabled:opacity-50 ${
+        rider.available
+          ? 'bg-emerald-500 text-black hover:bg-emerald-400'
+          : 'bg-white/10 text-white hover:bg-white/20'
+      }`}
+    >
+      {saving ? <Loader2 className='h-4 w-4 animate-spin' /> : <div className={`h-2.5 w-2.5 rounded-full ${rider.available ? 'bg-black' : 'bg-red-400'}`} />}
+      {rider.available ? 'Online' : 'Offline'}
+    </button>
   );
 }
 

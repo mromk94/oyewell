@@ -90,6 +90,21 @@ router.get('/me', requireAuth, requireRider, async (req: AuthRequest, res, next)
   }
 });
 
+router.put('/me/availability', requireAuth, requireRider, async (req: AuthRequest, res, next) => {
+  try {
+    const { available } = req.body as { available?: boolean };
+    if (typeof available !== 'boolean') throw new ApiError(400, 'available must be a boolean');
+    const rider = await prisma.rider.update({
+      where: { userId: req.user!.id },
+      data: { available },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    });
+    res.json({ rider });
+  } catch (e) {
+    next(e);
+  }
+});
+
 router.put('/me', requireAuth, requireRider, async (req: AuthRequest, res, next) => {
   try {
     const { vehicle, bankName, bankAccountName, bankAccountNumber } = (req.body || {}) as Record<string, string>;
@@ -101,6 +116,28 @@ router.put('/me', requireAuth, requireRider, async (req: AuthRequest, res, next)
       },
     });
     res.json({ rider });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.get('/available', requireAuth, requireRider, async (req: AuthRequest, res, next) => {
+  try {
+    const rider = await prisma.rider.findUnique({ where: { userId: req.user!.id } });
+    if (!rider) throw new ApiError(404, 'Rider not found');
+    if (!rider.isApproved || !rider.isActive || !rider.available) {
+      throw new ApiError(403, 'You are not currently eligible to accept deliveries');
+    }
+    const orders = await prisma.order.findMany({
+      where: {
+        riderId: null,
+        paymentStatus: 'SUCCESS',
+        status: { in: ['PAID', 'CONFIRMED', 'PREPARING', 'READY_FOR_PICKUP', 'READY_FOR_DISPATCH'] },
+      },
+      orderBy: { createdAt: 'desc' },
+      include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
+    });
+    res.json({ orders: orders.map(serializeOrder) });
   } catch (e) {
     next(e);
   }
@@ -121,28 +158,14 @@ router.get('/orders', requireAuth, requireRider, async (req: AuthRequest, res, n
   }
 });
 
-router.get('/available', requireAuth, requireRider, async (req: AuthRequest, res, next) => {
-  try {
-    const orders = await prisma.order.findMany({
-      where: {
-        riderId: null,
-        paymentStatus: 'SUCCESS',
-        status: { in: ['PAID', 'CONFIRMED', 'PREPARING', 'READY_FOR_PICKUP', 'READY_FOR_DISPATCH'] },
-      },
-      orderBy: { createdAt: 'desc' },
-      include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
-    });
-    res.json({ orders: orders.map(serializeOrder) });
-  } catch (e) {
-    next(e);
-  }
-});
-
 router.post('/orders/:orderNumber/claim', requireAuth, requireRider, async (req: AuthRequest, res, next) => {
   try {
     const { orderNumber } = req.params;
     const rider = await prisma.rider.findUnique({ where: { userId: req.user!.id } });
     if (!rider) throw new ApiError(404, 'Rider not found');
+    if (!rider.isApproved || !rider.isActive || !rider.available) {
+      throw new ApiError(403, 'You are not eligible to claim deliveries right now');
+    }
 
     const updated = await prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({

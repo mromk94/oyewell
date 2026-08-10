@@ -282,6 +282,42 @@ export async function approveRider(id: string) {
   return data;
 }
 
+export async function pauseRider(id: string) {
+  const res = await fetch(`${API_BASE}/api/admin/riders/${id}/pause`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to pause rider');
+  return res.json();
+}
+
+export async function suspendRider(id: string) {
+  const res = await fetch(`${API_BASE}/api/admin/riders/${id}/suspend`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to suspend rider');
+  return res.json();
+}
+
+export async function banRider(id: string) {
+  const res = await fetch(`${API_BASE}/api/admin/riders/${id}/ban`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to ban rider');
+  return res.json();
+}
+
+export async function restoreRider(id: string) {
+  const res = await fetch(`${API_BASE}/api/admin/riders/${id}/restore`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to restore rider');
+  return res.json();
+}
+
 export async function sendTestEmail(to: string, subject: string, text: string) {
   const res = await fetch(`${API_BASE}/api/admin/email-config/test`, {
     method: 'POST',

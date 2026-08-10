@@ -39,8 +39,12 @@ import {
   fetchCustomers,
   fetchCustomerOrders,
   updateCustomerRole,
-  fetchPendingRiders,
+  fetchRiders,
   approveRider,
+  pauseRider,
+  suspendRider,
+  banRider,
+  restoreRider,
   fetchAdminCooks,
   approveCook,
   rejectCook,
@@ -109,7 +113,7 @@ export default function Admin() {
       } else if (tab === 'email') {
         // EmailTab loads its own data
       } else if (tab === 'riders') {
-        const { riders } = await fetchPendingRiders();
+        const { riders } = await fetchRiders();
         setPendingRiders(riders);
       } else if (tab === 'cooks') {
         const { cooks } = await fetchAdminCooks();
@@ -394,14 +398,14 @@ function DeliveryTab({ zones, onRefresh }: { zones: any[]; onRefresh: () => void
 function RidersTab({ riders, onRefresh }: { riders: any[]; onRefresh: () => void }) {
   const [processing, setProcessing] = useState<string | null>(null);
 
-  async function handleApprove(id: string) {
-    if (!confirm('Approve this rider?')) return;
-    setProcessing(id);
+  async function action(id: string, fn: (id: string) => Promise<any>, label: string) {
+    if (!confirm(`${label} this rider?`)) return;
+    setProcessing(`${label}:${id}`);
     try {
-      await approveRider(id);
+      await fn(id);
       onRefresh();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Approval failed');
+      alert(e instanceof Error ? e.message : `${label} failed`);
     } finally {
       setProcessing(null);
     }
@@ -409,30 +413,74 @@ function RidersTab({ riders, onRefresh }: { riders: any[]; onRefresh: () => void
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-white">Rider applications</h2>
-      <p className="mt-1 text-white/60">Approve new riders to let them claim and deliver orders.</p>
+      <h2 className="text-2xl font-bold text-white">Riders</h2>
+      <p className="mt-1 text-white/60">Approve, pause, suspend, ban and restore riders.</p>
       {riders.length === 0 ? (
-        <p className="mt-6 text-white/50">No pending rider applications.</p>
+        <p className="mt-6 text-white/50">No riders registered.</p>
       ) : (
         <div className="mt-6 space-y-4">
           {riders.map((rider) => (
             <div key={rider.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <p className="font-bold text-white">{rider.user?.firstName} {rider.user?.lastName}</p>
                   <p className="text-sm text-white/60">{rider.user?.email}</p>
                   <p className="text-sm text-white/60">{rider.user?.phone}</p>
-                  <p className="mt-2 text-sm text-white/60">Vehicle: {rider.vehicle || '—'}</p>
+                  <p className="mt-2 flex flex-wrap gap-2 text-sm">
+                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-white/70">{rider.isApproved ? 'Approved' : 'Pending'}</span>
+                    <span className={`rounded-full px-2 py-0.5 ${rider.isActive ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'}`}>{rider.isActive ? 'Active' : 'Inactive'}</span>
+                    <span className={`rounded-full px-2 py-0.5 ${rider.available ? 'bg-emerald-500/20 text-emerald-300' : 'bg-yellow-500/20 text-yellow-300'}`}>{rider.available ? 'Online' : 'Offline'}</span>
+                  </p>
+                  <p className="mt-1 text-sm text-white/60">Vehicle: {rider.vehicle || '—'}</p>
                   <p className="text-sm text-white/60">Bank: {rider.bankName || '—'}</p>
-                  <p className="text-sm text-white/60">Account: {rider.bankAccountName || '—'}</p>
                 </div>
-                <button
-                  onClick={() => handleApprove(rider.id)}
-                  disabled={processing === rider.id}
-                  className="shrink-0 rounded-full bg-emerald-500 px-6 py-2 font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50"
-                >
-                  {processing === rider.id ? '...' : 'Approve'}
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  {!rider.isApproved && (
+                    <button
+                      onClick={() => action(rider.id, approveRider, 'Approve')}
+                      disabled={processing === `Approve:${rider.id}`}
+                      className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50"
+                    >
+                      Approve
+                    </button>
+                  )}
+                  {rider.isApproved && rider.isActive && (
+                    <button
+                      onClick={() => action(rider.id, pauseRider, 'Pause')}
+                      disabled={processing === `Pause:${rider.id}`}
+                      className="rounded-full bg-yellow-500/20 px-4 py-2 text-sm font-bold text-yellow-300 transition hover:bg-yellow-500/30 disabled:opacity-50"
+                    >
+                      Pause
+                    </button>
+                  )}
+                  {rider.isApproved && rider.isActive && (
+                    <button
+                      onClick={() => action(rider.id, suspendRider, 'Suspend')}
+                      disabled={processing === `Suspend:${rider.id}`}
+                      className="rounded-full bg-orange-500/20 px-4 py-2 text-sm font-bold text-orange-300 transition hover:bg-orange-500/30 disabled:opacity-50"
+                    >
+                      Suspend
+                    </button>
+                  )}
+                  {!rider.isActive && rider.isApproved && (
+                    <button
+                      onClick={() => action(rider.id, restoreRider, 'Restore')}
+                      disabled={processing === `Restore:${rider.id}`}
+                      className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50"
+                    >
+                      Restore
+                    </button>
+                  )}
+                  {rider.isApproved && (
+                    <button
+                      onClick={() => action(rider.id, banRider, 'Ban')}
+                      disabled={processing === `Ban:${rider.id}`}
+                      className="rounded-full bg-red-500/20 px-4 py-2 text-sm font-bold text-red-300 transition hover:bg-red-500/30 disabled:opacity-50"
+                    >
+                      Ban
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}

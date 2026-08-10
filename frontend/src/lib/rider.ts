@@ -87,6 +87,13 @@ export async function fetchRiderMe() {
   return json as { rider: Rider; user: any };
 }
 
+export async function updateRiderAvailability(available: boolean) {
+  const res = await fetch(R('/me/availability'), { method: 'PUT', headers: headers(), body: JSON.stringify({ available }) });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || 'Update failed');
+  return json.rider as Rider;
+}
+
 export async function updateRiderMe(body: Partial<Pick<Rider, 'vehicle' | 'bankName' | 'bankAccountName' | 'bankAccountNumber'>>) {
   const res = await fetch(R('/me'), { method: 'PUT', headers: headers(), body: JSON.stringify(body) });
   const json = await res.json().catch(() => ({}));

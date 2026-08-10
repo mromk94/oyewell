@@ -549,7 +549,63 @@ router.post('/riders/:id/approve', async (req, res, next) => {
     const { id } = req.params;
     const rider = await prisma.rider.update({
       where: { id },
-      data: { isApproved: true },
+      data: { isApproved: true, isActive: true },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    });
+    res.json({ rider });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/riders/:id/pause', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const rider = await prisma.rider.update({
+      where: { id },
+      data: { isActive: false },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    });
+    res.json({ rider });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/riders/:id/suspend', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const rider = await prisma.rider.update({
+      where: { id },
+      data: { isActive: false },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    });
+    res.json({ rider });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/riders/:id/ban', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const rider = await prisma.rider.update({
+      where: { id },
+      data: { isApproved: false, isActive: false },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    });
+    res.json({ rider });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/riders/:id/restore', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const rider = await prisma.rider.update({
+      where: { id },
+      data: { isActive: true },
       include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
     });
     res.json({ rider });
