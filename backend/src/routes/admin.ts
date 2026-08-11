@@ -1,64 +1,76 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { requireAuth, requireAdmin, type AuthRequest } from '../middleware/auth.js';
-import bcrypt from 'bcryptjs';
 import { ApiError } from '../lib/errors.js';
-import { createApproval } from '../lib/approval.js';
+import { applyMapSettingsFromDB } from '../lib/map-settings.js';
+import { cache } from '../lib/cache.js';
 import { logAudit } from '../lib/audit.js';
 import { dispatchOrder, findEligibleRiders } from '../lib/assignment.js';
-import { applyMapSettingsFromDB } from '../lib/map-settings.js';
 import { isLocationFresh } from '../lib/location.js';
 import { emitEvent } from '../lib/realtime.js';
+import bcrypt from 'bcryptjs';
+import { createApproval } from '../lib/approval.js';
 import { getEmailConfig, saveEmailConfig, sendEmail, sendOrderStatusEmail } from '../lib/email.js';
 
 const router = Router();
 
 router.use(requireAuth, requireAdmin);
 
+const DASHBOARD_CACHE_KEY = 'admin:dashboard';
+const DASHBOARD_TTL = 15;
+
 router.get('/dashboard', async (_req, res, next) => {
   try {
-    const [active, newOrders, preparing, outForDelivery, completed, revenueAgg, foods, popularItems, ridersOnline, ordersByZone] = await Promise.all([
-      prisma.order.count({
-        where: { status: { in: ['PENDING_PAYMENT', 'PAID', 'CONFIRMED', 'PREPARING', 'READY_FOR_DISPATCH', 'OUT_FOR_DELIVERY'] } },
-      }),
-      prisma.order.count({ where: { status: 'PENDING_PAYMENT' } }),
-      prisma.order.count({ where: { status: 'PREPARING' } }),
-      prisma.order.count({ where: { status: 'OUT_FOR_DELIVERY' } }),
-      prisma.order.count({ where: { status: 'DELIVERED' } }),
-      prisma.order.aggregate({
-        where: { paymentStatus: 'PAID' },
-        _sum: { totalKobo: true },
-      }),
-      prisma.food.findMany({
-        where: { status: 'PUBLISHED' },
-        include: { _count: { select: { options: true } } },
-      }),
-      prisma.orderItem.groupBy({
-        by: ['foodName'],
-        _count: { id: true },
-        take: 5,
-        orderBy: { _count: { id: 'desc' } },
-      }),
-      prisma.rider.count({ where: { isApproved: true, isActive: true, available: true, operationalStatus: 'ONLINE' } }),
-      prisma.order.groupBy({
-        by: ['deliveryZoneId'],
-        where: { status: 'OUT_FOR_DELIVERY' },
-        _count: { id: true },
-      }),
-    ]);
+    const data = await cache.getOrSet(
+      DASHBOARD_CACHE_KEY,
+      async () => {
+        const [active, newOrders, preparing, outForDelivery, completed, revenueAgg, foods, popularItems, ridersOnline, ordersByZone] = await Promise.all([
+          prisma.order.count({
+            where: { status: { in: ['PENDING_PAYMENT', 'PAID', 'CONFIRMED', 'PREPARING', 'READY_FOR_DISPATCH', 'OUT_FOR_DELIVERY'] } },
+          }),
+          prisma.order.count({ where: { status: 'PENDING_PAYMENT' } }),
+          prisma.order.count({ where: { status: 'PREPARING' } }),
+          prisma.order.count({ where: { status: 'OUT_FOR_DELIVERY' } }),
+          prisma.order.count({ where: { status: 'DELIVERED' } }),
+          prisma.order.aggregate({
+            where: { paymentStatus: 'PAID' },
+            _sum: { totalKobo: true },
+          }),
+          prisma.food.findMany({
+            where: { status: 'PUBLISHED' },
+            include: { _count: { select: { options: true } } },
+          }),
+          prisma.orderItem.groupBy({
+            by: ['foodName'],
+            _count: { id: true },
+            take: 5,
+            orderBy: { _count: { id: 'desc' } },
+          }),
+          prisma.rider.count({ where: { isApproved: true, isActive: true, available: true, operationalStatus: 'ONLINE' } }),
+          prisma.order.groupBy({
+            by: ['deliveryZoneId'],
+            where: { status: 'OUT_FOR_DELIVERY' },
+            _count: { id: true },
+          }),
+        ]);
 
-    res.json({
-      active,
-      new: newOrders,
-      preparing,
-      outForDelivery,
-      completed,
-      revenueKobo: revenueAgg._sum?.totalKobo ?? 0,
-      lowStockFoods: foods.filter((f) => f._count.options < 1),
-      popularItems,
-      ridersOnline,
-      ordersByZone,
-    });
+        return {
+          active,
+          new: newOrders,
+          preparing,
+          outForDelivery,
+          completed,
+          revenueKobo: revenueAgg._sum?.totalKobo ?? 0,
+          lowStockFoods: foods.filter((f) => f._count.options < 1),
+          popularItems,
+          ridersOnline,
+          ordersByZone,
+        };
+      },
+      { ttlSeconds: DASHBOARD_TTL, jitter: true },
+    );
+    res.setHeader('Cache-Control', `private, max-age=${DASHBOARD_TTL}, stale-while-revalidate=${DASHBOARD_TTL}`);
+    res.json(data);
   } catch (err) {
     next(err);
   }
@@ -344,6 +356,7 @@ router.post('/payment-methods', async (req, res, next) => {
         enabled: body.enabled !== undefined ? Boolean(body.enabled) : false,
       },
     });
+    await cache.del('payments:methods:public');
     res.status(201).json({ method });
   } catch (err) {
     next(err);
@@ -364,6 +377,7 @@ router.put('/payment-methods/:id', async (req, res, next) => {
       where: { id: req.params.id },
       data,
     });
+    await cache.del('payments:methods:public');
     res.json({ method });
   } catch (err) {
     next(err);
@@ -373,16 +387,24 @@ router.put('/payment-methods/:id', async (req, res, next) => {
 router.delete('/payment-methods/:id', async (req, res, next) => {
   try {
     await prisma.paymentMethodConfig.delete({ where: { id: req.params.id } });
+    await cache.del('payments:methods:public');
     res.json({ ok: true });
   } catch (err) {
     next(err);
   }
 });
 
+const SETTINGS_CACHE_KEY = 'admin:settings';
+const SETTINGS_TTL = 60;
+
 router.get('/settings', async (_req, res, next) => {
   try {
-    const setting = await prisma.restaurantSetting.findFirst();
-    res.json({ settings: setting });
+    const data = await cache.getOrSet(SETTINGS_CACHE_KEY, async () => {
+      const setting = await prisma.restaurantSetting.findFirst();
+      return { settings: setting };
+    }, { ttlSeconds: SETTINGS_TTL, jitter: true });
+    res.setHeader('Cache-Control', `public, max-age=${SETTINGS_TTL}, stale-while-revalidate=${SETTINGS_TTL}`);
+    res.json(data);
   } catch (err) {
     next(err);
   }
@@ -408,6 +430,7 @@ router.put('/settings', async (req, res, next) => {
       create: { id: 'default', ...data },
     });
     await applyMapSettingsFromDB();
+    await cache.del(SETTINGS_CACHE_KEY);
     res.json({ settings: setting });
   } catch (err) {
     next(err);

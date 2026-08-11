@@ -3,6 +3,7 @@ import { prisma } from '../prisma.js';
 import { verifyPayment } from '../lib/payment.js';
 import { paymentVerifySchema } from '../lib/validation.js';
 import { ApiError } from '../lib/errors.js';
+import { cache } from '../lib/cache.js';
 
 const router = Router();
 
@@ -30,22 +31,31 @@ function safePublicConfig(provider: string, config: any) {
   return undefined;
 }
 
+const PAYMENT_METHODS_CACHE_KEY = 'payments:methods:public';
+const PAYMENT_METHODS_TTL = 60;
+
+async function loadPublicPaymentMethods() {
+  const methods = await prisma.paymentMethodConfig.findMany({
+    where: { enabled: true },
+    orderBy: { name: 'asc' },
+  });
+  return {
+    methods: methods.map((m) => ({
+      id: m.id,
+      name: m.name,
+      provider: m.provider,
+      enabled: m.enabled,
+      publicKey: m.publicKey,
+      config: safePublicConfig(m.provider, m.config),
+    })),
+  };
+}
+
 router.get('/methods', async (_req, res, next) => {
   try {
-    const methods = await prisma.paymentMethodConfig.findMany({
-      where: { enabled: true },
-      orderBy: { name: 'asc' },
-    });
-    res.json({
-      methods: methods.map((m) => ({
-        id: m.id,
-        name: m.name,
-        provider: m.provider,
-        enabled: m.enabled,
-        publicKey: m.publicKey,
-        config: safePublicConfig(m.provider, m.config),
-      })),
-    });
+    const data = await cache.getOrSet(PAYMENT_METHODS_CACHE_KEY, loadPublicPaymentMethods, { ttlSeconds: PAYMENT_METHODS_TTL, jitter: true });
+    res.setHeader('Cache-Control', `public, max-age=${PAYMENT_METHODS_TTL}, stale-while-revalidate=${PAYMENT_METHODS_TTL}`);
+    res.json(data);
   } catch (err) {
     next(err);
   }

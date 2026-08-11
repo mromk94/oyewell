@@ -4,6 +4,7 @@ import { ApiError } from '../lib/errors.js';
 import { requireAuth, optionalAuth } from '../middleware/auth.js';
 import type { AuthRequest } from '../middleware/auth.js';
 import { distanceMeters, geocode, LOCAL_SEARCH_RINGS_METERS } from '../lib/location.js';
+import { cache } from '../lib/cache.js';
 
 const router = Router();
 
@@ -43,6 +44,13 @@ function serializeListing(listing: any) {
     viewCount: _count?.views ?? 0,
   };
 }
+
+function geoBucket(lat: number, lng: number, precision = 1) {
+  const factor = 10 ** precision;
+  return `${Math.round(lat * factor) / factor},${Math.round(lng * factor) / factor}`;
+}
+
+const LISTINGS_TTL = 30;
 
 router.get('/', async (req, res, next) => {
   try {
@@ -93,53 +101,61 @@ router.get('/around-me', async (req, res, next) => {
       lng = geocoded.lng;
     }
 
-    const listings = await prisma.cookListing.findMany({
-      where: {
-        status: 'APPROVED',
-        isActive: true,
-        stock: { gt: 0 },
-        cook: { profileStatus: 'APPROVED', kitchenStatus: 'OPEN', isActive: true, latitude: { not: null }, longitude: { not: null } },
+    const bucket = geoBucket(lat, lng, 2);
+    const cacheKey = `listings:around-me:${bucket}:${minResults}:${customRadiusKm ?? 'default'}`;
+    const data = await cache.getOrSet(
+      cacheKey,
+      async () => {
+        const listings = await prisma.cookListing.findMany({
+          where: {
+            status: 'APPROVED',
+            isActive: true,
+            stock: { gt: 0 },
+            cook: { profileStatus: 'APPROVED', kitchenStatus: 'OPEN', isActive: true, latitude: { not: null }, longitude: { not: null } },
+          },
+          include: LISTING_INCLUDE,
+          take: 100,
+        });
+
+        const withDistance = listings
+          .map((l) => {
+            const cook = l.cook;
+            const distMeters = cook.latitude && cook.longitude ? distanceMeters({ lat, lng }, { lat: cook.latitude, lng: cook.longitude }) : Infinity;
+            return { ...l, distanceMeters: distMeters, distanceKm: distMeters / 1000 };
+          })
+          .sort((a, b) => a.distanceMeters - b.distanceMeters);
+
+        const rings = customRadiusKm ? [customRadiusKm * 1000] : LOCAL_SEARCH_RINGS_METERS;
+        const ringLabels = ['Around you', 'Nearby', 'More options'];
+        const sections: { label: string; radiusMeters: number; listings: typeof withDistance }[] = [];
+        let lastEnd = 0;
+
+        for (let i = 0; i < rings.length; i++) {
+          const r = rings[i];
+          const sectionBucket = withDistance.filter((l) => l.distanceMeters > lastEnd && l.distanceMeters <= r);
+          if (sectionBucket.length) {
+            sections.push({ label: ringLabels[i] ?? `Within ${r}m`, radiusMeters: r, listings: sectionBucket });
+          }
+          lastEnd = r;
+        }
+
+        const fallback = withDistance.length < minResults;
+        if (fallback && withDistance.length > 0) {
+          const best = withDistance.slice(0, Math.min(minResults, withDistance.length));
+          sections.push({ label: 'Closest available', radiusMeters: best[best.length - 1]?.distanceMeters ?? 0, listings: best });
+        }
+
+        return {
+          sections: sections.map((s) => ({ ...s, listings: s.listings.map(stripCookLocation).map(serializeListing) })),
+          fallback,
+          center: { lat, lng },
+          total: withDistance.length,
+        };
       },
-      include: LISTING_INCLUDE,
-      take: 100,
-    });
-
-    const withDistance = listings
-      .map((l) => {
-        const cook = l.cook;
-        const distMeters = cook.latitude && cook.longitude ? distanceMeters({ lat, lng }, { lat: cook.latitude, lng: cook.longitude }) : Infinity;
-        return { ...l, distanceMeters: distMeters, distanceKm: distMeters / 1000 };
-      })
-      .sort((a, b) => a.distanceMeters - b.distanceMeters);
-
-    // Local-first discovery rings
-    const rings = customRadiusKm ? [customRadiusKm * 1000] : LOCAL_SEARCH_RINGS_METERS;
-    const ringLabels = ['Around you', 'Nearby', 'More options'];
-    const sections: { label: string; radiusMeters: number; listings: typeof withDistance }[] = [];
-    let lastEnd = 0;
-
-    for (let i = 0; i < rings.length; i++) {
-      const r = rings[i];
-      const bucket = withDistance.filter((l) => l.distanceMeters > lastEnd && l.distanceMeters <= r);
-      if (bucket.length) {
-        sections.push({ label: ringLabels[i] ?? `Within ${r}m`, radiusMeters: r, listings: bucket });
-      }
-      lastEnd = r;
-    }
-
-    // Fallback: if overall nearby is insufficient, also include closest options beyond the last ring
-    const fallback = withDistance.length < minResults;
-    if (fallback && withDistance.length > 0) {
-      const best = withDistance.slice(0, Math.min(minResults, withDistance.length));
-      sections.push({ label: 'Closest available', radiusMeters: best[best.length - 1]?.distanceMeters ?? 0, listings: best });
-    }
-
-    res.json({
-      sections: sections.map((s) => ({ ...s, listings: s.listings.map(stripCookLocation).map(serializeListing) })),
-      fallback,
-      center: { lat, lng },
-      total: withDistance.length,
-    });
+      { ttlSeconds: LISTINGS_TTL, jitter: true },
+    );
+    res.setHeader('Cache-Control', `public, max-age=${LISTINGS_TTL}, stale-while-revalidate=${LISTINGS_TTL}`);
+    res.json(data);
   } catch (err) {
     next(err);
   }
@@ -153,27 +169,37 @@ router.get('/nearby', async (req, res, next) => {
     const radiusKm = Math.min(Math.max(Number(req.query.radiusKm) || 10, 0.5), 50);
     if (Number.isNaN(lat) || Number.isNaN(lng)) throw new ApiError(400, 'lat and lng are required');
 
-    const listings = await prisma.cookListing.findMany({
-      where: {
-        status: 'APPROVED',
-        isActive: true,
-        stock: { gt: 0 },
-        cook: { profileStatus: 'APPROVED', kitchenStatus: 'OPEN', isActive: true, latitude: { not: null }, longitude: { not: null } },
+    const bucket = geoBucket(lat, lng, 2);
+    const cacheKey = `listings:nearby:${bucket}:${radiusKm}`;
+    const data = await cache.getOrSet(
+      cacheKey,
+      async () => {
+        const listings = await prisma.cookListing.findMany({
+          where: {
+            status: 'APPROVED',
+            isActive: true,
+            stock: { gt: 0 },
+            cook: { profileStatus: 'APPROVED', kitchenStatus: 'OPEN', isActive: true, latitude: { not: null }, longitude: { not: null } },
+          },
+          include: LISTING_INCLUDE,
+          take: 100,
+        });
+
+        const withDistance = listings
+          .map((l) => {
+            const cook = l.cook;
+            const distMeters = cook.latitude && cook.longitude ? distanceMeters({ lat, lng }, { lat: cook.latitude, lng: cook.longitude }) : Infinity;
+            return { ...l, distanceMeters: distMeters, distanceKm: distMeters / 1000 };
+          })
+          .filter((l) => l.distanceMeters <= radiusKm * 1000)
+          .sort((a, b) => a.distanceMeters - b.distanceMeters);
+
+        return { listings: withDistance.map(stripCookLocation).map(serializeListing) };
       },
-      include: LISTING_INCLUDE,
-      take: 100,
-    });
-
-    const withDistance = listings
-      .map((l) => {
-        const cook = l.cook;
-        const distMeters = cook.latitude && cook.longitude ? distanceMeters({ lat, lng }, { lat: cook.latitude, lng: cook.longitude }) : Infinity;
-        return { ...l, distanceMeters: distMeters, distanceKm: distMeters / 1000 };
-      })
-      .filter((l) => l.distanceMeters <= radiusKm * 1000)
-      .sort((a, b) => a.distanceMeters - b.distanceMeters);
-
-    res.json({ listings: withDistance.map(stripCookLocation).map(serializeListing) });
+      { ttlSeconds: LISTINGS_TTL, jitter: true },
+    );
+    res.setHeader('Cache-Control', `public, max-age=${LISTINGS_TTL}, stale-while-revalidate=${LISTINGS_TTL}`);
+    res.json(data);
   } catch (err) {
     next(err);
   }
@@ -181,14 +207,23 @@ router.get('/nearby', async (req, res, next) => {
 
 router.get('/:id', async (req, res, next) => {
   try {
-    const listing = await prisma.cookListing.findUnique({
-      where: { id: req.params.id },
-      include: LISTING_INCLUDE,
-    });
-    if (!listing || listing.status !== 'APPROVED' || !listing.isActive) {
-      throw new ApiError(404, 'Listing not found');
-    }
-    res.json({ listing: serializeListing(stripCookLocation(listing)) });
+    const id = req.params.id;
+    const data = await cache.getOrSet(
+      `listings:detail:${id}`,
+      async () => {
+        const listing = await prisma.cookListing.findUnique({
+          where: { id },
+          include: LISTING_INCLUDE,
+        });
+        if (!listing || listing.status !== 'APPROVED' || !listing.isActive) {
+          throw new ApiError(404, 'Listing not found');
+        }
+        return { listing: serializeListing(stripCookLocation(listing)) };
+      },
+      { ttlSeconds: LISTINGS_TTL, jitter: true },
+    );
+    res.setHeader('Cache-Control', `public, max-age=${LISTINGS_TTL}, stale-while-revalidate=${LISTINGS_TTL}`);
+    res.json(data);
   } catch (err) {
     next(err);
   }
@@ -204,10 +239,12 @@ router.post('/:id/like', requireAuth, async (req: AuthRequest, res, next) => {
     if (existing) {
       await prisma.cookListingLike.delete({ where: { id: existing.id } });
       const likeCount = await prisma.cookListingLike.count({ where: { listingId } });
+      await cache.del(`listings:detail:${listingId}`);
       res.json({ liked: false, likeCount });
     } else {
       await prisma.cookListingLike.create({ data: { listingId, userId } });
       const likeCount = await prisma.cookListingLike.count({ where: { listingId } });
+      await cache.del(`listings:detail:${listingId}`);
       res.json({ liked: true, likeCount });
     }
   } catch (err) {
@@ -226,6 +263,7 @@ router.post('/:id/view', optionalAuth, async (req: AuthRequest, res, next) => {
       update: { createdAt: new Date() },
     });
     const viewCount = await prisma.cookListingView.count({ where: { listingId } });
+    await cache.del(`listings:detail:${listingId}`);
     res.json({ ok: true, viewCount });
   } catch (err) {
     next(err);
