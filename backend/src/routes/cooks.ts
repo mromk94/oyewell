@@ -204,20 +204,7 @@ router.patch('/me/listings/:id', requireAuth, requireRole('COOK'), async (req: A
     if (body.allergens !== undefined) data.allergens = body.allergens;
     if (body.cuisine !== undefined) data.cuisine = body.cuisine;
 
-    const resubmitting =
-      body.resubmit === true ||
-      body.title !== undefined ||
-      body.description !== undefined ||
-      typeof body.priceKobo === 'number' ||
-      body.portionDescription !== undefined ||
-      body.prepTimeMinutesMin !== undefined ||
-      body.prepTimeMinutesMax !== undefined ||
-      typeof body.quantity === 'number' ||
-      typeof body.stock === 'number' ||
-      body.ingredients !== undefined ||
-      body.allergens !== undefined ||
-      body.cuisine !== undefined ||
-      body.media !== undefined;
+    const resubmitting = body.resubmit === true;
 
     if (body.status !== undefined) {
       if (!allowed.includes(body.status)) throw new ApiError(400, 'Invalid status');

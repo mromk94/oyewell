@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { fetchFoods, type FoodItem } from '../lib/api';
 import { fetchCookListingsPublic, type CookListing } from '../lib/listings';
 import FoodCard from '../components/FoodCard';
@@ -8,10 +9,14 @@ import CookListingFeed from '../components/CookListingFeed';
 import Logo from '../components/Logo';
 import Preloader from '../components/Preloader';
 import ScrollHint from '../components/ScrollHint';
-import { Home as HomeIcon, MapPin, ChefHat, Utensils, Plus } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Home as HomeIcon, MapPin, ChefHat, Utensils, Plus, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth, hasRole } from '../lib/auth';
 
 export default function Home() {
+  const navigate = useNavigate();
+  const { customer } = useAuth();
+  const isCook = customer ? hasRole(customer, 'COOK') : false;
   const [foods, setFoods] = useState<FoodItem[]>([]);
   const [cookListings, setCookListings] = useState<CookListing[]>([]);
   const [cooksLoading, setCooksLoading] = useState(true);
@@ -21,6 +26,7 @@ export default function Home() {
   const [canScrollUp, setCanScrollUp] = useState(false);
   const [canScrollDown, setCanScrollDown] = useState(false);
   const [view, setView] = useState<'home' | 'cooks' | 'restaurants' | 'nearby'>('home');
+  const [postModal, setPostModal] = useState(false);
   const mainRef = useRef<HTMLElement>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
@@ -120,13 +126,13 @@ export default function Home() {
         {view === 'cooks' && (
           <>
             <CookListingFeed listings={cookListings} loading={cooksLoading} />
-            <Link
-              to='/cook?tab=add'
-              className='fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-black shadow-lg transition hover:scale-105'
+            <button
+              onClick={() => setPostModal(true)}
+              className='fixed bottom-20 right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-black shadow-lg transition hover:scale-105'
               aria-label='Post food'
             >
               <Plus className='h-6 w-6' />
-            </Link>
+            </button>
           </>
         )}
         {view === 'nearby' && (
@@ -140,6 +146,61 @@ export default function Home() {
         canScrollDown={canScrollDown}
         onNavigate={handleNavigate}
       />
+
+      {postModal &&
+        createPortal(
+          <div
+            className='fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4'
+            onClick={() => setPostModal(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className='w-full max-w-md rounded-t-3xl border border-white/10 bg-brand-900 p-6 shadow-2xl sm:rounded-3xl'
+            >
+              <div className='flex items-center justify-between'>
+                <h2 className='text-xl font-black text-white'>Post your food</h2>
+                <button
+                  onClick={() => setPostModal(false)}
+                  className='rounded-full p-2 text-white/60 transition hover:bg-white/10 hover:text-white'
+                  aria-label='Close'
+                >
+                  <X className='h-5 w-5' />
+                </button>
+              </div>
+              <p className='mt-4 text-white/70'>
+                This is where home cooks share dishes with people nearby. You can set your own price,
+                choose when you're cooking, and customers can order straight from your listing.
+              </p>
+              <p className='mt-3 text-white/70'>
+                To keep quality and safety in check, every cook goes through a quick application before they can start posting.
+              </p>
+              <div className='mt-6 flex flex-col gap-3'>
+                {isCook ? (
+                  <button
+                    onClick={() => { setPostModal(false); navigate('/cook?tab=add'); }}
+                    className='inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 py-3 font-bold text-black transition hover:bg-emerald-400'
+                  >
+                    <Plus className='h-4 w-4' /> Post a new dish
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { setPostModal(false); navigate('/cook'); }}
+                    className='inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 py-3 font-bold text-black transition hover:bg-emerald-400'
+                  >
+                    <ChefHat className='h-4 w-4' /> Apply to become a cook
+                  </button>
+                )}
+                <button
+                  onClick={() => setPostModal(false)}
+                  className='rounded-full border border-white/20 px-6 py-3 text-sm font-bold text-white transition hover:bg-white/10'
+                >
+                  Maybe later
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </>
   );
 }

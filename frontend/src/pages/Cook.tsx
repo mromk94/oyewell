@@ -528,7 +528,8 @@ function AddFoodPanel({
         media,
       };
       if (editing) {
-        await updateCookListing(editing.id, { ...payload, resubmit: true });
+        const shouldResubmit = !['APPROVED', 'PAUSED'].includes(editing.status);
+        await updateCookListing(editing.id, { ...payload, resubmit: shouldResubmit });
         onUpdated?.();
       } else {
         await createCookListing(payload);
