@@ -75,6 +75,38 @@ router.get('/employees', async (_req, res, next) => {
   }
 });
 
+router.get('/employees/:id', async (req, res, next) => {
+  try {
+    const employee = await prisma.managementEmployee.findUnique({
+      where: { id: req.params.id },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true } }, tier: { include: { permissions: { include: { permission: true } } } } },
+    });
+    if (!employee) throw new ApiError(404, 'Employee not found');
+    res.json({ employee });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.patch('/employees/:id', async (req: AuthRequest, res, next) => {
+  try {
+    const { adminTierId, department, limits, status } = req.body as Record<string, any>;
+    const employee = await prisma.managementEmployee.update({
+      where: { id: req.params.id },
+      data: {
+        ...(adminTierId !== undefined && { adminTierId }),
+        ...(department !== undefined && { department }),
+        ...(limits !== undefined && { limits }),
+        ...(status !== undefined && { status }),
+      },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true } }, tier: true },
+    });
+    res.json({ employee });
+  } catch (e) {
+    next(e);
+  }
+});
+
 router.post('/employees', async (req: AuthRequest, res, next) => {
   try {
     const { userId, adminTierId, employeeId, department, limits } = req.body as Record<string, any>;
