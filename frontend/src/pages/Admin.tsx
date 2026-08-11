@@ -255,6 +255,7 @@ export default function Admin() {
                 { label: 'New orders', value: dashboard.new, color: 'bg-yellow-500/10 text-yellow-300' },
                 { label: 'Preparing', value: dashboard.preparing, color: 'bg-purple-500/10 text-purple-300' },
                 { label: 'Out for delivery', value: dashboard.outForDelivery, color: 'bg-cyan-500/10 text-cyan-300' },
+                { label: 'Riders online', value: dashboard.ridersOnline ?? 0, color: 'bg-emerald-500/10 text-emerald-300' },
                 { label: 'Completed', value: dashboard.completed, color: 'bg-emerald-500/10 text-emerald-300' },
                 { label: 'Revenue', value: formatPrice(dashboard.revenueKobo ?? 0), color: 'bg-white/10 text-white' },
               ].map((stat) => (
@@ -300,6 +301,24 @@ export default function Admin() {
                   </div>
                 </div>
               )}
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
+                <h3 className="flex items-center gap-2 text-lg font-bold text-white">
+                  <Map className="h-5 w-5 text-emerald-300" /> Active deliveries by zone
+                </h3>
+                <div className="mt-4 space-y-3">
+                  {dashboard.ordersByZone?.length > 0 ? (
+                    dashboard.ordersByZone.map((item: any) => (
+                      <div key={item.deliveryZoneId} className="flex items-center justify-between text-white/90">
+                        <span>{item.deliveryZoneId || 'Unzoned'}</span>
+                        <span className="rounded-full bg-white/10 px-2 py-1 text-xs font-bold text-white">{item._count.id} orders</span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-white/50">No active deliveries right now.</p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         )}

@@ -14,7 +14,7 @@ router.use(requireAuth, requireAdmin);
 
 router.get('/dashboard', async (_req, res, next) => {
   try {
-    const [active, newOrders, preparing, outForDelivery, completed, revenueAgg, foods, popularItems] = await Promise.all([
+    const [active, newOrders, preparing, outForDelivery, completed, revenueAgg, foods, popularItems, ridersOnline, ordersByZone] = await Promise.all([
       prisma.order.count({
         where: { status: { in: ['PENDING_PAYMENT', 'PAID', 'CONFIRMED', 'PREPARING', 'READY_FOR_DISPATCH', 'OUT_FOR_DELIVERY'] } },
       }),
@@ -36,6 +36,12 @@ router.get('/dashboard', async (_req, res, next) => {
         take: 5,
         orderBy: { _count: { id: 'desc' } },
       }),
+      prisma.rider.count({ where: { isApproved: true, isActive: true, available: true, operationalStatus: 'ONLINE' } }),
+      prisma.order.groupBy({
+        by: ['deliveryZoneId'],
+        where: { status: 'OUT_FOR_DELIVERY' },
+        _count: { id: true },
+      }),
     ]);
 
     res.json({
@@ -47,6 +53,8 @@ router.get('/dashboard', async (_req, res, next) => {
       revenueKobo: revenueAgg._sum?.totalKobo ?? 0,
       lowStockFoods: foods.filter((f) => f._count.options < 1),
       popularItems,
+      ridersOnline,
+      ordersByZone,
     });
   } catch (err) {
     next(err);
