@@ -8,7 +8,7 @@ import { useAuth } from '../lib/auth';
 type Mode = 'signin' | 'register' | 'forgot';
 
 export default function AuthModal() {
-  const { authOpen, closeAuth, login, register } = useAuth();
+  const { authOpen, closeAuth, login, register, authMessage } = useAuth();
   const [mode, setMode] = useState<Mode>('signin');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,6 +116,11 @@ export default function AuthModal() {
               exit={{ opacity: 0, x: -10 }}
               transition={{ duration: 0.2 }}
             >
+              {authMessage && (
+                <div className='mb-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-200'>
+                  {authMessage}
+                </div>
+              )}
               <h2 className='text-2xl font-bold text-white'>
                 {mode === 'signin' ? 'Welcome back' : mode === 'register' ? 'Create account' : 'Reset password'}
               </h2>

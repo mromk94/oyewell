@@ -108,7 +108,7 @@ export default function CookListingDetail() {
       return;
     }
     if (!isAuthenticated) {
-      openAuth(() => handlePlaceOrder());
+      openAuth(() => handlePlaceOrder(), 'Create an account or sign in so we can secure this order to your account and keep it safe.');
       return;
     }
     setPlacing(true);

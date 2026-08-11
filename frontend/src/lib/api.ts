@@ -198,7 +198,7 @@ export async function createCookOrder(
       'Content-Type': 'application/json',
       ...(customerToken ? { Authorization: `Bearer ${customerToken}` } : {}),
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...payload, source: 'COOK' }),
   });
   const data = (await res.json()) as CreatedOrder & { error?: string };
   if (!res.ok) throw new Error(data.error ?? 'Order creation failed');

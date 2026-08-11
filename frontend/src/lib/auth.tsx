@@ -7,11 +7,12 @@ export interface AuthState {
   isAuthenticated: boolean;
   loading: boolean;
   authOpen: boolean;
+  authMessage: string | null;
   onAuthSuccess: (() => void) | null;
 }
 
 export interface AuthContextValue extends AuthState {
-  openAuth: (onSuccess?: () => void) => void;
+  openAuth: (onSuccess?: () => void, message?: string) => void;
   closeAuth: () => void;
   login: (email: string, password: string) => Promise<void>;
   register: (data: { email: string; password: string; firstName?: string; lastName?: string; phone?: string }) => Promise<void>;
@@ -25,6 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [customer, setCustomer] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [authOpen, setAuthOpen] = useState(false);
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
   const onAuthSuccessRef = useRef<(() => void) | null>(null);
 
   const loadCustomer = useCallback(async () => {
@@ -83,13 +85,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     navigate('/');
   }
 
-  function openAuth(onSuccess?: () => void) {
+  function openAuth(onSuccess?: () => void, message?: string) {
     onAuthSuccessRef.current = onSuccess ?? null;
+    setAuthMessage(message ?? null);
     setAuthOpen(true);
   }
 
   function closeAuth() {
     onAuthSuccessRef.current = null;
+    setAuthMessage(null);
     setAuthOpen(false);
   }
 
@@ -98,6 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated: !!customer,
     loading,
     authOpen,
+    authMessage,
     onAuthSuccess: null,
     openAuth,
     closeAuth,
