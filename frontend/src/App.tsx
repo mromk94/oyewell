@@ -14,6 +14,7 @@ import CartModal from './components/CartModal';
 import AccountButton from './components/AccountButton';
 import AuthModal from './components/AuthModal';
 import InstallPrompt from './components/InstallPrompt';
+import NotificationListener from './components/NotificationListener';
 
 function App() {
   const location = useLocation();
@@ -38,6 +39,7 @@ function App() {
       {!isAdmin && <AccountButton />}
       {!isAdmin && <AuthModal />}
       <InstallPrompt />
+      <NotificationListener />
     </>
   );
 }
