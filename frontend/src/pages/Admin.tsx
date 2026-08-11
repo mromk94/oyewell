@@ -85,7 +85,6 @@ export default function Admin() {
   const [riderLocations, setRiderLocations] = useState<any[]>([]);
   const [cookLocations, setCookLocations] = useState<any[]>([]);
   const [cooks, setCooks] = useState<any[]>([]);
-  const [cookListings, setCookListings] = useState<any[]>([]);
   const [cookEarnings, setCookEarnings] = useState<any>({});
 
   useEffect(() => {
@@ -133,8 +132,7 @@ export default function Admin() {
         const { cooks } = await fetchAdminCooks();
         setCooks(cooks);
       } else if (tab === 'cook-listings') {
-        const { listings } = await fetchAdminCookListings();
-        setCookListings(listings);
+        // CookListingsTab loads its own data
       } else if (tab === 'cook-earnings') {
         const earnings = await fetchAdminCookEarnings();
         setCookEarnings(earnings);
@@ -343,7 +341,7 @@ export default function Admin() {
         {tab === 'riders' && <RidersTab riders={pendingRiders} onRefresh={loadTab} />}
         {tab === 'live-map' && <LiveMapTab riders={riderLocations} cooks={cookLocations} />}
         {tab === 'cooks' && <CooksTab cooks={cooks} onRefresh={loadTab} />}
-        {tab === 'cook-listings' && <CookListingsTab listings={cookListings} onRefresh={loadTab} />}
+        {tab === 'cook-listings' && <CookListingsTab />}
         {tab === 'cook-earnings' && <CookEarningsTab earnings={cookEarnings} />}
         {tab === 'management' && <ManagementDashboard />}
         {tab === 'moderation' && <ModerationPanel />}
@@ -758,17 +756,46 @@ function CooksTab({ cooks, onRefresh }: { cooks: any[]; onRefresh: () => void })
   );
 }
 
-function CookListingsTab({ listings, onRefresh }: { listings: any[]; onRefresh: () => void }) {
+function CookListingsTab() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [selected, setSelected] = useState<any | null>(null);
   const [mediaIndex, setMediaIndex] = useState(0);
+
+  const [listings, setListings] = useState<any[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [status, setStatus] = useState('');
+  const [query, setQuery] = useState('');
+  const [search, setSearch] = useState('');
+  const [skip, setSkip] = useState(0);
+  const [limit] = useState(20);
+
+  useEffect(() => {
+    load();
+  }, [status, search, skip, limit]);
+
+  async function load() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetchAdminCookListings({ status, q: search, skip, limit });
+      setListings(res.listings);
+      setTotal(res.total);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load listings');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleApprove(id: string) {
     if (!confirm('Approve this listing?')) return;
     setProcessing(id);
     try {
       await approveCookListing(id);
-      onRefresh();
+      await load();
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Approval failed');
     } finally {
@@ -781,7 +808,7 @@ function CookListingsTab({ listings, onRefresh }: { listings: any[]; onRefresh: 
     setProcessing(id);
     try {
       await rejectCookListing(id);
-      onRefresh();
+      await load();
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Rejection failed');
     } finally {
@@ -793,7 +820,7 @@ function CookListingsTab({ listings, onRefresh }: { listings: any[]; onRefresh: 
     setProcessing(id);
     try {
       await featureCookListing(id, featured);
-      onRefresh();
+      await load();
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Update failed');
     } finally {
@@ -834,12 +861,71 @@ function CookListingsTab({ listings, onRefresh }: { listings: any[]; onRefresh: 
     }
   }
 
+  function doSearch() {
+    setSearch(query);
+    setSkip(0);
+  }
+
+  function handleStatusChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    setStatus(e.target.value);
+    setSkip(0);
+  }
+
+  const start = total === 0 ? 0 : skip + 1;
+  const end = Math.min(skip + limit, total);
+  const canPrev = skip > 0;
+  const canNext = skip + limit < total;
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-white">Home cook listings</h2>
       <p className="mt-1 text-white/60">Moderate new cook listings.</p>
-      {listings.length === 0 ? (
-        <p className="mt-6 text-white/50">No cook listings yet.</p>
+
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+        <select
+          value={status}
+          onChange={handleStatusChange}
+          className="rounded-2xl border border-white/20 bg-white/5 p-3 text-white outline-none focus:border-white"
+        >
+          <option value="" className="bg-brand-900">All statuses</option>
+          <option value="PENDING_REVIEW" className="bg-brand-900">Pending review</option>
+          <option value="APPROVED" className="bg-brand-900">Approved</option>
+          <option value="REJECTED" className="bg-brand-900">Rejected</option>
+          <option value="DRAFT" className="bg-brand-900">Draft</option>
+          <option value="PAUSED" className="bg-brand-900">Paused</option>
+        </select>
+        <div className="flex flex-1 gap-2">
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && doSearch()}
+            placeholder="Search title or cook..."
+            className="flex-1 rounded-2xl border border-white/20 bg-white/5 p-3 text-white placeholder-white/40 outline-none focus:border-white"
+          />
+          <button
+            onClick={doSearch}
+            className="rounded-2xl bg-white px-4 py-2 font-bold text-black transition hover:bg-white/90"
+          >
+            Search
+          </button>
+          {search && (
+            <button
+              onClick={() => { setQuery(''); setSearch(''); setSkip(0); }}
+              className="rounded-2xl border border-white/20 px-4 py-2 text-sm text-white transition hover:bg-white/10"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      </div>
+
+      {error && <p className="mt-4 text-red-300">{error}</p>}
+
+      {loading ? (
+        <p className="mt-6 text-white/60">Loading...</p>
+      ) : listings.length === 0 ? (
+        <p className="mt-6 text-white/50">No cook listings found.</p>
       ) : (
         <div className="mt-6 space-y-4">
           {listings.map((listing) => (
@@ -890,6 +976,30 @@ function CookListingsTab({ listings, onRefresh }: { listings: any[]; onRefresh: 
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {!loading && total > 0 && (
+        <div className="mt-6 flex items-center justify-between text-sm text-white/70">
+          <p>
+            {start}–{end} of {total}
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setSkip((s) => Math.max(0, s - limit))}
+              disabled={!canPrev}
+              className="rounded-full border border-white/20 px-4 py-2 text-white transition hover:bg-white/10 disabled:opacity-30"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setSkip((s) => s + limit)}
+              disabled={!canNext}
+              className="rounded-full border border-white/20 px-4 py-2 text-white transition hover:bg-white/10 disabled:opacity-30"
+            >
+              Next
+            </button>
+          </div>
         </div>
       )}
 

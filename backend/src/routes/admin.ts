@@ -832,19 +832,41 @@ router.patch('/cooks/:id/reject', async (req: AuthRequest, res, next) => {
   }
 });
 
-router.get('/cook-listings', async (_req, res, next) => {
+router.get('/cook-listings', async (req, res, next) => {
   try {
-    const listings = await prisma.cookListing.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-      include: { cook: true, media: { orderBy: { ordering: 'asc' } }, _count: { select: { likes: true, views: true } } },
-    });
+    const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+    const q = typeof req.query.q === 'string' ? req.query.q.trim() : undefined;
+    const skip = parseInt(req.query.skip as string, 10) || 0;
+    const limit = Math.min(parseInt(req.query.limit as string, 10) || 20, 100);
+
+    const where: any = {};
+    if (status) where.status = status;
+    if (q) {
+      where.OR = [
+        { title: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } },
+        { cook: { displayName: { contains: q, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [listings, total] = await Promise.all([
+      prisma.cookListing.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: { cook: true, media: { orderBy: { ordering: 'asc' } }, _count: { select: { likes: true, views: true } } },
+      }),
+      prisma.cookListing.count({ where }),
+    ]);
+
     res.json({
       listings: listings.map((l) => ({
         ...l,
         likeCount: l._count?.likes ?? 0,
         viewCount: l._count?.views ?? 0,
       })),
+      total,
     });
   } catch (err) {
     next(err);

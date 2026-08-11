@@ -376,10 +376,15 @@ export async function rejectCook(id: string) {
   return res.json();
 }
 
-export async function fetchAdminCookListings() {
-  const res = await fetch(`${API_BASE}/api/admin/cook-listings`, { headers: authHeaders() });
+export async function fetchAdminCookListings(params: { status?: string; q?: string; skip?: number; limit?: number } = {}) {
+  const qs = new URLSearchParams();
+  if (params.status) qs.set('status', params.status);
+  if (params.q) qs.set('q', params.q);
+  if (params.skip !== undefined) qs.set('skip', String(params.skip));
+  if (params.limit !== undefined) qs.set('limit', String(params.limit));
+  const res = await fetch(`${API_BASE}/api/admin/cook-listings?${qs.toString()}`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load cook listings');
-  return res.json() as Promise<{ listings: any[] }>;
+  return res.json() as Promise<{ listings: any[]; total: number }>;
 }
 
 export async function approveCookListing(id: string) {
