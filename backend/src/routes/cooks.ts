@@ -10,7 +10,7 @@ const router = Router();
 
 router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {
   try {
-    const { displayName, bio, latitude, longitude, serviceRadiusKm, cuisineSpecialty, profilePhoto } = req.body as Record<string, any>;
+    const { displayName, bio, latitude, longitude, serviceRadiusKm, cuisineSpecialty, profilePhoto, categories, signatureDishes, capacity, prepTime, availability } = req.body as Record<string, any>;
     if (!displayName) throw new ApiError(400, 'Display name is required');
     const user = await prisma.user.findUnique({ where: { id: req.user!.id }, include: { cookProfile: true } });
     if (!user) throw new ApiError(404, 'User not found');
@@ -30,6 +30,11 @@ router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {
           serviceRadiusKm: serviceRadiusKm ? Number(serviceRadiusKm) : 5,
           cuisineSpecialty,
           profilePhoto,
+          categories: categories ?? [],
+          signatureDishes: signatureDishes ?? [],
+          capacity,
+          prepTime,
+          availability: availability ?? {},
           profileStatus: 'PENDING_APPROVAL',
           kitchenStatus: 'PENDING_APPROVAL',
         },
@@ -60,7 +65,7 @@ router.get('/me', requireAuth, requireRole('COOK'), async (req: AuthRequest, res
 
 router.put('/me', requireAuth, requireRole('COOK'), async (req: AuthRequest, res, next) => {
   try {
-    const { displayName, bio, latitude, longitude, serviceRadiusKm, cuisineSpecialty, profilePhoto } = req.body as Record<string, any>;
+    const { displayName, bio, latitude, longitude, serviceRadiusKm, cuisineSpecialty, profilePhoto, categories, signatureDishes, capacity, prepTime, availability, packagingPhotos, safetyAcknowledgements, onboardingStep } = req.body as Record<string, any>;
     const cook = await prisma.cookProfile.update({
       where: { userId: req.user!.id },
       data: {
@@ -71,6 +76,14 @@ router.put('/me', requireAuth, requireRole('COOK'), async (req: AuthRequest, res
         serviceRadiusKm: serviceRadiusKm != null ? Number(serviceRadiusKm) : undefined,
         cuisineSpecialty,
         profilePhoto,
+        categories: categories ?? undefined,
+        signatureDishes: signatureDishes ?? undefined,
+        capacity,
+        prepTime,
+        availability,
+        packagingPhotos: packagingPhotos ?? undefined,
+        safetyAcknowledgements,
+        onboardingStep,
       },
       include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true, roles: true } } },
     });

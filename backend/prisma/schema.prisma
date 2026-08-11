@@ -417,6 +417,15 @@ model CookProfile {
   longitude            Float?
   serviceRadiusKm      Float             @default(5)
   cuisineSpecialty     String?
+  categories           String[]          @default([])
+  signatureDishes      String[]          @default([])
+  capacity             String?
+  prepTime             String?
+  availability         Json?             @default("{}")
+  packagingPhotos      String[]
+  safetyAcknowledgements Json?           @default("[]")
+  termsAcceptedAt      DateTime?
+  onboardingStep       Int               @default(1)
   profileStatus        CookProfileStatus @default(PENDING_APPROVAL)
   kitchenStatus        CookKitchenStatus @default(PENDING_APPROVAL)
   rating               Float             @default(0)
