@@ -2,6 +2,7 @@ import { prisma } from '../prisma.js';
 import { isFeatureEnabled } from './features.js';
 import { DeliveryType, DeliveryZone, DeliveryZoneType } from '@prisma/client';
 import { getMapProvider } from './maps.js';
+import { eta } from './location.js';
 
 async function getZoneCenter(zone: DeliveryZone): Promise<Coords | null> {
   const boundary = zone.boundary as Record<string, unknown>;
@@ -182,11 +183,18 @@ export async function resolveDelivery(address: string, subtotalKobo: number, typ
     }
   }
 
-  const estimatedMinutes =
+  let estimatedMinutes =
     rule?.estimatedMinutes ??
     (type === DeliveryType.PROFESSIONAL && zone.estimatedMinutes
       ? Math.max(10, Math.round(zone.estimatedMinutes * 0.8))
       : zone.estimatedMinutes);
+
+  if (!estimatedMinutes && coords) {
+    const center = await getZoneCenter(zone);
+    if (center) {
+      estimatedMinutes = await eta(center, coords);
+    }
+  }
 
   return {
     zone,
