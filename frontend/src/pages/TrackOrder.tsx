@@ -16,8 +16,10 @@ type StatusDef = {
 const TRACK_STATUSES: StatusDef[] = [
   { key: 'PENDING_PAYMENT', label: 'Order placed', description: 'We received your order and are waiting for payment confirmation.', Icon: Package },
   { key: 'PAID', label: 'Payment confirmed', description: 'Your payment has been verified. The kitchen is getting ready.', Icon: CheckCircle },
-  { key: 'CONFIRMED', label: 'Restaurant confirmed', description: 'The restaurant has accepted your order and will start preparing it.', Icon: Utensils },
+  { key: 'CONFIRMED', label: 'Confirmed', description: 'Your order has been accepted and will start preparing soon.', Icon: Utensils },
+  { key: 'COOK_ACCEPTED', label: 'Cook accepted', description: 'The cook has accepted your order and will start preparing it.', Icon: Utensils },
   { key: 'PREPARING', label: 'Preparing', description: 'Your food is being cooked and packed right now.', Icon: Utensils },
+  { key: 'READY_FOR_PICKUP', label: 'Ready for pickup', description: 'Your order is packed and waiting for a delivery rider.', Icon: Package },
   { key: 'READY_FOR_DISPATCH', label: 'Ready for dispatch', description: 'Your order is packed and waiting for the delivery rider.', Icon: Package },
   { key: 'OUT_FOR_DELIVERY', label: 'Out for delivery', description: 'A rider is on the way with your order.', Icon: Truck },
   { key: 'DELIVERED', label: 'Delivered', description: 'Your order has arrived. Enjoy your meal!', Icon: Home },
