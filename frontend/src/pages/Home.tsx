@@ -119,10 +119,14 @@ export default function Home() {
       >
         {view === 'home' && (
           <>
+            {(cooksLoading || cookListings.length > 0) && (
+              <div className='min-h-screen snap-start pt-24'>
+                <CookListingsSection title='Home Cooks' listings={cookListings} loading={cooksLoading} />
+              </div>
+            )}
             {foods.map((food) => (
               <FoodCard key={food.id} food={food} />
             ))}
-            <CookListingsSection title='Home Cooks' listings={cookListings} loading={cooksLoading} />
           </>
         )}
         {view === 'restaurants' && foods.map((food) => <FoodCard key={food.id} food={food} />)}
