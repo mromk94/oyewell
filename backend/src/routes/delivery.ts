@@ -18,6 +18,25 @@ router.post('/check', async (req, res, next) => {
     const providedCoords = lat != null && lng != null ? { lat, lng } : undefined;
 
     for (const item of items) {
+      if ('cookListingId' in item) {
+        const listing = await prisma.cookListing.findUnique({
+          where: { id: item.cookListingId },
+          include: { cook: { select: { id: true, profileStatus: true, kitchenStatus: true } } },
+        });
+        if (!listing || listing.status !== 'APPROVED' || !listing.isActive) {
+          throw new ApiError(404, 'Cook listing not available');
+        }
+        if (listing.cook.profileStatus !== 'APPROVED' || listing.cook.kitchenStatus !== 'OPEN') {
+          throw new ApiError(400, 'Cook kitchen is not open');
+        }
+        if (listing.stock < item.quantity) {
+          throw new ApiError(400, 'Not enough stock');
+        }
+        sourceIds.push(listing.cookId ?? 'restaurant');
+        subtotalKobo += listing.priceKobo * item.quantity;
+        continue;
+      }
+
       const food = await prisma.food.findUnique({
         where: { slug: item.foodSlug },
         include: { options: true, cook: { select: { id: true } } },

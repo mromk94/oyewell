@@ -77,10 +77,11 @@ export interface DeliveryResult {
 }
 
 export interface CartItemPayload {
-  foodSlug: string;
-  optionId: string;
+  foodSlug?: string;
+  optionId?: string;
   quantity: number;
-  sideIds: string[];
+  sideIds?: string[];
+  cookListingId?: string;
 }
 
 export interface LocationResult {
@@ -166,10 +167,14 @@ export interface CreatedOrder {
 
 export async function createOrder(
   payload: {
-    items: CartItemPayload[];
+    source: 'RESTAURANT' | 'COOK';
+    items?: CartItemPayload[];
+    cookListingId?: string;
+    quantity?: number;
     address: string;
     phone: string;
     paymentProvider: string;
+    deliveryType?: 'NEIGHBORHOOD' | 'PROFESSIONAL';
     lat?: number;
     lng?: number;
   },
@@ -181,7 +186,7 @@ export async function createOrder(
       'Content-Type': 'application/json',
       ...(customerToken ? { Authorization: `Bearer ${customerToken}` } : {}),
     },
-    body: JSON.stringify({ ...payload, source: 'RESTAURANT' }),
+    body: JSON.stringify(payload),
   });
   const data = (await res.json()) as CreatedOrder & { error?: string };
   if (!res.ok) throw new Error(data.error ?? 'Order creation failed');

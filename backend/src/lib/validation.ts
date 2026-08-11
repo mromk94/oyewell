@@ -1,11 +1,18 @@
 import { z } from 'zod';
 
-const cartItemSchema = z.object({
+const restaurantCartItemSchema = z.object({
   foodSlug: z.string().min(1),
   optionId: z.string().min(1),
   quantity: z.coerce.number().int().min(1),
   sideIds: z.array(z.string()).default([]),
 });
+
+const cookCartItemSchema = z.object({
+  cookListingId: z.string().min(1),
+  quantity: z.coerce.number().int().min(1),
+});
+
+const cartItemSchema = z.union([restaurantCartItemSchema, cookCartItemSchema]);
 
 export const deliveryCheckSchema = z.object({
   address: z.string().min(3),
@@ -28,7 +35,7 @@ const orderBase = z.object({
 
 const restaurantOrderSchema = z.object({
   source: z.literal('RESTAURANT'),
-  items: z.array(cartItemSchema).min(1),
+  items: z.array(restaurantCartItemSchema).min(1),
 }).merge(orderBase);
 
 const cookOrderSchema = z.object({

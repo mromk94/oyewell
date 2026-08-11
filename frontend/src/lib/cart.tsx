@@ -1,14 +1,21 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { FoodOption, Side } from './api';
 
+export type CartSource = 'RESTAURANT' | 'COOK';
+
 export interface CartItem {
   id: string;
-  foodSlug: string;
-  foodName: string;
+  source: CartSource;
+  foodSlug?: string;
+  foodName?: string;
   foodImage?: string | null;
-  option: FoodOption;
+  option?: FoodOption;
+  sides?: Side[];
+  cookListingId?: string;
+  cookName?: string;
+  unitLabel?: string;
+  priceKobo: number;
   quantity: number;
-  sides: Side[];
 }
 
 interface CartContextValue {
@@ -46,18 +53,31 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const totalKobo = useMemo(
     () =>
-      items.reduce(
-        (sum, item) =>
-          sum + item.option.priceKobo * item.quantity + item.sides.reduce((s, side) => s + side.priceKobo, 0),
-        0
-      ),
+      items.reduce((sum, item) => {
+        if (item.source === 'COOK') return sum + item.priceKobo * item.quantity;
+        const optionTotal = (item.option?.priceKobo ?? 0) * item.quantity;
+        const sidesTotal = (item.sides ?? []).reduce((s, side) => s + (side?.priceKobo ?? 0), 0) * item.quantity;
+        return sum + optionTotal + sidesTotal;
+      }, 0),
     [items]
   );
 
   const count = useMemo(() => items.reduce((sum, item) => sum + item.quantity, 0), [items]);
 
   function addItem(item: Omit<CartItem, 'id'>) {
-    setItems((prev) => [...prev, { ...item, id: generateId() }]);
+    setItems((prev) => {
+      const existingIndex = prev.findIndex((i) =>
+        i.source === 'COOK'
+          ? i.cookListingId === item.cookListingId
+          : i.foodSlug === item.foodSlug && i.option?.id === item.option?.id
+      );
+      if (existingIndex >= 0) {
+        const next = [...prev];
+        next[existingIndex] = { ...next[existingIndex], quantity: next[existingIndex].quantity + item.quantity };
+        return next;
+      }
+      return [...prev, { ...item, id: generateId() }];
+    });
   }
 
   function removeItem(id: string) {

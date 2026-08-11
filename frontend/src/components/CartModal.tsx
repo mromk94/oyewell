@@ -119,12 +119,11 @@ export default function CartModal() {
     const payload = {
       address: address.trim(),
       phone: phone.trim() || '0000',
-      items: items.map((item) => ({
-        foodSlug: item.foodSlug,
-        optionId: item.option.id,
-        quantity: item.quantity,
-        sideIds: item.sides.map((s) => s.id),
-      })),
+      items: items.map((item) =>
+        item.source === 'COOK'
+          ? { cookListingId: item.cookListingId, quantity: item.quantity }
+          : { foodSlug: item.foodSlug!, optionId: item.option!.id, quantity: item.quantity, sideIds: (item.sides ?? []).map((s) => s.id) }
+      ),
     };
     Promise.all([checkDelivery({ ...payload, deliveryType: 'NEIGHBORHOOD' }), checkDelivery({ ...payload, deliveryType: 'PROFESSIONAL' })])
       .then(([neighborhood, professional]) => {
@@ -152,20 +151,38 @@ export default function CartModal() {
     setPlacing(true);
     setError(null);
     try {
-      const payload = {
+      const base = {
         address: address.trim(),
         phone: phone.trim(),
         paymentProvider: selectedMethod.provider,
         deliveryType,
         lat: selectedDelivery?.lat,
         lng: selectedDelivery?.lng,
-        items: items.map((item) => ({
-          foodSlug: item.foodSlug,
-          optionId: item.option.id,
-          quantity: item.quantity,
-          sideIds: item.sides.map((s) => s.id),
-        })),
       };
+      const isCook = items.every((item) => item.source === 'COOK');
+      const isRestaurant = items.every((item) => item.source === 'RESTAURANT');
+      if (!isCook && !isRestaurant) {
+        toast.error('Please checkout restaurant and home-cook items separately.');
+        setPlacing(false);
+        return;
+      }
+      const payload = isCook
+        ? {
+            ...base,
+            source: 'COOK' as const,
+            cookListingId: items[0].cookListingId!,
+            quantity: items[0].quantity,
+          }
+        : {
+            ...base,
+            source: 'RESTAURANT' as const,
+            items: items.map((item) => ({
+              foodSlug: item.foodSlug!,
+              optionId: item.option!.id,
+              quantity: item.quantity,
+              sideIds: (item.sides ?? []).map((s) => s.id),
+            })),
+          };
       const created = await createOrder(payload, getCustomerToken());
       setOrder(created);
       clear();
@@ -344,68 +361,71 @@ export default function CartModal() {
           ) : (
             <>
               <div className='space-y-4'>
-                {items.map((item) => (
-                  <div
-                    key={item.id}
-                    className='flex gap-4 rounded-2xl border border-white/10 bg-white/5 p-4'
-                  >
-                    <div className='h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-white/5'>
-                      {item.foodImage ? (
-                        <img
-                          src={item.foodImage}
-                          alt={item.foodName}
-                          className='h-full w-full object-cover'
-                        />
-                      ) : (
-                        <div className='flex h-full w-full items-center justify-center text-xs text-white/30'>
-                          No image
-                        </div>
-                      )}
-                    </div>
-                    <div className='min-w-0 flex-1'>
-                      <div className='flex items-start justify-between gap-2'>
-                        <div>
-                          <p className='font-semibold text-white'>{item.foodName}</p>
-                          <p className='text-sm text-white/60'>{item.option.label}</p>
-                          {item.sides.length > 0 && (
-                            <p className='mt-1 text-xs text-white/50'>
-                              + {item.sides.map((s) => s.name).join(', ')}
-                            </p>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => removeItem(item.id)}
-                          className='rounded-full p-1 text-red-300 hover:bg-red-500/10'
-                        >
-                          <Trash2 className='h-4 w-4' />
-                        </button>
+                {items.map((item) => {
+                  const isCook = item.source === 'COOK';
+                  const unitPrice = isCook ? item.priceKobo : (item.option?.priceKobo ?? 0);
+                  const sidesPrice = (item.sides ?? []).reduce((sum, s) => sum + (s?.priceKobo ?? 0), 0) * item.quantity;
+                  const lineTotal = unitPrice * item.quantity + sidesPrice;
+                  return (
+                    <div
+                      key={item.id}
+                      className='flex gap-4 rounded-2xl border border-white/10 bg-white/5 p-4'
+                    >
+                      <div className='h-20 w-20 shrink-0 overflow-hidden rounded-2xl bg-white/5'>
+                        {item.foodImage ? (
+                          <img
+                            src={item.foodImage}
+                            alt={item.foodName}
+                            className='h-full w-full object-cover'
+                          />
+                        ) : (
+                          <div className='flex h-full w-full items-center justify-center text-xs text-white/30'>
+                            No image
+                          </div>
+                        )}
                       </div>
-                      <div className='mt-3 flex items-center justify-between'>
-                        <div className='flex items-center gap-2 rounded-full border border-white/20 bg-white/5 p-1'>
+                      <div className='min-w-0 flex-1'>
+                        <div className='flex items-start justify-between gap-2'>
+                          <div>
+                            <p className='font-semibold text-white'>{item.foodName}</p>
+                            <p className='text-sm text-white/60'>{isCook ? `${item.cookName} · ${item.unitLabel}` : item.option?.label}</p>
+                            {item.sides && item.sides.length > 0 && (
+                              <p className='mt-1 text-xs text-white/50'>
+                                + {item.sides.map((s) => s.name).join(', ')}
+                              </p>
+                            )}
+                          </div>
                           <button
-                            onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                            className='rounded-full p-1 text-white hover:bg-white/10'
+                            onClick={() => removeItem(item.id)}
+                            className='rounded-full p-1 text-red-300 hover:bg-red-500/10'
                           >
-                            <Minus className='h-4 w-4' />
-                          </button>
-                          <span className='min-w-[1.5rem] text-center text-white'>{item.quantity}</span>
-                          <button
-                            onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                            className='rounded-full p-1 text-white hover:bg-white/10'
-                          >
-                            <Plus className='h-4 w-4' />
+                            <Trash2 className='h-4 w-4' />
                           </button>
                         </div>
-                        <p className='font-semibold text-white'>
-                          {formatPrice(
-                            (item.option.priceKobo * item.quantity) +
-                              item.sides.reduce((sum, s) => sum + s.priceKobo, 0)
-                          )}
-                        </p>
+                        <div className='mt-3 flex items-center justify-between'>
+                          <div className='flex items-center gap-2 rounded-full border border-white/20 bg-white/5 p-1'>
+                            <button
+                              onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                              className='rounded-full p-1 text-white hover:bg-white/10'
+                            >
+                              <Minus className='h-4 w-4' />
+                            </button>
+                            <span className='min-w-[1.5rem] text-center text-white'>{item.quantity}</span>
+                            <button
+                              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                              className='rounded-full p-1 text-white hover:bg-white/10'
+                            >
+                              <Plus className='h-4 w-4' />
+                            </button>
+                          </div>
+                          <p className='font-semibold text-white'>
+                            {formatPrice(lineTotal)}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <div className='mt-8 rounded-2xl border border-white/10 bg-white/5 p-4'>

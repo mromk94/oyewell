@@ -61,9 +61,11 @@ export default function OrderModal({ food, open, onClose }: OrderModalProps) {
       return;
     }
     addItem({
+      source: 'RESTAURANT',
       foodSlug: food.slug,
       foodName: food.name,
       foodImage: food.heroImage,
+      priceKobo: selectedOption.priceKobo,
       option: selectedOption,
       quantity,
       sides: sides.filter((s) => selectedSideIds.has(s.id)),
