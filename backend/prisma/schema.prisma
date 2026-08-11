@@ -784,3 +784,40 @@ model AuditLog {
   @@index([actorId, createdAt])
   @@index([targetId, targetType])
 }
+
+enum ReportStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+  ESCALATED
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  reporterId  String
+  targetId    String
+  targetType  String       // USER, COOK, LISTING, MESSAGE, ORDER, RIDER
+  reason      String
+  details     String?
+  evidence    String[]
+  status      ReportStatus @default(OPEN)
+  assignedTo  String?
+  resolution  String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([status, createdAt])
+  @@index([reporterId])
+  @@index([targetId, targetType])
+}
+
+model UserBlock {
+  id          String   @id @default(cuid())
+  blockerId   String
+  blockedId   String
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  @@unique([blockerId, blockedId])
+}
