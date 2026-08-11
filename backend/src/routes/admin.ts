@@ -832,6 +832,22 @@ router.delete('/delivery-pricing-rules/:id', async (req, res, next) => {
   }
 });
 
+const DEFAULT_PROFESSIONAL_REQUIREMENTS = [
+  { id: 'vehicle', label: 'Registered vehicle with valid papers', required: true },
+  { id: 'insurance', label: 'Vehicle insurance', required: true },
+  { id: 'license', label: 'Valid driver\'s license', required: true },
+  { id: 'inspection', label: 'Physical vehicle inspection', required: true },
+  { id: 'uniform', label: 'Branded packaging/uniform', required: false },
+];
+
+router.get('/professional-requirements', async (_req, res, next) => {
+  try {
+    res.json({ requirements: DEFAULT_PROFESSIONAL_REQUIREMENTS });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/orders/:id/dispatch', async (req, res, next) => {
   try {
     const order = await prisma.order.findUnique({ where: { id: req.params.id } });
