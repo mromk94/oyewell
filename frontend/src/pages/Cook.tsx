@@ -38,7 +38,7 @@ import {
 const TABS = ['dashboard', 'add', 'menu', 'orders', 'earnings', 'profile'] as const;
 
 export default function Cook() {
-  const { customer, logout } = useAuth();
+  const { customer, loading: authLoading, logout } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialTab = TABS.includes(searchParams.get('tab') as any) ? (searchParams.get('tab') as typeof TABS[number]) : 'dashboard';
@@ -53,11 +53,21 @@ export default function Cook() {
       setLoading(false);
       return;
     }
+    setLoading(true);
+    setError(null);
     fetchCookMe()
       .then((res) => setCook(res.cook))
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [customer]);
+
+  if (authLoading) {
+    return (
+      <div className='flex h-screen w-full items-center justify-center bg-brand-900'>
+        <Loader2 className='h-10 w-10 animate-spin text-white/70' />
+      </div>
+    );
+  }
 
   if (!customer) {
     return (
@@ -75,16 +85,16 @@ export default function Cook() {
     );
   }
 
+  if (!hasRole(customer, 'COOK')) {
+    return <CookApply onApply={setCook} />;
+  }
+
   if (loading) {
     return (
       <div className='flex h-screen w-full items-center justify-center bg-brand-900'>
         <Loader2 className='h-10 w-10 animate-spin text-white/70' />
       </div>
     );
-  }
-
-  if (!hasRole(customer, 'COOK')) {
-    return <CookApply onApply={setCook} />;
   }
 
   if (error || !cook) {
