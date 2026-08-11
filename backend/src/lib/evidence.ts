@@ -31,6 +31,39 @@ export async function getEvidence(caseType: string, caseId: string) {
   });
 }
 
+export async function collectDisputeEvidence(disputeId: string, orderId?: string, customerId?: string) {
+  await addEvidence({
+    caseType: 'DISPUTE',
+    caseId: disputeId,
+    evidenceType: 'ORDER_SNAPSHOT',
+    title: 'Dispute opened',
+    description: 'Customer initiated dispute',
+    data: { customerId, orderId, createdAt: new Date().toISOString() },
+  });
+  if (!orderId) return;
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { payment: true, rider: true, messages: { take: 50 } },
+  });
+  if (!order) return;
+  await addEvidence({
+    caseType: 'DISPUTE',
+    caseId: disputeId,
+    evidenceType: 'ORDER_SNAPSHOT',
+    title: 'Order snapshot',
+    data: { orderNumber: order.orderNumber, status: order.status, totalKobo: order.totalKobo, riderId: order.riderId },
+  });
+  if (order.payment) {
+    await addEvidence({
+      caseType: 'DISPUTE',
+      caseId: disputeId,
+      evidenceType: 'PAYMENT_RECORD',
+      title: 'Payment record',
+      data: { status: order.payment.status, amountKobo: order.payment.amountKobo },
+    });
+  }
+}
+
 export async function buildOrderTimeline(orderId: string) {
   const order = await prisma.order.findUnique({
     where: { id: orderId },

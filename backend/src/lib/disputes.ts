@@ -1,4 +1,5 @@
 import { prisma } from '../prisma.js';
+import { collectDisputeEvidence } from './evidence.js';
 
 export function generateDisputeNumber() {
   return `DISPUTE-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
@@ -13,7 +14,7 @@ export async function createDispute(input: {
   description?: string;
   evidence?: string[];
 }) {
-  return prisma.dispute.create({
+  const dispute = await prisma.dispute.create({
     data: {
       disputeNumber: generateDisputeNumber(),
       customerId: input.customerId,
@@ -25,6 +26,8 @@ export async function createDispute(input: {
         timeline: [{ at: new Date().toISOString(), event: 'Dispute opened' }],
     },
   });
+  await collectDisputeEvidence(dispute.id, dispute.orderId ?? undefined, dispute.customerId);
+  return dispute;
 }
 
 export async function getDisputes(filters: { customerId?: string; status?: string; assignedTo?: string } = {}) {
