@@ -188,6 +188,9 @@ export interface OrderSummary {
   address: string;
   phone: string;
   deliveryCode?: string;
+  cookId?: string;
+  cookListingId?: string;
+  riderId?: string;
   riderFee?: string;
   riderStatus?: string;
   deliveredAt?: string;
@@ -211,6 +214,23 @@ export interface OrderSummary {
     attempts: { id: string; status: string; payload: any; createdAt: string }[];
   } | null;
   statusHistory: { status: string; note: string; createdAt: string }[];
+}
+
+export async function createReview(payload: { orderNumber: string; rating: number; comment?: string; target: 'cook' | 'rider' }) {
+  const res = await fetch(`${API_BASE}/api/reviews`, {
+    method: 'POST',
+    headers: authHeaders(getCustomerToken()),
+    body: JSON.stringify(payload),
+  });
+  const data = (await res.json()) as { review?: any; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Review failed');
+  return data;
+}
+
+export async function fetchCookReviews(cookId: string) {
+  const res = await fetch(`${API_BASE}/api/reviews/cook/${cookId}`);
+  if (!res.ok) throw new Error('Failed to load reviews');
+  return res.json() as Promise<{ reviews: any[] }>;
 }
 
 export async function fetchOrder(orderNumber: string): Promise<{ order: OrderSummary }> {

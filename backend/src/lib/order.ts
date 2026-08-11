@@ -340,6 +340,8 @@ export function serializeOrder(order: any) {
     phone: order.phone,
     deliveryCode: order.deliveryCode,
     estimatedMinutes: order.estimatedMinutes,
+    cookId: order.cookId,
+    cookListingId: order.cookListingId,
     riderId: order.riderId,
     riderStatus: order.riderStatus,
     riderFee: formatKobo(order.riderFeeKobo),
