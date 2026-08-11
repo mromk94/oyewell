@@ -14,8 +14,6 @@ import {
   AlertTriangle,
   Bike,
   ChefHat,
-  ClipboardList,
-  Banknote,
   Map,
 } from 'lucide-react';
 import Logo from '../components/Logo';
@@ -26,6 +24,7 @@ import { SidesTab as SidesTabNew } from '../components/admin/SidesTab';
 import { PaymentsTab as PaymentsTabNew } from '../components/admin/PaymentsTab';
 import { OrdersTab as OrdersTabNew } from '../components/admin/OrdersTab';
 import EmailTab from '../components/admin/EmailTab';
+import ManagementDashboard from '../components/admin/ManagementDashboard';
 import {
   adminLogin,
   fetchDashboard,
@@ -58,7 +57,7 @@ import {
   fetchAdminCookEarnings,
 } from '../lib/admin';
 
-type Tab = 'dashboard' | 'menu' | 'orders' | 'sides' | 'customers' | 'delivery' | 'payments' | 'settings' | 'email' | 'riders' | 'live-map' | 'cooks' | 'cook-listings' | 'cook-earnings';
+type Tab = 'dashboard' | 'menu' | 'orders' | 'sides' | 'customers' | 'delivery' | 'payments' | 'settings' | 'email' | 'riders' | 'live-map' | 'cooks' | 'cook-listings' | 'cook-earnings' | 'management';
 
 export default function Admin() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('admin_token'));
@@ -208,14 +207,15 @@ export default function Admin() {
             { id: 'riders', label: 'Riders', icon: Bike },
             { id: 'live-map', label: 'Live Map', icon: Map },
             { id: 'cooks', label: 'Cooks', icon: ChefHat },
-            { id: 'cook-listings', label: 'Cook Listings', icon: ClipboardList },
-            { id: 'cook-earnings', label: 'Cook Earnings', icon: Banknote },
+            { id: 'cook-listings', label: 'Cook Listings', icon: Utensils },
+            { id: 'cook-earnings', label: 'Cook Earnings', icon: TrendingUp },
+            { id: 'management', label: 'Management', icon: LayoutDashboard },
             { id: 'settings', label: 'Settings', icon: Settings },
             { id: 'email', label: 'Email', icon: Mail },
           ].map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              onClick={() => setTab(id as Tab)}
+              onClick={() => setTab(id as unknown as Tab)}
               className={`flex shrink-0 items-center gap-2 rounded-2xl p-3 text-sm font-medium transition md:w-full md:gap-3 md:px-4 md:py-3 md:text-left ${
                 tab === id ? 'bg-white text-black' : 'text-white/70 hover:bg-white/5'
               }`}
@@ -339,6 +339,7 @@ export default function Admin() {
         {tab === 'cooks' && <CooksTab cooks={cooks} onRefresh={loadTab} />}
         {tab === 'cook-listings' && <CookListingsTab listings={cookListings} onRefresh={loadTab} />}
         {tab === 'cook-earnings' && <CookEarningsTab earnings={cookEarnings} />}
+        {tab === 'management' && <ManagementDashboard />}
       </main>
     </div>
   );
