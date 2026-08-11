@@ -25,6 +25,7 @@ import { PaymentsTab as PaymentsTabNew } from '../components/admin/PaymentsTab';
 import { OrdersTab as OrdersTabNew } from '../components/admin/OrdersTab';
 import EmailTab from '../components/admin/EmailTab';
 import ManagementDashboard from '../components/admin/ManagementDashboard';
+import ModerationPanel from '../components/admin/ModerationPanel';
 import {
   adminLogin,
   fetchDashboard,
@@ -57,7 +58,7 @@ import {
   fetchAdminCookEarnings,
 } from '../lib/admin';
 
-type Tab = 'dashboard' | 'menu' | 'orders' | 'sides' | 'customers' | 'delivery' | 'payments' | 'settings' | 'email' | 'riders' | 'live-map' | 'cooks' | 'cook-listings' | 'cook-earnings' | 'management';
+type Tab = 'dashboard' | 'menu' | 'orders' | 'sides' | 'customers' | 'delivery' | 'payments' | 'settings' | 'email' | 'riders' | 'live-map' | 'cooks' | 'cook-listings' | 'cook-earnings' | 'management' | 'moderation';
 
 export default function Admin() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('admin_token'));
@@ -210,6 +211,7 @@ export default function Admin() {
             { id: 'cook-listings', label: 'Cook Listings', icon: Utensils },
             { id: 'cook-earnings', label: 'Cook Earnings', icon: TrendingUp },
             { id: 'management', label: 'Management', icon: LayoutDashboard },
+            { id: 'moderation', label: 'Moderation', icon: AlertTriangle },
             { id: 'settings', label: 'Settings', icon: Settings },
             { id: 'email', label: 'Email', icon: Mail },
           ].map(({ id, label, icon: Icon }) => (
@@ -340,6 +342,7 @@ export default function Admin() {
         {tab === 'cook-listings' && <CookListingsTab listings={cookListings} onRefresh={loadTab} />}
         {tab === 'cook-earnings' && <CookEarningsTab earnings={cookEarnings} />}
         {tab === 'management' && <ManagementDashboard />}
+        {tab === 'moderation' && <ModerationPanel />}
       </main>
     </div>
   );
