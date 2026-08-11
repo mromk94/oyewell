@@ -128,7 +128,7 @@ router.get('/around-me', async (req, res, next) => {
         const rings = customRadiusKm ? [customRadiusKm * 1000] : LOCAL_SEARCH_RINGS_METERS;
         const ringLabels = ['Around you', 'Nearby', 'More options'];
         const sections: { label: string; radiusMeters: number; listings: typeof withDistance }[] = [];
-        let lastEnd = 0;
+        let lastEnd = -1;
 
         for (let i = 0; i < rings.length; i++) {
           const r = rings[i];

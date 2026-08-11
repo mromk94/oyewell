@@ -57,6 +57,10 @@ export default function Home() {
     setCanScrollDown(el.scrollTop < el.scrollHeight - el.clientHeight - 10);
   }, [view, foods, cookListings]);
 
+  useEffect(() => {
+    mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [view]);
+
   function handleScroll() {
     const el = mainRef.current;
     if (!el) return;
@@ -119,7 +123,6 @@ export default function Home() {
               <FoodCard key={food.id} food={food} />
             ))}
             <CookListingsSection title='Home Cooks' listings={cookListings} loading={cooksLoading} />
-            <FoodAroundMe />
           </>
         )}
         {view === 'restaurants' && foods.map((food) => <FoodCard key={food.id} food={food} />)}
