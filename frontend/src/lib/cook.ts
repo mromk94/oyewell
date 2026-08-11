@@ -103,7 +103,10 @@ export async function applyAsCook(body: {
 
 export async function fetchCookMe(): Promise<{ cook: CookProfile }> {
   const res = await fetch(`${API_BASE}/api/cooks/me`, { headers: authHeaders() });
-  if (!res.ok) throw new Error('Failed to load cook profile');
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(data.error ?? `Failed to load cook profile (${res.status})`);
+  }
   return res.json() as Promise<{ cook: CookProfile }>;
 }
 

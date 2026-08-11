@@ -42,7 +42,7 @@ export default function Cook() {
   const [tab, setTab] = useState<'dashboard' | 'add' | 'menu' | 'orders' | 'earnings' | 'profile'>('dashboard');
 
   useEffect(() => {
-    if (!customer) {
+    if (!customer || !hasRole(customer, 'COOK')) {
       setLoading(false);
       return;
     }
