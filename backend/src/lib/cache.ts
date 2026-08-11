@@ -135,7 +135,9 @@ export class CacheService {
     const raw = await this.store.get(buildKey(key));
     if (!raw) return null;
     try {
-      return JSON.parse(raw) as T;
+      const parsed = JSON.parse(raw) as { data: T } | null;
+      if (!parsed || typeof parsed !== 'object' || !('data' in parsed)) return null;
+      return parsed.data;
     } catch {
       return null;
     }
