@@ -376,6 +376,45 @@ export async function rejectCook(id: string) {
   return res.json();
 }
 
+export async function requestCookMoreInfo(id: string, reason: string, fields: string[]) {
+  const res = await fetch(`${API_BASE}/api/admin/cooks/${id}/request-more-info`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ reason, fields }),
+  });
+  if (!res.ok) throw new Error('Failed to request more info');
+  return res.json();
+}
+
+export async function approveCookPackaging(id: string, approved: boolean, note?: string) {
+  const res = await fetch(`${API_BASE}/api/admin/cooks/${id}/approve-packaging`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ approved, note }),
+  });
+  if (!res.ok) throw new Error('Failed to review packaging');
+  return res.json();
+}
+
+export async function banCook(id: string, reason: string) {
+  const res = await fetch(`${API_BASE}/api/admin/cooks/${id}/ban`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) throw new Error('Failed to ban cook');
+  return res.json();
+}
+
+export async function restoreCook(id: string) {
+  const res = await fetch(`${API_BASE}/api/admin/cooks/${id}/restore`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to restore cook');
+  return res.json();
+}
+
 export async function fetchAdminCookListings(params: { status?: string; q?: string; skip?: number; limit?: number } = {}) {
   const qs = new URLSearchParams();
   if (params.status) qs.set('status', params.status);

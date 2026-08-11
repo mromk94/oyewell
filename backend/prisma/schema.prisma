@@ -451,6 +451,7 @@ model CookProfile {
   prepTime             String?
   availability         Json?             @default("{}")
   packagingPhotos      String[]
+  packagingApproved    Boolean           @default(false)
   safetyAcknowledgements Json?           @default("[]")
   termsAcceptedAt      DateTime?
   onboardingStep       Int               @default(1)
@@ -459,6 +460,8 @@ model CookProfile {
   rating               Float             @default(0)
   totalOrders          Int               @default(0)
   isActive             Boolean           @default(true)
+  banned               Boolean           @default(false)
+  banReason            String?
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
   listings             CookListing[]

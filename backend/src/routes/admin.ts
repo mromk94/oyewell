@@ -909,11 +909,16 @@ router.patch('/cooks/:id/request-more-info', async (req: AuthRequest, res, next)
 router.patch('/cooks/:id/approve-packaging', async (req: AuthRequest, res, next) => {
   try {
     const { approved, note } = req.body as Record<string, any>;
-    const cook = await prisma.cookProfile.findUnique({
+    const before = await prisma.cookProfile.findUnique({
       where: { id: req.params.id },
+      include: { user: { select: { id: true } } },
+    });
+    if (!before) throw new ApiError(404, 'Cook not found');
+    const cook = await prisma.cookProfile.update({
+      where: { id: req.params.id },
+      data: { packagingApproved: approved === true },
       include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
     });
-    if (!cook) throw new ApiError(404, 'Cook not found');
     await createApproval({
       type: 'PACKAGING',
       targetId: cook.id,
@@ -928,10 +933,67 @@ router.patch('/cooks/:id/approve-packaging', async (req: AuthRequest, res, next)
       targetId: cook.id,
       targetType: 'CookProfile',
       reason: note,
-      newState: { packagingApproved: approved },
+      oldState: { packagingApproved: before?.packagingApproved },
+      newState: { packagingApproved: approved === true },
       ip: req.ip ?? undefined,
     });
     res.json({ cook, packaging: { approved, note } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/cooks/:id/ban', async (req: AuthRequest, res, next) => {
+  try {
+    const { reason } = req.body as Record<string, any>;
+    const before = await prisma.cookProfile.findUnique({
+      where: { id: req.params.id },
+      include: { user: { select: { id: true } } },
+    });
+    if (!before) throw new ApiError(404, 'Cook not found');
+    const cook = await prisma.cookProfile.update({
+      where: { id: req.params.id },
+      data: { banned: true, banReason: reason || null, isActive: false },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    });
+    await logAudit({
+      actorId: req.user!.id,
+      action: 'COOK_BANNED',
+      targetId: cook.id,
+      targetType: 'CookProfile',
+      reason,
+      oldState: { banned: before?.banned, isActive: before?.isActive },
+      newState: { banned: true, banReason: reason || null, isActive: false },
+      ip: req.ip ?? undefined,
+    });
+    res.json({ cook });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/cooks/:id/restore', async (req: AuthRequest, res, next) => {
+  try {
+    const before = await prisma.cookProfile.findUnique({
+      where: { id: req.params.id },
+      include: { user: { select: { id: true } } },
+    });
+    if (!before) throw new ApiError(404, 'Cook not found');
+    const cook = await prisma.cookProfile.update({
+      where: { id: req.params.id },
+      data: { banned: false, banReason: null, isActive: true },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    });
+    await logAudit({
+      actorId: req.user!.id,
+      action: 'COOK_RESTORED',
+      targetId: cook.id,
+      targetType: 'CookProfile',
+      oldState: { banned: before?.banned, isActive: before?.isActive },
+      newState: { banned: false, banReason: null, isActive: true },
+      ip: req.ip ?? undefined,
+    });
+    res.json({ cook });
   } catch (err) {
     next(err);
   }

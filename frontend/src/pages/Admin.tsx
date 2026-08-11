@@ -55,6 +55,10 @@ import {
   fetchAdminCooks,
   approveCook,
   rejectCook,
+  requestCookMoreInfo,
+  approveCookPackaging,
+  banCook,
+  restoreCook,
   fetchAdminCookListings,
   approveCookListing,
   rejectCookListing,
@@ -687,37 +691,92 @@ function SettingsTab({ settings, onRefresh }: { settings: any; onRefresh: () => 
 
 function CooksTab({ cooks, onRefresh }: { cooks: any[]; onRefresh: () => void }) {
   const [processing, setProcessing] = useState<string | null>(null);
+  const [selected, setSelected] = useState<any | null>(null);
+  const [moreInfoReason, setMoreInfoReason] = useState('');
+  const [moreInfoFields, setMoreInfoFields] = useState('');
+  const [packagingNote, setPackagingNote] = useState('');
+  const [banReason, setBanReason] = useState('');
 
-  async function handleApprove(id: string) {
-    if (!confirm('Approve this cook?')) return;
-    setProcessing(id);
+  async function call<T>(fn: () => Promise<T>) {
+    setProcessing(selected?.id ?? 'global');
     try {
-      await approveCook(id);
+      await fn();
       onRefresh();
+      if (selected) {
+        const updated = cooks.find((c) => c.id === selected.id);
+        if (updated) setSelected(updated);
+      }
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'Approval failed');
+      alert(e instanceof Error ? e.message : 'Action failed');
     } finally {
       setProcessing(null);
     }
   }
 
+  async function handleApprove(id: string) {
+    if (!confirm('Approve this cook?')) return;
+    await call(() => approveCook(id));
+  }
+
   async function handleReject(id: string) {
     if (!confirm('Reject this cook?')) return;
-    setProcessing(id);
-    try {
-      await rejectCook(id);
-      onRefresh();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : 'Rejection failed');
-    } finally {
-      setProcessing(null);
+    await call(() => rejectCook(id));
+  }
+
+  async function handleRequestMoreInfo(id: string) {
+    if (!moreInfoReason.trim()) return;
+    const fields = moreInfoFields.split(',').map((f) => f.trim()).filter(Boolean);
+    await call(() => requestCookMoreInfo(id, moreInfoReason, fields));
+    setMoreInfoReason('');
+    setMoreInfoFields('');
+  }
+
+  async function handlePackagingReview(id: string, approved: boolean) {
+    await call(() => approveCookPackaging(id, approved, packagingNote));
+    setPackagingNote('');
+  }
+
+  async function handleBan(id: string) {
+    if (!banReason.trim()) return;
+    if (!confirm(`Ban this cook? ${banReason}`)) return;
+    await call(() => banCook(id, banReason));
+    setBanReason('');
+  }
+
+  async function handleRestore(id: string) {
+    if (!confirm('Restore this cook?')) return;
+    await call(() => restoreCook(id));
+  }
+
+  function open(cook: any) {
+    setSelected(cook);
+    setMoreInfoReason('');
+    setMoreInfoFields('');
+    setPackagingNote('');
+    setBanReason('');
+  }
+
+  function close() {
+    setSelected(null);
+  }
+
+  function statusColor(status: string) {
+    switch (status) {
+      case 'APPROVED':
+        return 'bg-emerald-500/20 text-emerald-300';
+      case 'PENDING_APPROVAL':
+        return 'bg-yellow-500/20 text-yellow-300';
+      case 'REJECTED':
+        return 'bg-red-500/20 text-red-300';
+      default:
+        return 'bg-white/10 text-white/70';
     }
   }
 
   return (
     <div>
       <h2 className="text-2xl font-bold text-white">Home cook applications</h2>
-      <p className="mt-1 text-white/60">Approve or reject new cook registrations.</p>
+      <p className="mt-1 text-white/60">Approve, review packaging, or manage cook accounts.</p>
       {cooks.length === 0 ? (
         <p className="mt-6 text-white/50">No cooks registered.</p>
       ) : (
@@ -729,20 +788,32 @@ function CooksTab({ cooks, onRefresh }: { cooks: any[]; onRefresh: () => void })
                   <p className="font-bold text-white">{cook.displayName}</p>
                   <p className="text-sm text-white/60">{cook.user?.email}</p>
                   <p className="text-sm text-white/60">{cook.user?.phone}</p>
-                  <p className="mt-2 text-sm text-white/60">Status: {cook.profileStatus}</p>
+                  <p className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${statusColor(cook.profileStatus)}`}>
+                      {cook.profileStatus?.replace(/_/g, ' ')}
+                    </span>
+                    {cook.packagingApproved && <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-300">Packaging OK</span>}
+                    {cook.banned && <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-bold text-red-300">Banned</span>}
+                  </p>
                 </div>
-                <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => open(cook)}
+                    className="rounded-full border border-white/20 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/10"
+                  >
+                    View
+                  </button>
                   <button
                     onClick={() => handleApprove(cook.id)}
                     disabled={processing === cook.id || cook.profileStatus === 'APPROVED'}
-                    className="rounded-full bg-emerald-500 px-6 py-2 font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50"
+                    className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50"
                   >
                     {processing === cook.id ? '...' : 'Approve'}
                   </button>
                   <button
                     onClick={() => handleReject(cook.id)}
                     disabled={processing === cook.id}
-                    className="rounded-full bg-red-500/20 px-6 py-2 font-bold text-red-300 transition hover:bg-red-500/30 disabled:opacity-50"
+                    className="rounded-full bg-red-500/20 px-4 py-2 text-sm font-bold text-red-300 transition hover:bg-red-500/30 disabled:opacity-50"
                   >
                     Reject
                   </button>
@@ -750,6 +821,205 @@ function CooksTab({ cooks, onRefresh }: { cooks: any[]; onRefresh: () => void })
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {selected && (
+        <div className="fixed inset-0 z-50 bg-black/80 p-4 backdrop-blur-sm md:p-8">
+          <div className="mx-auto h-full max-w-4xl overflow-hidden rounded-3xl border border-white/10 bg-brand-900 shadow-2xl">
+            <div className="flex h-full flex-col">
+              <div className="flex items-center justify-between border-b border-white/10 p-4">
+                <h3 className="text-xl font-bold text-white">{selected.displayName}</h3>
+                <button
+                  onClick={close}
+                  className="rounded-full bg-black/50 p-2 text-white transition hover:bg-white/20"
+                  aria-label="Close"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex flex-col gap-6 md:flex-row">
+                  <div className="flex-1">
+                    {selected.profilePhoto ? (
+                      <img
+                        src={selected.profilePhoto}
+                        alt={selected.displayName}
+                        className="h-64 w-full rounded-2xl object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-64 w-full items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-white/50">
+                        No profile photo
+                      </div>
+                    )}
+
+                    <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
+                      <p><span className="text-white/50">Email:</span> {selected.user?.email || '—'}</p>
+                      <p><span className="text-white/50">Phone:</span> {selected.user?.phone || '—'}</p>
+                      <p><span className="text-white/50">Cuisine:</span> {selected.cuisineSpecialty || '—'}</p>
+                      <p><span className="text-white/50">Service radius:</span> {selected.serviceRadiusKm ? `${selected.serviceRadiusKm} km` : '—'}</p>
+                      <p><span className="text-white/50">Location:</span> {selected.latitude ?? '—'}, {selected.longitude ?? '—'}</p>
+                      <p><span className="text-white/50">Rating:</span> {selected.rating ? selected.rating.toFixed(1) : '—'} ({selected.totalOrders ?? 0} orders)</p>
+                      <p><span className="text-white/50">Listings:</span> {selected._count?.listings ?? 0} · <span className="text-white/50">Orders:</span> {selected._count?.orders ?? 0}</p>
+                    </div>
+
+                    {selected.bio && (
+                      <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-sm text-white/50">Bio</p>
+                        <p className="mt-1 text-white/80">{selected.bio}</p>
+                      </div>
+                    )}
+
+                    {(selected.categories?.length || selected.signatureDishes?.length) && (
+                      <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80">
+                        {selected.categories?.length > 0 && (
+                          <p><span className="text-white/50">Categories:</span> {selected.categories.join(', ')}</p>
+                        )}
+                        {selected.signatureDishes?.length > 0 && (
+                          <p className="mt-1"><span className="text-white/50">Signature dishes:</span> {selected.signatureDishes.join(', ')}</p>
+                        )}
+                        {selected.capacity && <p className="mt-1"><span className="text-white/50">Capacity:</span> {selected.capacity}</p>}
+                        {selected.prepTime && <p className="mt-1"><span className="text-white/50">Prep time:</span> {selected.prepTime}</p>}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 space-y-4">
+                    <div className="flex flex-wrap gap-2">
+                      <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusColor(selected.profileStatus)}`}>
+                        {selected.profileStatus?.replace(/_/g, ' ')}
+                      </span>
+                      <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/70">
+                        Kitchen: {selected.kitchenStatus?.replace(/_/g, ' ')}
+                      </span>
+                      {selected.packagingApproved && (
+                        <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-300">Packaging approved</span>
+                      )}
+                      {selected.banned && (
+                        <span className="rounded-full bg-red-500/20 px-3 py-1 text-xs font-bold text-red-300">Banned</span>
+                      )}
+                    </div>
+
+                    {selected.packagingPhotos?.length > 0 && (
+                      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                        <p className="font-bold text-white">Packaging photos</p>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          {selected.packagingPhotos.map((url: string, i: number) => (
+                            <a key={i} href={url} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl border border-white/10 bg-white/5">
+                              <img src={url} alt={`Packaging ${i + 1}`} className="h-32 w-full object-cover" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <p className="font-bold text-white">Packaging review</p>
+                      <textarea
+                        value={packagingNote}
+                        onChange={(e) => setPackagingNote(e.target.value)}
+                        placeholder="Note (optional)"
+                        className="mt-2 w-full rounded-xl border border-white/20 bg-white/5 p-3 text-sm text-white placeholder-white/40 outline-none focus:border-white"
+                        rows={2}
+                      />
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          onClick={() => handlePackagingReview(selected.id, true)}
+                          disabled={processing === selected.id}
+                          className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50"
+                        >
+                          Approve packaging
+                        </button>
+                        <button
+                          onClick={() => handlePackagingReview(selected.id, false)}
+                          disabled={processing === selected.id}
+                          className="rounded-full bg-red-500/20 px-4 py-2 text-sm font-bold text-red-300 transition hover:bg-red-500/30 disabled:opacity-50"
+                        >
+                          Reject packaging
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      <p className="font-bold text-white">Request more info</p>
+                      <input
+                        type="text"
+                        value={moreInfoReason}
+                        onChange={(e) => setMoreInfoReason(e.target.value)}
+                        placeholder="Reason"
+                        className="mt-2 w-full rounded-xl border border-white/20 bg-white/5 p-3 text-sm text-white placeholder-white/40 outline-none focus:border-white"
+                      />
+                      <input
+                        type="text"
+                        value={moreInfoFields}
+                        onChange={(e) => setMoreInfoFields(e.target.value)}
+                        placeholder="Fields needed, comma separated"
+                        className="mt-2 w-full rounded-xl border border-white/20 bg-white/5 p-3 text-sm text-white placeholder-white/40 outline-none focus:border-white"
+                      />
+                      <button
+                        onClick={() => handleRequestMoreInfo(selected.id)}
+                        disabled={processing === selected.id || !moreInfoReason.trim()}
+                        className="mt-2 rounded-full bg-white px-4 py-2 text-sm font-bold text-black transition hover:bg-white/90 disabled:opacity-50"
+                      >
+                        Request more info
+                      </button>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                      {selected.banned ? (
+                        <div>
+                          <p className="font-bold text-red-300">Banned{selected.banReason ? `: ${selected.banReason}` : ''}</p>
+                          <button
+                            onClick={() => handleRestore(selected.id)}
+                            disabled={processing === selected.id}
+                            className="mt-2 rounded-full bg-emerald-500 px-4 py-2 text-sm font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50"
+                          >
+                            Restore cook
+                          </button>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="font-bold text-white">Ban cook</p>
+                          <input
+                            type="text"
+                            value={banReason}
+                            onChange={(e) => setBanReason(e.target.value)}
+                            placeholder="Reason for ban"
+                            className="mt-2 w-full rounded-xl border border-white/20 bg-white/5 p-3 text-sm text-white placeholder-white/40 outline-none focus:border-white"
+                          />
+                          <button
+                            onClick={() => handleBan(selected.id)}
+                            disabled={processing === selected.id || !banReason.trim()}
+                            className="mt-2 rounded-full bg-red-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-red-400 disabled:opacity-50"
+                          >
+                            Ban cook
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                      <button
+                        onClick={() => handleApprove(selected.id)}
+                        disabled={processing === selected.id || selected.profileStatus === 'APPROVED'}
+                        className="rounded-full bg-emerald-500 px-6 py-2 font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50"
+                      >
+                        Approve
+                      </button>
+                      <button
+                        onClick={() => handleReject(selected.id)}
+                        disabled={processing === selected.id}
+                        className="rounded-full bg-red-500/20 px-6 py-2 font-bold text-red-300 transition hover:bg-red-500/30 disabled:opacity-50"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
