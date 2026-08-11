@@ -82,7 +82,20 @@ export default function TrackOrder() {
     eventSource.onmessage = (e) => {
       try {
         const event = JSON.parse(e.data);
-        if (event.payload?.orderNumber === orderNumber) {
+        if (event.event === 'rider:location' && order && order.riderId === event.payload?.riderId) {
+          setOrder((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  riderLocation: {
+                    lat: event.payload.lat,
+                    lng: event.payload.lng,
+                    updatedAt: event.payload.updatedAt,
+                  },
+                }
+              : prev,
+          );
+        } else if (event.payload?.orderNumber === orderNumber) {
           reload();
         }
       } catch {

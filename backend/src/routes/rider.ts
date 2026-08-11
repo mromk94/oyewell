@@ -401,6 +401,13 @@ router.post('/location', requireAuth, requireRider, async (req: AuthRequest, res
       create: { riderId: rider.id, latitude: point.lat, longitude: point.lng },
       update: { latitude: point.lat, longitude: point.lng },
     });
+    emitEvent('rider:location', {
+      riderId: rider.id,
+      userId: req.user!.id,
+      lat: point.lat,
+      lng: point.lng,
+      updatedAt: location.updatedAt,
+    });
     res.json({ location: { ...location, accuracy: accuracy != null ? Number(accuracy) : undefined } });
   } catch (e) {
     next(e);
