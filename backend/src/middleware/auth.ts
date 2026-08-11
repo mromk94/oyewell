@@ -78,3 +78,12 @@ export function requirePermission(key: string) {
     next();
   };
 }
+
+export async function requireOwnershipOrAdmin(req: AuthRequest, res: Response, next: NextFunction, ownerId: string) {
+  const isAdmin = req.user?.roles.includes('ADMIN');
+  if (!isAdmin && req.user?.id !== ownerId) {
+    res.status(403).json({ error: 'Forbidden' });
+    return;
+  }
+  next();
+}
