@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { createPortal } from 'react-dom';
 import {
   fetchMe,
   fetchMyOrders,
@@ -30,6 +31,8 @@ import {
   ChefHat,
   Bike,
   Shield,
+  Plus,
+  X,
 } from 'lucide-react';
 import Logo from '../components/Logo';
 
@@ -55,6 +58,8 @@ export default function Account() {
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [deliveryApp, setDeliveryApp] = useState<DeliveryApplication | null>(null);
   const [showApply, setShowApply] = useState(false);
+  const [showCookPrompt, setShowCookPrompt] = useState(false);
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -171,12 +176,12 @@ export default function Account() {
             >
               <Download className='h-4 w-4' /> Install app
             </button>
-            <Link
-              to='/cook'
+            <button
+              onClick={() => setShowCookPrompt(true)}
               className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20'
             >
               <ChefHat className='h-4 w-4' /> {hasRole(customer, 'COOK') ? 'Cook portal' : 'Become a cook'}
-            </Link>
+            </button>
             {deliveryApp ? (
               <span className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white/70'>
                 <Bike className='h-4 w-4' />
@@ -230,6 +235,61 @@ export default function Account() {
             }}
           />
         )}
+
+        {showCookPrompt &&
+          createPortal(
+            <div
+              className='fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4'
+              onClick={() => setShowCookPrompt(false)}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className='w-full max-w-md rounded-t-3xl border border-white/10 bg-brand-900 p-6 shadow-2xl sm:rounded-3xl'
+              >
+                <div className='flex items-center justify-between'>
+                  <h2 className='text-xl font-black text-white'>Post your food</h2>
+                  <button
+                    onClick={() => setShowCookPrompt(false)}
+                    className='rounded-full p-2 text-white/60 transition hover:bg-white/10 hover:text-white'
+                    aria-label='Close'
+                  >
+                    <X className='h-5 w-5' />
+                  </button>
+                </div>
+                <p className='mt-4 text-white/70'>
+                  This is where home cooks share dishes with people nearby. You can set your own price,
+                  choose when you are cooking, and customers can order straight from your listing.
+                </p>
+                <p className='mt-3 text-white/70'>
+                  To keep quality and safety in check, every cook goes through a quick application before they can start posting.
+                </p>
+                <div className='mt-6 flex flex-col gap-3'>
+                  {hasRole(customer, 'COOK') ? (
+                    <button
+                      onClick={() => { setShowCookPrompt(false); navigate('/cook?tab=add'); }}
+                      className='inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 py-3 font-bold text-black transition hover:bg-emerald-400'
+                    >
+                      <Plus className='h-4 w-4' /> Post a new dish
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => { setShowCookPrompt(false); navigate('/cook'); }}
+                      className='inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 py-3 font-bold text-black transition hover:bg-emerald-400'
+                    >
+                      <ChefHat className='h-4 w-4' /> Apply to become a cook
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowCookPrompt(false)}
+                    className='rounded-full border border-white/20 px-6 py-3 text-sm font-bold text-white transition hover:bg-white/10'
+                  >
+                    Maybe later
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )}
       </motion.div>
     </div>
   );
