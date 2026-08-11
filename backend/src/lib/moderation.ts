@@ -20,6 +20,10 @@ export async function createReport(input: {
   });
 }
 
+export async function getReport(id: string) {
+  return prisma.report.findUnique({ where: { id } });
+}
+
 export async function getReports(filters: { status?: string; assignedTo?: string } = {}) {
   return prisma.report.findMany({
     where: {
