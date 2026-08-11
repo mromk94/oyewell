@@ -26,4 +26,14 @@ describe('location', () => {
     assert.equal(isLocationFresh(new Date(Date.now() - 10_000), 60_000), true);
     assert.equal(isLocationFresh(new Date(Date.now() - 120_000), 60_000), false);
   });
+
+  it('handles many concurrent haversine calculations', async () => {
+    const points = Array.from({ length: 100 }, (_, i) => ({
+      a: { lat: 6.5 + i * 0.001, lng: 3.3 + i * 0.001 },
+      b: { lat: 6.6 + i * 0.001, lng: 3.4 + i * 0.001 },
+    }));
+    const results = await Promise.all(points.map((p) => haversineMeters(p.a, p.b)));
+    assert.equal(results.length, 100);
+    assert.ok(results.every((d) => d > 0));
+  });
 });
