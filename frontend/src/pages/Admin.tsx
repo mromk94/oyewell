@@ -55,6 +55,7 @@ import {
   fetchAdminCookListings,
   approveCookListing,
   rejectCookListing,
+  featureCookListing,
   fetchAdminCookEarnings,
 } from '../lib/admin';
 
@@ -783,6 +784,18 @@ function CookListingsTab({ listings, onRefresh }: { listings: any[]; onRefresh: 
     }
   }
 
+  async function handleFeature(id: string, featured: boolean) {
+    setProcessing(id);
+    try {
+      await featureCookListing(id, featured);
+      onRefresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Update failed');
+    } finally {
+      setProcessing(null);
+    }
+  }
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-white">Home cook listings</h2>
@@ -813,6 +826,15 @@ function CookListingsTab({ listings, onRefresh }: { listings: any[]; onRefresh: 
                     className="rounded-full bg-red-500/20 px-6 py-2 font-bold text-red-300 transition hover:bg-red-500/30 disabled:opacity-50"
                   >
                     Reject
+                  </button>
+                  <button
+                    onClick={() => handleFeature(listing.id, !listing.featured)}
+                    disabled={processing === listing.id}
+                    className={`rounded-full px-6 py-2 font-bold transition disabled:opacity-50 ${
+                      listing.featured ? 'bg-yellow-500/20 text-yellow-300' : 'border border-white/20 text-white'
+                    }`}
+                  >
+                    {listing.featured ? 'Featured' : 'Feature'}
                   </button>
                 </div>
               </div>

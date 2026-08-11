@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { ApiError } from '../lib/errors.js';
+import { requireAuth, optionalAuth } from '../middleware/auth.js';
+import type { AuthRequest } from '../middleware/auth.js';
 import { distanceMeters, geocode, LOCAL_SEARCH_RINGS_METERS } from '../lib/location.js';
 
 const router = Router();
@@ -30,7 +32,17 @@ function stripCookLocation(listing: any) {
 const LISTING_INCLUDE = {
   cook: { select: COOK_SELECT },
   media: { orderBy: { ordering: 'asc' as const } },
+  _count: { select: { likes: true, views: true } },
 } as const;
+
+function serializeListing(listing: any) {
+  const { _count, ...rest } = listing;
+  return {
+    ...rest,
+    likeCount: _count?.likes ?? 0,
+    viewCount: _count?.views ?? 0,
+  };
+}
 
 router.get('/', async (req, res, next) => {
   try {
@@ -54,17 +66,16 @@ router.get('/', async (req, res, next) => {
         where,
         take,
         skip,
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ featured: 'desc' }, { createdAt: 'desc' }],
         include: LISTING_INCLUDE,
       }),
       prisma.cookListing.count({ where }),
     ]);
-    res.json({ listings: listings.map(stripCookLocation), total, skip, take });
+    res.json({ listings: listings.map(stripCookLocation).map(serializeListing), total, skip, take });
   } catch (err) {
     next(err);
   }
 });
-
 router.get('/around-me', async (req, res, next) => {
   try {
     const minResults = Math.max(Number(req.query.minResults) || 3, 1);
@@ -124,7 +135,7 @@ router.get('/around-me', async (req, res, next) => {
     }
 
     res.json({
-      sections: sections.map((s) => ({ ...s, listings: s.listings.map(stripCookLocation) })),
+      sections: sections.map((s) => ({ ...s, listings: s.listings.map(stripCookLocation).map(serializeListing) })),
       fallback,
       center: { lat, lng },
       total: withDistance.length,
@@ -162,7 +173,7 @@ router.get('/nearby', async (req, res, next) => {
       .filter((l) => l.distanceMeters <= radiusKm * 1000)
       .sort((a, b) => a.distanceMeters - b.distanceMeters);
 
-    res.json({ listings: withDistance.map(stripCookLocation) });
+    res.json({ listings: withDistance.map(stripCookLocation).map(serializeListing) });
   } catch (err) {
     next(err);
   }
@@ -177,7 +188,45 @@ router.get('/:id', async (req, res, next) => {
     if (!listing || listing.status !== 'APPROVED' || !listing.isActive) {
       throw new ApiError(404, 'Listing not found');
     }
-    res.json({ listing: stripCookLocation(listing) });
+    res.json({ listing: serializeListing(stripCookLocation(listing)) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/:id/like', requireAuth, async (req: AuthRequest, res, next) => {
+  try {
+    const listingId = req.params.id;
+    const userId = req.user!.id;
+    const existing = await prisma.cookListingLike.findUnique({
+      where: { listingId_userId: { listingId, userId } },
+    });
+    if (existing) {
+      await prisma.cookListingLike.delete({ where: { id: existing.id } });
+      const likeCount = await prisma.cookListingLike.count({ where: { listingId } });
+      res.json({ liked: false, likeCount });
+    } else {
+      await prisma.cookListingLike.create({ data: { listingId, userId } });
+      const likeCount = await prisma.cookListingLike.count({ where: { listingId } });
+      res.json({ liked: true, likeCount });
+    }
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/:id/view', optionalAuth, async (req: AuthRequest, res, next) => {
+  try {
+    const listingId = req.params.id;
+    const { viewerId } = req.body as { viewerId?: string };
+    if (!viewerId || typeof viewerId !== 'string') throw new ApiError(400, 'viewerId is required');
+    await prisma.cookListingView.upsert({
+      where: { listingId_viewerId: { listingId, viewerId } },
+      create: { listingId, viewerId, userId: req.user?.id },
+      update: { createdAt: new Date() },
+    });
+    const viewCount = await prisma.cookListingView.count({ where: { listingId } });
+    res.json({ ok: true, viewCount });
   } catch (err) {
     next(err);
   }

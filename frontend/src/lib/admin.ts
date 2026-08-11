@@ -391,6 +391,17 @@ export async function approveCookListing(id: string) {
   return res.json();
 }
 
+export async function featureCookListing(id: string, featured: boolean) {
+  const res = await fetch(`${API_BASE}/api/admin/cook-listings/${id}/featured`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ featured }),
+  });
+  const data = (await res.json()) as { listing?: any; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to update listing');
+  return data;
+}
+
 export async function rejectCookListing(id: string) {
   const res = await fetch(`${API_BASE}/api/admin/cook-listings/${id}/reject`, {
     method: 'PATCH',

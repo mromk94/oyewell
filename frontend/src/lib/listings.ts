@@ -1,4 +1,22 @@
 import { API_BASE, formatPrice } from './api';
+import { getCustomerToken } from './api';
+
+function authHeaders() {
+  const token = getCustomerToken();
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+function getOrCreateViewerId() {
+  let id = localStorage.getItem('oye_viewer_id');
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem('oye_viewer_id', id);
+  }
+  return id;
+}
 
 export interface CookListing {
   id: string;
@@ -17,10 +35,14 @@ export interface CookListing {
   cuisine?: string | null;
   status: string;
   isActive: boolean;
+  featured: boolean;
   createdAt: string;
   updatedAt: string;
   media: { id: string; type: 'IMAGE' | 'VIDEO'; url: string; thumbnailUrl?: string | null }[];
   distanceKm?: number;
+  likeCount: number;
+  viewCount: number;
+  liked?: boolean;
   cook: {
     id: string;
     displayName: string;
@@ -69,4 +91,24 @@ export async function fetchCookListing(id: string) {
   if (!res.ok) throw new Error('Failed to load listing');
   const data = (await res.json()) as { listing: CookListing };
   return { ...data.listing, price: formatPrice(data.listing.priceKobo) };
+}
+
+export async function likeCookListing(id: string) {
+  const res = await fetch(`${API_BASE}/api/listings/${id}/like`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  const data = (await res.json()) as { liked: boolean; likeCount: number; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Like failed');
+  return data;
+}
+
+export async function viewCookListing(id: string) {
+  const res = await fetch(`${API_BASE}/api/listings/${id}/view`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ viewerId: getOrCreateViewerId() }),
+  });
+  if (!res.ok) return { ok: false, viewCount: 0 };
+  return (await res.json()) as { ok: boolean; viewCount: number };
 }

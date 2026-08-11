@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChefHat, Clock, MapPin, Star } from 'lucide-react';
+import { ChefHat, Clock, Heart, MapPin, Star } from 'lucide-react';
 import OrderButton from './OrderButton';
 import { formatPrice } from '../lib/api';
-import type { CookListing } from '../lib/listings';
+import { likeCookListing, viewCookListing, type CookListing } from '../lib/listings';
+import { toast } from '../lib/toast';
 
 interface Props {
   listing: CookListing;
@@ -12,7 +13,14 @@ interface Props {
 export default function CookListingHero({ listing }: Props) {
   const media = listing.media?.length ? listing.media : [{ url: '/food-placeholder.svg' } as any];
   const [index, setIndex] = useState(0);
+  const [likeCount, setLikeCount] = useState(listing.likeCount ?? 0);
+  const [liked, setLiked] = useState(listing.liked ?? false);
+  const [likeLoading, setLikeLoading] = useState(false);
   const isAvailable = listing.isActive && listing.stock > 0;
+
+  useEffect(() => {
+    viewCookListing(listing.id).catch(() => {});
+  }, [listing.id]);
 
   useEffect(() => {
     if (media.length <= 1) return;
@@ -21,6 +29,19 @@ export default function CookListingHero({ listing }: Props) {
     }, 6000);
     return () => clearInterval(interval);
   }, [media]);
+
+  async function handleLike() {
+    setLikeLoading(true);
+    try {
+      const res = await likeCookListing(listing.id);
+      setLiked(res.liked);
+      setLikeCount(res.likeCount);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Sign in to like');
+    } finally {
+      setLikeLoading(false);
+    }
+  }
 
   const active = media[index];
 
@@ -106,6 +127,17 @@ export default function CookListingHero({ listing }: Props) {
           <Link to={`/cook-listing/${listing.id}`}>
             <OrderButton label='Order' />
           </Link>
+          <button
+            type='button'
+            onClick={handleLike}
+            disabled={likeLoading}
+            className={`inline-flex items-center gap-2 rounded-full px-5 py-3 font-bold transition ${
+              liked ? 'bg-red-500 text-white' : 'bg-white/10 text-white hover:bg-white/20'
+            }`}
+          >
+            <Heart className={`h-5 w-5 ${liked ? 'fill-current' : ''}`} />
+            {likeCount}
+          </button>
         </div>
       </div>
     </section>

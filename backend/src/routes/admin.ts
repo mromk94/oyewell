@@ -837,9 +837,15 @@ router.get('/cook-listings', async (_req, res, next) => {
     const listings = await prisma.cookListing.findMany({
       orderBy: { createdAt: 'desc' },
       take: 100,
-      include: { cook: true, media: { orderBy: { ordering: 'asc' } } },
+      include: { cook: true, media: { orderBy: { ordering: 'asc' } }, _count: { select: { likes: true, views: true } } },
     });
-    res.json({ listings });
+    res.json({
+      listings: listings.map((l) => ({
+        ...l,
+        likeCount: l._count?.likes ?? 0,
+        viewCount: l._count?.views ?? 0,
+      })),
+    });
   } catch (err) {
     next(err);
   }
@@ -928,6 +934,20 @@ router.patch('/cook-listings/:id/reject', async (req, res, next) => {
     const listing = await prisma.cookListing.update({
       where: { id: req.params.id },
       data: { status: 'REJECTED', isActive: false },
+      include: { cook: true, media: { orderBy: { ordering: 'asc' } } },
+    });
+    res.json({ listing });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/cook-listings/:id/featured', async (req, res, next) => {
+  try {
+    const { featured } = req.body as { featured?: boolean };
+    const listing = await prisma.cookListing.update({
+      where: { id: req.params.id },
+      data: { featured: featured === true },
       include: { cook: true, media: { orderBy: { ordering: 'asc' } } },
     });
     res.json({ listing });

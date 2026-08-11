@@ -24,6 +24,20 @@ export function requireAuth(req: AuthRequest, res: Response, next: NextFunction)
   }
 }
 
+export function optionalAuth(req: AuthRequest, _res: Response, next: NextFunction) {
+  const header = req.headers.authorization;
+  const token = header?.startsWith('Bearer ') ? header.slice(7) : undefined;
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as { id: string; email: string; role: string; roles: string[] };
+      req.user = { ...decoded, roles: Array.isArray(decoded.roles) ? decoded.roles : [decoded.role] };
+    } catch {
+      // invalid token is ignored for optional auth
+    }
+  }
+  next();
+}
+
 export function requireRole(...allowed: string[]) {
   return (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) {

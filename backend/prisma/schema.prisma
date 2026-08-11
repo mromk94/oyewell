@@ -31,6 +31,8 @@ model User {
   cookProfile CookProfile?
   addresses UserAddress[]
   managementEmployee ManagementEmployee?
+  cookListingLikes CookListingLike[]
+  cookListingViews CookListingView[]
 }
 
 enum OrderingMode {
@@ -484,15 +486,19 @@ model CookListing {
   cuisine              String?
   status               CookListingStatus @default(DRAFT)
   isActive             Boolean           @default(false)
+  featured             Boolean           @default(false)
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
   media                CookListingMedia[]
   orderItems           OrderItem[]
   orders               Order[]
   reviews              Review[]
+  likes                CookListingLike[]
+  views                CookListingView[]
 
   @@index([status, isActive, createdAt])
   @@index([cookId, status])
+  @@index([featured, status, isActive])
 }
 
 model CookListingMedia {
@@ -510,6 +516,33 @@ model CookListingMedia {
   createdAt   DateTime @default(now())
 
   @@index([listingId, ordering])
+}
+
+model CookListingLike {
+  id          String   @id @default(cuid())
+  listing     CookListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingId   String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  createdAt   DateTime @default(now())
+
+  @@unique([listingId, userId])
+  @@index([listingId])
+  @@index([userId])
+}
+
+model CookListingView {
+  id          String   @id @default(cuid())
+  listing     CookListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  listingId   String
+  viewerId    String
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String?
+  createdAt   DateTime @default(now())
+
+  @@unique([listingId, viewerId])
+  @@index([listingId])
+  @@index([viewerId])
 }
 
 model UserAddress {
