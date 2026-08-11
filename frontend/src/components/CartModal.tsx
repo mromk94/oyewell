@@ -245,6 +245,11 @@ export default function CartModal() {
   }
 
   const selectedDelivery = deliveryOptions[deliveryType];
+  const platformFee = order?.order.platformFee
+    ? order.order.platformFee
+    : selectedDelivery?.available
+      ? formatPrice(selectedDelivery.platformFeeKobo)
+      : null;
   const deliveryFee = order?.order.deliveryFee
     ? order.order.deliveryFee
     : selectedDelivery?.available
@@ -444,6 +449,12 @@ export default function CartModal() {
                   <span>Subtotal</span>
                   <span className='font-semibold'>{formatPrice(totalKobo)}</span>
                 </p>
+                {platformFee && (
+                  <p className='mt-2 flex justify-between text-sm text-white/80'>
+                    <span>Platform fee</span>
+                    <span className='font-semibold'>{platformFee}</span>
+                  </p>
+                )}
                 {deliveryFee && (
                   <p className='mt-2 flex justify-between text-sm text-white/80'>
                     <span>Delivery</span>

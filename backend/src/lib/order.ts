@@ -89,7 +89,9 @@ async function createCookOrder(payload: CookOrderPayload) {
     throw new ApiError(400, 'Delivery is not available for this address', 'DELIVERY_UNAVAILABLE');
   }
 
-  const totalKobo = subtotalKobo + delivery.feeKobo;
+  const totalKobo = delivery.totalKobo ?? subtotalKobo + (delivery.platformFeeKobo ?? 0) + delivery.feeKobo;
+  const platformFeeKobo = delivery.platformFeeKobo ?? 0;
+  const cookEarningKobo = totalKobo - platformFeeKobo - delivery.feeKobo;
   const provider = paymentProvider.toUpperCase() as PaymentProvider;
   if (!Object.values(PaymentProvider).includes(provider)) {
     throw new ApiError(400, 'Invalid payment provider');
@@ -142,7 +144,7 @@ async function createCookOrder(payload: CookOrderPayload) {
       data: {
         cookId: listing.cookId,
         orderId: created.id,
-        amountKobo: subtotalKobo,
+        amountKobo: cookEarningKobo,
         status: 'PENDING',
       },
     });
@@ -168,6 +170,7 @@ async function createCookOrder(payload: CookOrderPayload) {
       status: order.status,
       paymentStatus: order.paymentStatus,
       subtotal: formatKobo(subtotalKobo),
+      platformFee: formatKobo(platformFeeKobo),
       deliveryFee: formatKobo(delivery.feeKobo),
       total: formatKobo(totalKobo),
       address,
@@ -267,7 +270,8 @@ export async function createOrder(payload: OrderPayload) {
     throw new ApiError(400, 'Delivery is not available for this address', 'DELIVERY_UNAVAILABLE');
   }
 
-  const totalKobo = subtotalKobo + delivery.feeKobo;
+  const totalKobo = delivery.totalKobo ?? subtotalKobo + (delivery.platformFeeKobo ?? 0) + delivery.feeKobo;
+  const platformFeeKobo = delivery.platformFeeKobo ?? 0;
 
   const provider = paymentProvider.toUpperCase() as PaymentProvider;
   if (!Object.values(PaymentProvider).includes(provider)) {
@@ -338,6 +342,7 @@ export async function createOrder(payload: OrderPayload) {
       status: order.status,
       paymentStatus: order.paymentStatus,
       subtotal: formatKobo(subtotalKobo),
+      platformFee: formatKobo(platformFeeKobo),
       deliveryFee: formatKobo(delivery.feeKobo),
       total: formatKobo(totalKobo),
       address,
@@ -392,6 +397,7 @@ export function serializeOrder(
     paymentStatus: order.paymentStatus,
     deliveryType: order.deliveryType || 'NEIGHBORHOOD',
     subtotal: formatKobo(order.subtotalKobo),
+    platformFee: formatKobo(order.totalKobo - order.subtotalKobo - order.deliveryFeeKobo),
     deliveryFee: formatKobo(order.deliveryFeeKobo),
     total: formatKobo(order.totalKobo),
     address: showCustomerInfo ? order.address : maskAddress(order.address),

@@ -4,6 +4,17 @@ import { DeliveryType, DeliveryZone, DeliveryZoneType } from '@prisma/client';
 import { getMapProvider } from './maps.js';
 import { eta } from './location.js';
 
+export async function getPlatformFeePercent(): Promise<number> {
+  const setting = await prisma.restaurantSetting.findFirst();
+  const map = (setting?.mapSettings as Record<string, unknown> | undefined) ?? {};
+  const percent = Number(map.platformFeePercent);
+  return Number.isFinite(percent) && percent >= 0 ? percent : 5;
+}
+
+export function calculatePlatformFeeKobo(subtotalKobo: number, percent: number): number {
+  return Math.round((subtotalKobo * percent) / 100);
+}
+
 async function getZoneCenter(zone: DeliveryZone): Promise<Coords | null> {
   const boundary = zone.boundary as Record<string, unknown>;
   switch (zone.type) {
@@ -179,7 +190,7 @@ export async function resolveDelivery(address: string, subtotalKobo: number, typ
 
   const minOrderKobo = rule?.minOrderKobo ?? zone.minOrderKobo;
   if (minOrderKobo && subtotalKobo < minOrderKobo) {
-    return { zone, feeKobo: 0, available: false, reason: 'Minimum order not met' };
+    return { zone, feeKobo: 0, platformFeeKobo: 0, totalKobo: subtotalKobo, available: false, reason: 'Minimum order not met' };
   }
 
   let feeKobo = rule?.baseFeeKobo ?? zone.feeKobo;
@@ -207,9 +218,15 @@ export async function resolveDelivery(address: string, subtotalKobo: number, typ
 
   feeKobo = applyMultiSourceSurcharge(feeKobo, sourceIds ?? []);
 
+  const platformFeePercent = await getPlatformFeePercent();
+  const platformFeeKobo = calculatePlatformFeeKobo(subtotalKobo, platformFeePercent);
+  const totalKobo = subtotalKobo + platformFeeKobo + feeKobo;
+
   return {
     zone,
     feeKobo,
+    platformFeeKobo,
+    totalKobo,
     available: true,
     estimatedMinutes,
     coords: effectiveCoords ?? undefined,

@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { toast } from '../../lib/toast';
-import { createPaymentMethod, updatePaymentMethod, deletePaymentMethod } from '../../lib/admin';
+import { createPaymentMethod, updatePaymentMethod, deletePaymentMethod, fetchSettings, updateSettings } from '../../lib/admin';
 
 type MethodConfig = {
   secretKey?: string;
@@ -118,11 +118,45 @@ function buildConfig(draft: MethodDraft): MethodConfig {
 export function PaymentsTab({ methods, onRefresh }: { methods: any[]; onRefresh: () => void }) {
   const [mode, setMode] = useState<'closed' | 'create' | 'edit'>('closed');
   const [draft, setDraft] = useState<MethodDraft>(emptyDraft());
+  const [platformFee, setPlatformFee] = useState<string>('5');
+  const [savingFee, setSavingFee] = useState(false);
 
   const closeForm = () => {
     setMode('closed');
     setDraft(emptyDraft());
   };
+
+  useEffect(() => {
+    fetchSettings()
+      .then(({ settings }) => {
+        const map = (settings?.mapSettings as Record<string, unknown>) ?? {};
+        const fee = Number(map.platformFeePercent);
+        if (Number.isFinite(fee) && fee >= 0) {
+          setPlatformFee(String(fee));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  async function handleSavePlatformFee(e: React.FormEvent) {
+    e.preventDefault();
+    const value = Number(platformFee);
+    if (!Number.isFinite(value) || value < 0 || value > 100) {
+      toast.error('Platform fee must be a number between 0 and 100.');
+      return;
+    }
+    setSavingFee(true);
+    try {
+      const { settings } = await fetchSettings();
+      const map = (settings?.mapSettings as Record<string, unknown>) ?? {};
+      await updateSettings({ mapSettings: { ...map, platformFeePercent: value } });
+      toast.success('Platform fee saved.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not save platform fee.');
+    } finally {
+      setSavingFee(false);
+    }
+  }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -256,6 +290,33 @@ export function PaymentsTab({ methods, onRefresh }: { methods: any[]; onRefresh:
           </ul>
         </div>
       </div>
+
+      <form onSubmit={handleSavePlatformFee} className='mt-6 rounded-2xl border border-white/10 bg-white/5 p-6'>
+        <h3 className='text-lg font-bold text-white'>Platform fee</h3>
+        <p className='text-sm text-white/60'>Collected on top of every order. Default is 5%.</p>
+        <div className='mt-4 flex items-end gap-4'>
+          <label className='block flex-1'>
+            <span className='text-sm font-medium text-white/90'>Fee percentage (%)</span>
+            <input
+              type='number'
+              min='0'
+              max='100'
+              step='0.01'
+              value={platformFee}
+              onChange={(e) => setPlatformFee(e.target.value)}
+              className='mt-1 w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white'
+              placeholder='5'
+            />
+          </label>
+          <button
+            type='submit'
+            disabled={savingFee}
+            className='rounded-full bg-white px-6 py-2 font-bold text-black disabled:opacity-50'
+          >
+            {savingFee ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </form>
 
       {isFormOpen && (
         <form onSubmit={handleSave} className='mt-6 rounded-2xl border border-white/10 bg-white/5 p-6'>

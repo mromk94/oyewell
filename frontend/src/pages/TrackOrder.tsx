@@ -471,6 +471,12 @@ export default function TrackOrder() {
               <span>Subtotal</span>
               <span>{order.subtotal}</span>
             </div>
+            {order.platformFee && (
+              <div className='flex justify-between'>
+                <span>Platform fee</span>
+                <span>{order.platformFee}</span>
+              </div>
+            )}
             <div className='flex justify-between'>
               <span>Delivery</span>
               <span>{order.deliveryFee}</span>

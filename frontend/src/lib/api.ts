@@ -64,6 +64,8 @@ export interface DeliveryResult {
   zone?: { id: string; name: string; feeKobo: number; estimatedMinutes: number | null };
   subtotalKobo: number;
   subtotal: string;
+  platformFeeKobo: number;
+  platformFee: string;
   deliveryFeeKobo: number;
   deliveryFee: string;
   totalKobo: number;
@@ -156,6 +158,7 @@ export interface CreatedOrder {
     status: string;
     paymentStatus: string;
     subtotal: string;
+    platformFee: string;
     deliveryFee: string;
     total: string;
     address: string;
@@ -247,6 +250,7 @@ export interface OrderSummary {
   paymentStatus: string;
   deliveryType?: 'NEIGHBORHOOD' | 'PROFESSIONAL';
   subtotal: string;
+  platformFee: string;
   deliveryFee: string;
   total: string;
   address: string;
