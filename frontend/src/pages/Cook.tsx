@@ -156,8 +156,8 @@ export default function Cook() {
         <nav className='mb-6 grid grid-cols-3 gap-2 sm:grid-cols-6'>
           {[
             { id: 'dashboard', label: 'Home', icon: ChefHat },
-            { id: 'add', label: 'Add food', icon: Plus },
-            { id: 'menu', label: 'Menu', icon: Utensils },
+            { id: 'add', label: 'Add Food', icon: Plus },
+            { id: 'menu', label: 'My Food', icon: Utensils },
             { id: 'orders', label: 'Orders', icon: ClipboardList },
             { id: 'earnings', label: 'Earnings', icon: Banknote },
             { id: 'profile', label: 'Profile', icon: User },
@@ -344,7 +344,7 @@ function AddFoodPanel({ onCreated, onError }: { onCreated: () => void; onError: 
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className='space-y-4'>
-      <h2 className='text-xl font-bold'>Add a new food listing</h2>
+      <h2 className='text-xl font-bold'>Add a new food</h2>
       <form onSubmit={handleSubmit} className='space-y-4'>
         <input
           placeholder='Food name'
@@ -412,7 +412,7 @@ function AddFoodPanel({ onCreated, onError }: { onCreated: () => void; onError: 
           disabled={loading}
           className='w-full rounded-full bg-emerald-500 py-3 font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50'
         >
-          {loading ? <Loader2 className='mx-auto h-5 w-5 animate-spin' /> : 'Submit for approval'}
+          {loading ? <Loader2 className='mx-auto h-5 w-5 animate-spin' /> : 'Add food'}
         </button>
       </form>
     </motion.div>
