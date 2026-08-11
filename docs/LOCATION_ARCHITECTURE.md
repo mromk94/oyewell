@@ -49,6 +49,14 @@ A centralized, provider-abstracted location layer powers discovery, delivery, ri
 10. Error handling, accuracy, security, anti-spoofing, caching and indexing.
 11. Frontend map performance, mobile/PWA, design and testing.
 
+## Reporting Requirement
+All location/geo work is tracked through the map phases TODO list. Phase completion is committed to git with descriptive messages and pushed to `main`. This document, `backend/src/lib/location.ts` tests, and the build logs serve as the audit trail. Weekly reports should reference:
+- Number of active/online riders (`/api/admin/dashboard` `ridersOnline`).
+- Orders out for delivery by zone (`/api/admin/dashboard` `ordersByZone`).
+- Cook marketplace density (`/api/admin/cooks/locations`).
+- Live rider positions (`/api/admin/riders/locations`).
+- Delivery check availability and ETA (`/api/delivery/check`).
+
 ## Caching & Performance
 - Geocoding and routing results are cached in memory with TTL.
 - Feature flags are cached to avoid repeated DB hits.
