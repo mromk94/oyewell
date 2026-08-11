@@ -876,4 +876,30 @@ router.post('/orders/:id/dispatch', async (req, res, next) => {
   }
 });
 
+router.get('/payout-requests', async (_req, res, next) => {
+  try {
+    const requests = await prisma.riderPayoutRequest.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { rider: { include: { user: { select: { firstName: true, lastName: true, email: true, phone: true } } } } },
+    });
+    res.json({ requests });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/payouts/:id/settle', async (req, res, next) => {
+  try {
+    const { status } = req.body as { status?: 'SETTLED' | 'REJECTED' };
+    if (!status || !['SETTLED', 'REJECTED'].includes(status)) throw new ApiError(400, 'status must be SETTLED or REJECTED');
+    const updated = await prisma.riderPayoutRequest.update({
+      where: { id: req.params.id },
+      data: { status, settledAt: status === 'SETTLED' ? new Date() : null },
+    });
+    res.json({ request: updated });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

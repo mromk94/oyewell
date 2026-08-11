@@ -444,4 +444,43 @@ router.get('/earnings', requireAuth, requireRider, async (req: AuthRequest, res,
   }
 });
 
+router.get('/payouts', requireAuth, requireRider, async (req: AuthRequest, res, next) => {
+  try {
+    const rider = await prisma.rider.findUnique({ where: { userId: req.user!.id } });
+    if (!rider) throw new ApiError(404, 'Rider not found');
+    const payouts = await prisma.riderPayoutRequest.findMany({
+      where: { riderId: rider.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ payouts });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post('/withdraw', requireAuth, requireRider, async (req: AuthRequest, res, next) => {
+  try {
+    const rider = await prisma.rider.findUnique({ where: { userId: req.user!.id } });
+    if (!rider) throw new ApiError(404, 'Rider not found');
+    const [delivered, paid] = await Promise.all([
+      prisma.order.aggregate({ where: { riderId: rider.id, status: 'DELIVERED' }, _sum: { riderFeeKobo: true } }),
+      prisma.order.aggregate({ where: { riderId: rider.id, status: 'DELIVERED', riderPaid: true }, _sum: { riderFeeKobo: true } }),
+    ]);
+    const total = delivered._sum.riderFeeKobo || 0;
+    const paidOut = paid._sum.riderFeeKobo || 0;
+    const pending = total - paidOut;
+    if (pending <= 0) throw new ApiError(400, 'No pending earnings to withdraw');
+    const existing = await prisma.riderPayoutRequest.findFirst({
+      where: { riderId: rider.id, status: 'PENDING' },
+    });
+    if (existing) throw new ApiError(400, 'You already have a pending withdrawal request');
+    const payout = await prisma.riderPayoutRequest.create({
+      data: { riderId: rider.id, amountKobo: pending, status: 'PENDING' },
+    });
+    res.json({ payout });
+  } catch (e) {
+    next(e);
+  }
+});
+
 export default router;

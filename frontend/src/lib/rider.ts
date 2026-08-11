@@ -160,6 +160,20 @@ export async function fetchRiderEarnings() {
   return json as { totalDelivered: number; totalEarnings: string; paidOut: string; pendingPayout: string };
 }
 
+export async function fetchRiderPayouts() {
+  const res = await fetch(R('/payouts'), { headers: { Authorization: `Bearer ${getToken()}` } });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || 'Failed to load payouts');
+  return json as { payouts: { id: string; amountKobo: number; status: 'PENDING' | 'SETTLED' | 'REJECTED'; createdAt: string }[] };
+}
+
+export async function withdrawRiderEarnings() {
+  const res = await fetch(R('/withdraw'), { method: 'POST', headers: headers() });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || 'Withdrawal request failed');
+  return json as { payout: { id: string; amountKobo: number; status: string } };
+}
+
 export async function applyProfessionalUpgrade(body: {
   documents: string[];
   preferredDate?: string;

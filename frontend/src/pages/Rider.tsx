@@ -15,7 +15,7 @@ import {
   ShieldCheck,
   Shield,
 } from 'lucide-react';
-import { riderLogin, riderRegister, riderLogout, fetchRiderMe, updateRiderMe, updateRiderAvailability, fetchRiderOrders, fetchAvailableOrders, claimOrder, pickupOrder, verifyDeliveryCode, fetchRiderEarnings, type RiderOrder, type Rider } from '../lib/rider';
+import { riderLogin, riderRegister, riderLogout, fetchRiderMe, updateRiderMe, updateRiderAvailability, fetchRiderOrders, fetchAvailableOrders, claimOrder, pickupOrder, verifyDeliveryCode, fetchRiderEarnings, fetchRiderPayouts, withdrawRiderEarnings, type RiderOrder, type Rider } from '../lib/rider';
 import ProfessionalUpgradeModal from '../components/ProfessionalUpgradeModal';
 
 export default function Rider() {
@@ -436,24 +436,69 @@ function VerifyPanel({ onError }: { onError: (m: string) => void }) {
 
 function EarningsPanel({ onError }: { onError: (m: string) => void }) {
   const [earnings, setEarnings] = useState<any>(null);
+  const [payouts, setPayouts] = useState<{ id: string; amountKobo: number; status: string; createdAt: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [withdrawing, setWithdrawing] = useState(false);
 
-  useEffect(() => {
-    fetchRiderEarnings()
-      .then(setEarnings)
-      .catch((e) => onError(e.message))
-      .finally(() => setLoading(false));
-  }, [onError]);
+  async function load() {
+    setLoading(true);
+    try {
+      const [e, p] = await Promise.all([fetchRiderEarnings(), fetchRiderPayouts()]);
+      setEarnings(e);
+      setPayouts(p.payouts);
+    } catch (e: any) {
+      onError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, [onError]);
+
+  async function handleWithdraw() {
+    setWithdrawing(true);
+    try {
+      await withdrawRiderEarnings();
+      await load();
+    } catch (e: any) {
+      onError(e.message);
+    } finally {
+      setWithdrawing(false);
+    }
+  }
 
   if (loading) return <PanelLoader />;
   if (!earnings) return <Empty message='No earnings data.' />;
 
   return (
-    <div className='grid gap-4 sm:grid-cols-2'>
-      <StatCard label='Total delivered' value={earnings.totalDelivered} />
-      <StatCard label='Total earnings' value={earnings.totalEarnings} />
-      <StatCard label='Paid out' value={earnings.paidOut} />
-      <StatCard label='Pending payout' value={earnings.pendingPayout} />
+    <div className='space-y-4'>
+      <div className='grid gap-4 sm:grid-cols-2'>
+        <StatCard label='Total delivered' value={earnings.totalDelivered} />
+        <StatCard label='Total earnings' value={earnings.totalEarnings} />
+        <StatCard label='Paid out' value={earnings.paidOut} />
+        <StatCard label='Pending payout' value={earnings.pendingPayout} />
+      </div>
+      <button
+        onClick={handleWithdraw}
+        disabled={withdrawing}
+        className='w-full rounded-full bg-emerald-500 py-3 font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50'
+      >
+        {withdrawing ? 'Requesting...' : 'Request withdrawal'}
+      </button>
+      {payouts.length > 0 && (
+        <div className='space-y-2'>
+          <h3 className='text-sm font-bold text-white/70'>Withdrawal requests</h3>
+          {payouts.map((p) => (
+            <div key={p.id} className='rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/80'>
+              <div className='flex items-center justify-between'>
+                <span>{(p.amountKobo / 100).toLocaleString()} NGN</span>
+                <span className='rounded-full bg-white/10 px-2 py-0.5 text-xs font-bold'>{p.status}</span>
+              </div>
+              <p className='mt-1 text-xs text-white/50'>{new Date(p.createdAt).toLocaleString()}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
