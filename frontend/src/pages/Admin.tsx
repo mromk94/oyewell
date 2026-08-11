@@ -31,14 +31,13 @@ import { OrdersTab as OrdersTabNew } from '../components/admin/OrdersTab';
 import EmailTab from '../components/admin/EmailTab';
 import ManagementDashboard from '../components/admin/ManagementDashboard';
 import ModerationPanel from '../components/admin/ModerationPanel';
+import DeliveryTab from '../components/admin/DeliveryTab';
 import {
   adminLogin,
   fetchDashboard,
   fetchAdminFoods,
   fetchAdminOrders,
   fetchDeliveryZones,
-  createDeliveryZone,
-  deleteDeliveryZone,
   fetchPaymentMethods,
   fetchSettings,
   updateSettings,
@@ -473,87 +472,6 @@ function LiveMapTab({ riders, cooks }: { riders: any[]; cooks: any[] }) {
   );
 }
 
-function DeliveryTab({ zones, onRefresh }: { zones: any[]; onRefresh: () => void }) {
-  const [name, setName] = useState('');
-  const [fee, setFee] = useState('');
-  const [est, setEst] = useState('');
-  const [cities, setCities] = useState('');
-
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    await createDeliveryZone({
-      name,
-      type: 'CITY',
-      boundary: { cities: cities.split(',').map((c) => c.trim()).filter(Boolean) },
-      feeKobo: Number(fee) * 100,
-      estimatedMinutes: Number(est) || null,
-    });
-    setName('');
-    setFee('');
-    setEst('');
-    setCities('');
-    onRefresh();
-  }
-
-  return (
-    <div>
-      <h2 className="text-2xl font-bold text-white">Delivery zones</h2>
-      <form onSubmit={handleCreate} className="mt-6 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-6">
-        <input
-          placeholder="Zone name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white"
-        />
-        <input
-          placeholder="Cities (comma separated)"
-          value={cities}
-          onChange={(e) => setCities(e.target.value)}
-          className="w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white"
-        />
-        <input
-          placeholder="Fee in NGN"
-          value={fee}
-          onChange={(e) => setFee(e.target.value)}
-          className="w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white"
-        />
-        <input
-          placeholder="Estimated minutes"
-          value={est}
-          onChange={(e) => setEst(e.target.value)}
-          className="w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white"
-        />
-        <button type="submit" className="rounded-full bg-white px-6 py-2 font-bold text-black">
-          Add zone
-        </button>
-      </form>
-
-      <div className="mt-6 space-y-4">
-        {zones.map((zone) => (
-          <div
-            key={zone.id}
-            className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-4"
-          >
-            <div>
-              <p className="font-bold text-white">{zone.name}</p>
-              <p className="text-sm text-white/60">{zone.type} • {zone._count?.orders ?? 0} active orders</p>
-              <p className="text-sm text-white/60">Fee: {formatPrice(zone.feeKobo)}</p>
-            </div>
-            <button
-              onClick={async () => {
-                await deleteDeliveryZone(zone.id);
-                onRefresh();
-              }}
-              className="rounded-full bg-red-500/20 px-4 py-2 text-sm font-bold text-red-300"
-            >
-              Delete
-            </button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 function RidersTab({ riders, onRefresh }: { riders: any[]; onRefresh: () => void }) {
   const [processing, setProcessing] = useState<string | null>(null);

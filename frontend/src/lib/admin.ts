@@ -173,6 +173,32 @@ export async function deleteDeliveryZone(id: string) {
   return res.json();
 }
 
+export async function fetchDeliveryPricingRules() {
+  const res = await fetch(`${API_BASE}/api/admin/delivery-pricing-rules`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load pricing rules');
+  return res.json() as Promise<{ rules: any[] }>;
+}
+
+export async function createDeliveryPricingRule(body: any) {
+  const res = await fetch(`${API_BASE}/api/admin/delivery-pricing-rules`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json()) as { rule?: any; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to create pricing rule');
+  return data;
+}
+
+export async function deleteDeliveryPricingRule(id: string) {
+  const res = await fetch(`${API_BASE}/api/admin/delivery-pricing-rules/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to delete pricing rule');
+  return res.json();
+}
+
 export async function fetchPaymentMethods() {
   const res = await fetch(`${API_BASE}/api/admin/payment-methods`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load methods');
