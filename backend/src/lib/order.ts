@@ -35,6 +35,7 @@ interface RestaurantOrderPayload {
   paymentProvider: string;
   customerId?: string;
   deliveryType?: 'NEIGHBORHOOD' | 'PROFESSIONAL';
+  idempotencyKey?: string;
 }
 
 interface CookOrderPayload {
@@ -46,12 +47,18 @@ interface CookOrderPayload {
   paymentProvider: string;
   customerId?: string;
   deliveryType?: 'NEIGHBORHOOD' | 'PROFESSIONAL';
+  idempotencyKey?: string;
 }
 
 type OrderPayload = RestaurantOrderPayload | CookOrderPayload;
 
 async function createCookOrder(payload: CookOrderPayload) {
-  const { cookListingId, quantity, address, phone, paymentProvider, customerId, deliveryType = 'NEIGHBORHOOD' } = payload;
+  const { cookListingId, quantity, address, phone, paymentProvider, customerId, deliveryType = 'NEIGHBORHOOD', idempotencyKey } = payload;
+
+  if (idempotencyKey) {
+    const existing = await prisma.order.findUnique({ where: { idempotencyKey } });
+    if (existing) return existing;
+  }
 
   if (!address.trim() || !phone.trim()) {
     throw new ApiError(400, 'Address and phone are required');
@@ -103,6 +110,7 @@ async function createCookOrder(payload: CookOrderPayload) {
         phone,
         deliveryZoneId: delivery.zone.id,
         deliveryType: deliveryType as any,
+        idempotencyKey: idempotencyKey || undefined,
         deliveryFeeKobo: delivery.feeKobo,
         subtotalKobo,
         totalKobo,
@@ -172,7 +180,12 @@ async function createCookOrder(payload: CookOrderPayload) {
 
 export async function createOrder(payload: OrderPayload) {
   if (payload.source === 'COOK') return createCookOrder(payload);
-  const { items, address, phone, paymentProvider, customerId, deliveryType = 'NEIGHBORHOOD' } = payload;
+  const { items, address, phone, paymentProvider, customerId, deliveryType = 'NEIGHBORHOOD', idempotencyKey } = payload;
+
+  if (idempotencyKey) {
+    const existing = await prisma.order.findUnique({ where: { idempotencyKey } });
+    if (existing) return existing;
+  }
 
   if (!address.trim() || !phone.trim()) {
     throw new ApiError(400, 'Address and phone are required');
@@ -275,6 +288,7 @@ export async function createOrder(payload: OrderPayload) {
         phone,
         deliveryZoneId: delivery.zone.id,
         deliveryType: deliveryType as any,
+        idempotencyKey: idempotencyKey || undefined,
         deliveryFeeKobo: delivery.feeKobo,
         subtotalKobo,
         totalKobo,

@@ -216,6 +216,7 @@ model Order {
   review                   Review?
   earning                  CookEarning?
   deliveryCode             String?              @unique
+  idempotencyKey           String?              @unique
   rider                    Rider?               @relation(fields: [riderId], references: [id])
   riderId                  String?
   riderStatus              String               @default("UNASSIGNED")
@@ -560,15 +561,16 @@ model RiderLocation {
 }
 
 model RiderPayoutRequest {
-  id          String            @id @default(cuid())
-  rider       Rider             @relation(fields: [riderId], references: [id], onDelete: Cascade)
-  riderId     String
-  amountKobo  Int
-  status      PayoutStatus      @default(PENDING)
-  requestedAt DateTime          @default(now())
-  settledAt   DateTime?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  id            String            @id @default(cuid())
+  rider         Rider             @relation(fields: [riderId], references: [id], onDelete: Cascade)
+  riderId       String
+  amountKobo    Int
+  status        PayoutStatus      @default(PENDING)
+  requestedAt   DateTime          @default(now())
+  settledAt     DateTime?
+  idempotencyKey String?          @unique
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   @@index([riderId, status])
 }

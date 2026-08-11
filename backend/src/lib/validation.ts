@@ -19,6 +19,7 @@ const orderBase = z.object({
   phone: z.string().min(5),
   paymentProvider: z.string().min(1).default('MOCK'),
   deliveryType: z.enum(['NEIGHBORHOOD', 'PROFESSIONAL']).default('NEIGHBORHOOD'),
+  idempotencyKey: z.string().optional(),
 });
 
 const restaurantOrderSchema = z.object({

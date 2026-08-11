@@ -460,8 +460,13 @@ router.get('/payouts', requireAuth, requireRider, async (req: AuthRequest, res, 
 
 router.post('/withdraw', requireAuth, requireRider, async (req: AuthRequest, res, next) => {
   try {
+    const { idempotencyKey } = req.body as { idempotencyKey?: string };
     const rider = await prisma.rider.findUnique({ where: { userId: req.user!.id } });
     if (!rider) throw new ApiError(404, 'Rider not found');
+    if (idempotencyKey) {
+      const existing = await prisma.riderPayoutRequest.findUnique({ where: { idempotencyKey } });
+      if (existing) return res.json({ payout: existing });
+    }
     const [delivered, paid] = await Promise.all([
       prisma.order.aggregate({ where: { riderId: rider.id, status: 'DELIVERED' }, _sum: { riderFeeKobo: true } }),
       prisma.order.aggregate({ where: { riderId: rider.id, status: 'DELIVERED', riderPaid: true }, _sum: { riderFeeKobo: true } }),
@@ -475,7 +480,7 @@ router.post('/withdraw', requireAuth, requireRider, async (req: AuthRequest, res
     });
     if (existing) throw new ApiError(400, 'You already have a pending withdrawal request');
     const payout = await prisma.riderPayoutRequest.create({
-      data: { riderId: rider.id, amountKobo: pending, status: 'PENDING' },
+      data: { riderId: rider.id, amountKobo: pending, status: 'PENDING', idempotencyKey: idempotencyKey || undefined },
     });
     res.json({ payout });
   } catch (e) {
