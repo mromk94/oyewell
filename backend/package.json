@@ -8,11 +8,11 @@
     "build": "prisma generate && tsc",
     "test": "node --test dist/tests/**/*.test.js",
     "postinstall": "test -f prisma/schema.prisma && prisma generate || true",
-    "prestart": "npx prisma db push --accept-data-loss && npx prisma db seed",
-    "start": "exec node dist/index.js",
+    "start": "node dist/index.js",
+    "db:deploy": "prisma db push --accept-data-loss",
+    "db:seed": "prisma db seed",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "prisma db seed",
     "db:studio": "prisma studio"
   },
   "dependencies": {
