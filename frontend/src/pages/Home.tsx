@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom';
 import { fetchFoods, type FoodItem } from '../lib/api';
 import { fetchCookListingsPublic, type CookListing } from '../lib/listings';
 import FoodCard from '../components/FoodCard';
-import CookListingsSection from '../components/CookListingsSection';
 import FoodAroundMe from '../components/FoodAroundMe';
 import CookListingFeed from '../components/CookListingFeed';
 import Logo from '../components/Logo';
@@ -119,11 +118,6 @@ export default function Home() {
       >
         {view === 'home' && (
           <>
-            {(cooksLoading || cookListings.length > 0) && (
-              <div className='min-h-screen snap-start pt-24'>
-                <CookListingsSection title='Home Cooks' listings={cookListings} loading={cooksLoading} />
-              </div>
-            )}
             {foods.map((food) => (
               <FoodCard key={food.id} food={food} />
             ))}
