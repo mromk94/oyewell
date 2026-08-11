@@ -8,6 +8,32 @@ const router = Router();
 
 router.use(requireAuth, requireRole('ADMIN'));
 
+router.get('/dashboard', async (_req, res, next) => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const [todayOrders, pendingCooks, pendingListings, pendingRiders, openDisputes, openTickets, openReports, newCooks, newRiders, activeDeliveries] = await Promise.all([
+      prisma.order.count({ where: { createdAt: { gte: today } } }),
+      prisma.cookProfile.count({ where: { profileStatus: 'PENDING_APPROVAL' } }),
+      prisma.cookListing.count({ where: { status: 'PENDING_REVIEW' } }),
+      prisma.rider.count({ where: { isApproved: false } }),
+      prisma.dispute.count({ where: { status: { in: ['OPEN', 'UNDER_REVIEW'] } } }),
+      prisma.ticket.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
+      prisma.report.count({ where: { status: { in: ['OPEN', 'UNDER_REVIEW'] } } }),
+      prisma.cookProfile.count({ where: { createdAt: { gte: today } } }),
+      prisma.rider.count({ where: { createdAt: { gte: today } } }),
+      prisma.order.count({ where: { status: { in: ['PREPARING', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY'] } } }),
+    ]);
+    res.json({
+      today: { orders: todayOrders, newCooks, newRiders },
+      attention: { pendingApprovals: pendingCooks + pendingListings + pendingRiders, openDisputes, openTickets, openReports },
+      delivery: { activeDeliveries },
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
 router.get('/tiers', async (_req, res, next) => {
   try {
     const tiers = await prisma.adminTier.findMany({
