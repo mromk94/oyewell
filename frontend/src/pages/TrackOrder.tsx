@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Loader2, CheckCircle, XCircle, Clock, Upload, UserPlus, Package, Utensils, Truck, Home, Star } from 'lucide-react';
+import { ArrowLeft, Loader2, CheckCircle, XCircle, Clock, Upload, UserPlus, Package, Utensils, Truck, Home, Star, Flag } from 'lucide-react';
 import { toast } from '../lib/toast';
 import { fetchOrder, formatPrice, type OrderSummary, uploadPaymentProof, register, createReview, getCustomerToken } from '../lib/api';
 import Logo from '../components/Logo';
 import { DeliveryMap } from '../components/DeliveryMap';
+import ReportModal from '../components/ReportModal';
 
 type StatusDef = {
   key: string;
@@ -61,6 +62,7 @@ export default function TrackOrder() {
   const [confirm, setConfirm] = useState('');
   const [accepted, setAccepted] = useState(false);
   const [registering, setRegistering] = useState(false);
+  const [reportTarget, setReportTarget] = useState<{ id: string; type: 'RIDER' | 'COOK' } | null>(null);
 
   function reload() {
     if (!orderNumber) return;
@@ -488,6 +490,14 @@ export default function TrackOrder() {
               <DeliveryMap order={order} />
             </div>
           )}
+          {order.riderId && (
+            <button
+              onClick={() => order.riderId && setReportTarget({ id: order.riderId, type: 'RIDER' })}
+              className='mt-4 inline-flex items-center gap-2 rounded-full border border-white/20 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/10'
+            >
+              <Flag className='h-4 w-4' /> Report rider
+            </button>
+          )}
         </div>
 
         {order.status === 'DELIVERED' && order.cookId && getCustomerToken() && (
@@ -546,6 +556,14 @@ export default function TrackOrder() {
           </div>
         </div>
       </div>
+      {reportTarget && (
+        <ReportModal
+          targetId={reportTarget.id}
+          targetType={reportTarget.type}
+          title={reportTarget.type === 'RIDER' ? 'Report rider' : 'Report cook'}
+          onClose={() => setReportTarget(null)}
+        />
+      )}
     </div>
   );
 }

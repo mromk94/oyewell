@@ -1,22 +1,24 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchTickets, fetchDisputes, updateTicketStatus, resolveDispute } from '../../lib/management';
+import { fetchTickets, fetchDisputes, updateTicketStatus, resolveDispute, fetchReports, resolveReport } from '../../lib/management';
 
 export default function ModerationPanel() {
   const [tickets, setTickets] = useState<any[]>([]);
   const [disputes, setDisputes] = useState<any[]>([]);
+  const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [activeTab, setActiveTab] = useState<'tickets' | 'disputes'>('tickets');
+  const [activeTab, setActiveTab] = useState<'tickets' | 'disputes' | 'reports'>('tickets');
   const [selected, setSelected] = useState<any | null>(null);
 
   useEffect(() => {
     async function load() {
       try {
-        const [t, d] = await Promise.all([fetchTickets(), fetchDisputes()]);
+        const [t, d, r] = await Promise.all([fetchTickets(), fetchDisputes(), fetchReports()]);
         setTickets(t.tickets ?? []);
         setDisputes(d.disputes ?? []);
+        setReports(r.reports ?? []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load');
       } finally {
@@ -26,21 +28,26 @@ export default function ModerationPanel() {
     load();
   }, []);
 
+  const source = useMemo(() => {
+    if (activeTab === 'tickets') return tickets;
+    if (activeTab === 'disputes') return disputes;
+    return reports;
+  }, [activeTab, tickets, disputes, reports]);
+
   const rows = useMemo(() => {
-    const source = activeTab === 'tickets' ? tickets : disputes;
     return source.filter((r) => {
       const matchesStatus = !statusFilter || r.status === statusFilter;
       if (!filter.trim()) return matchesStatus;
       const q = filter.toLowerCase();
       return (
         matchesStatus &&
-        ((r.ticketNumber ?? r.disputeNumber ?? '').toLowerCase().includes(q) ||
-          (r.category ?? r.type ?? '').toLowerCase().includes(q) ||
-          (r.subject ?? r.description ?? '').toLowerCase().includes(q) ||
+        ((r.ticketNumber ?? r.disputeNumber ?? r.id ?? '').toLowerCase().includes(q) ||
+          (r.targetType ?? r.category ?? r.type ?? '').toLowerCase().includes(q) ||
+          (r.subject ?? r.reason ?? r.description ?? '').toLowerCase().includes(q) ||
           (r.status ?? '').toLowerCase().includes(q))
       );
     });
-  }, [filter, statusFilter, activeTab, tickets, disputes]);
+  }, [filter, statusFilter, source]);
 
   async function closeTicket(id: string) {
     try {
@@ -60,13 +67,22 @@ export default function ModerationPanel() {
     }
   }
 
+  async function resolveReportById(id: string) {
+    try {
+      await resolveReport(id, 'Resolved from panel');
+      setReports((prev) => prev.map((r) => (r.id === id ? { ...r, status: 'RESOLVED' } : r)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed');
+    }
+  }
+
   if (loading) return <div className="p-6 text-gray-600">Loading...</div>;
   if (error) return <div className="p-6 text-red-600">{error}</div>;
 
   return (
     <div className="p-6 space-y-4">
       <h2 className="text-2xl font-semibold text-gray-800">Moderation</h2>
-      <div className="flex gap-4">
+      <div className="flex gap-4 flex-wrap">
         <button
           onClick={() => setActiveTab('tickets')}
           className={`px-4 py-2 rounded-lg font-medium ${activeTab === 'tickets' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-700'}`}
@@ -78,6 +94,12 @@ export default function ModerationPanel() {
           className={`px-4 py-2 rounded-lg font-medium ${activeTab === 'disputes' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-700'}`}
         >
           Disputes ({disputes.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('reports')}
+          className={`px-4 py-2 rounded-lg font-medium ${activeTab === 'reports' ? 'bg-orange-500 text-white' : 'bg-gray-100 text-gray-700'}`}
+        >
+          Reports ({reports.length})
         </button>
       </div>
       <div className="flex gap-3">
@@ -112,8 +134,8 @@ export default function ModerationPanel() {
           <tbody className="divide-y divide-gray-100">
             {rows.map((row) => (
               <tr key={row.id} className="hover:bg-gray-50">
-                <td className="p-3 font-mono">{row.ticketNumber ?? row.disputeNumber}</td>
-                <td className="p-3">{row.category ?? row.type}</td>
+                <td className="p-3 font-mono">{row.ticketNumber ?? row.disputeNumber ?? row.id}</td>
+                <td className="p-3">{row.category ?? row.type ?? `${row.targetType}: ${row.targetId}`}</td>
                 <td className="p-3">
                   <span className="inline-block rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold uppercase">{row.status}</span>
                 </td>
@@ -130,6 +152,11 @@ export default function ModerationPanel() {
                     )}
                     {activeTab === 'disputes' && row.status !== 'RESOLVED' && (
                       <button onClick={() => resolveDisputeById(row.id)} className="text-xs text-orange-600 hover:underline">
+                        Resolve
+                      </button>
+                    )}
+                    {activeTab === 'reports' && !['RESOLVED', 'DISMISSED'].includes(row.status) && (
+                      <button onClick={() => resolveReportById(row.id)} className="text-xs text-orange-600 hover:underline">
                         Resolve
                       </button>
                     )}
@@ -155,17 +182,21 @@ export default function ModerationPanel() {
           >
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-semibold text-gray-800">
-                {selected.ticketNumber ?? selected.disputeNumber}
+                {selected.ticketNumber ?? selected.disputeNumber ?? selected.id}
               </h3>
               <button onClick={() => setSelected(null)} className="text-gray-500 hover:text-gray-800">
                 Close
               </button>
             </div>
             <div className="mt-4 space-y-2 text-sm text-gray-700">
-              <p><span className="font-semibold">Type:</span> {selected.category ?? selected.type}</p>
+              <p><span className="font-semibold">Type:</span> {selected.category ?? selected.type ?? selected.targetType}</p>
               <p><span className="font-semibold">Status:</span> {selected.status}</p>
               <p><span className="font-semibold">Created:</span> {new Date(selected.createdAt).toLocaleString()}</p>
+              {selected.targetId && <p><span className="font-semibold">Target:</span> {selected.targetId}</p>}
+              {selected.reporterId && <p><span className="font-semibold">Reporter:</span> {selected.reporterId}</p>}
+              {selected.reason && <p><span className="font-semibold">Reason:</span> {selected.reason}</p>}
               {selected.subject && <p><span className="font-semibold">Subject:</span> {selected.subject}</p>}
+              {selected.details && <p><span className="font-semibold">Details:</span> {selected.details}</p>}
               {selected.description && <p><span className="font-semibold">Description:</span> {selected.description}</p>}
               {selected.resolution && <p><span className="font-semibold">Resolution:</span> {selected.resolution}</p>}
             </div>

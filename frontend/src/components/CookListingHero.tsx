@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChefHat, Clock, Heart, MapPin, Star } from 'lucide-react';
+import { ChefHat, Clock, Heart, MapPin, Star, Flag, Bookmark } from 'lucide-react';
 import OrderButton from './OrderButton';
 import { formatPrice } from '../lib/api';
 import { likeCookListing, viewCookListing, type CookListing } from '../lib/listings';
 import { toast } from '../lib/toast';
+import ReportModal from './ReportModal';
+import { isFavoriteCook, toggleFavoriteCook } from '../lib/favorites';
 
 interface Props {
   listing: CookListing;
@@ -16,6 +18,8 @@ export default function CookListingHero({ listing }: Props) {
   const [likeCount, setLikeCount] = useState(listing.likeCount ?? 0);
   const [liked, setLiked] = useState(listing.liked ?? false);
   const [likeLoading, setLikeLoading] = useState(false);
+  const [showReport, setShowReport] = useState(false);
+  const [favorited, setFavorited] = useState(isFavoriteCook(listing.cook.id));
   const isAvailable = listing.isActive && listing.stock > 0;
 
   useEffect(() => {
@@ -41,6 +45,16 @@ export default function CookListingHero({ listing }: Props) {
     } finally {
       setLikeLoading(false);
     }
+  }
+
+  function handleFavorite() {
+    const res = toggleFavoriteCook({
+      id: listing.cook.id,
+      displayName: listing.cook.displayName,
+      profilePhoto: listing.cook.profilePhoto,
+    });
+    setFavorited(res.favorited);
+    toast.success(res.favorited ? 'Added to favorite cooks' : 'Removed from favorites');
   }
 
   const active = media[index];
@@ -138,7 +152,32 @@ export default function CookListingHero({ listing }: Props) {
             <Heart className={`h-5 w-5 ${liked ? 'fill-current' : ''}`} />
             {likeCount}
           </button>
+          <button
+            type='button'
+            onClick={handleFavorite}
+            className={`inline-flex items-center gap-2 rounded-full px-5 py-3 font-bold transition ${
+              favorited ? 'bg-yellow-500 text-black' : 'bg-white/10 text-white hover:bg-white/20'
+            }`}
+          >
+            <Bookmark className={`h-5 w-5 ${favorited ? 'fill-current' : ''}`} />
+            {favorited ? 'Favorited' : 'Favorite'}
+          </button>
+          <button
+            type='button'
+            onClick={() => setShowReport(true)}
+            className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-3 font-bold text-white transition hover:bg-white/20'
+          >
+            <Flag className='h-5 w-5' /> Report
+          </button>
         </div>
+        {showReport && (
+          <ReportModal
+            targetId={listing.cook.id}
+            targetType='COOK'
+            title='Report cook'
+            onClose={() => setShowReport(false)}
+          />
+        )}
       </div>
     </section>
   );
