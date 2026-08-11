@@ -43,6 +43,7 @@ import {
   updateCustomerRole,
   fetchRiders,
   fetchRiderLocations,
+  fetchCookLocations,
   approveRider,
   pauseRider,
   suspendRider,
@@ -78,6 +79,7 @@ export default function Admin() {
   const [settings, setSettings] = useState<any>({});
   const [pendingRiders, setPendingRiders] = useState<any[]>([]);
   const [riderLocations, setRiderLocations] = useState<any[]>([]);
+  const [cookLocations, setCookLocations] = useState<any[]>([]);
   const [cooks, setCooks] = useState<any[]>([]);
   const [cookListings, setCookListings] = useState<any[]>([]);
   const [cookEarnings, setCookEarnings] = useState<any>({});
@@ -120,8 +122,9 @@ export default function Admin() {
         const { riders } = await fetchRiders();
         setPendingRiders(riders);
       } else if (tab === 'live-map') {
-        const { riders } = await fetchRiderLocations();
-        setRiderLocations(riders);
+        const [riderData, cookData] = await Promise.all([fetchRiderLocations(), fetchCookLocations()]);
+        setRiderLocations(riderData.riders);
+        setCookLocations(cookData.cooks);
       } else if (tab === 'cooks') {
         const { cooks } = await fetchAdminCooks();
         setCooks(cooks);
@@ -332,7 +335,7 @@ export default function Admin() {
         {tab === 'settings' && <SettingsTab settings={settings} onRefresh={loadTab} />}
         {tab === 'email' && <EmailTab />}
         {tab === 'riders' && <RidersTab riders={pendingRiders} onRefresh={loadTab} />}
-        {tab === 'live-map' && <LiveMapTab riders={riderLocations} />}
+        {tab === 'live-map' && <LiveMapTab riders={riderLocations} cooks={cookLocations} />}
         {tab === 'cooks' && <CooksTab cooks={cooks} onRefresh={loadTab} />}
         {tab === 'cook-listings' && <CookListingsTab listings={cookListings} onRefresh={loadTab} />}
         {tab === 'cook-earnings' && <CookEarningsTab earnings={cookEarnings} />}
@@ -341,32 +344,39 @@ export default function Admin() {
   );
 }
 
-function LiveMapTab({ riders }: { riders: any[] }) {
+function LiveMapTab({ riders, cooks }: { riders: any[]; cooks: any[] }) {
+  const points = [...riders, ...cooks];
   const center =
-    riders.length > 0
+    points.length > 0
       ? {
-          lat: riders.reduce((sum, r) => sum + r.lat, 0) / riders.length,
-          lng: riders.reduce((sum, r) => sum + r.lng, 0) / riders.length,
+          lat: points.reduce((sum, p) => sum + p.lat, 0) / points.length,
+          lng: points.reduce((sum, p) => sum + p.lng, 0) / points.length,
         }
       : { lat: 6.5244, lng: 3.3792 };
+  const markers = [
+    ...riders.map((r) => ({ id: `r-${r.id}`, point: { lat: r.lat, lng: r.lng }, label: `Rider: ${r.name}` })),
+    ...cooks.map((c) => ({ id: `c-${c.id}`, point: { lat: c.lat, lng: c.lng }, label: `Cook: ${c.name} (${c.listings} listings)` })),
+  ];
   return (
     <div>
       <h2 className="text-2xl font-bold text-white">Live Map</h2>
-      <p className="mt-1 text-white/60">Online riders with fresh location.</p>
-      {riders.length === 0 ? (
-        <p className="mt-6 text-white/50">No active riders currently.</p>
+      <p className="mt-1 text-white/60">Riders and active cooks. Cooks show listing density.</p>
+      {points.length === 0 ? (
+        <p className="mt-6 text-white/50">No active riders or cooks on the map right now.</p>
       ) : (
         <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
-          <MapView
-            center={center}
-            markers={riders.map((r) => ({ id: r.id, point: { lat: r.lat, lng: r.lng }, label: r.name }))}
-            height={400}
-          />
+          <MapView center={center} markers={markers} height={400} />
           <ul className="mt-4 space-y-2 text-sm text-white/80">
             {riders.map((r) => (
               <li key={r.id} className="flex justify-between">
-                <span>{r.name}</span>
+                <span className="text-emerald-300">Rider: {r.name}</span>
                 <span className="text-white/50">Last update: {new Date(r.updatedAt).toLocaleTimeString()}</span>
+              </li>
+            ))}
+            {cooks.map((c) => (
+              <li key={c.id} className="flex justify-between">
+                <span className="text-amber-300">Cook: {c.name}</span>
+                <span className="text-white/50">{c.listings} listings</span>
               </li>
             ))}
           </ul>

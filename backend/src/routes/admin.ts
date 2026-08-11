@@ -718,6 +718,28 @@ router.post('/orders/:orderNumber/assign-rider', async (req: AuthRequest, res, n
   }
 });
 
+router.get('/cooks/locations', async (_req, res, next) => {
+  try {
+    const cooks = await prisma.cookProfile.findMany({
+      where: { profileStatus: 'APPROVED', kitchenStatus: 'OPEN', isActive: true },
+      include: { _count: { select: { listings: true } } },
+    });
+    res.json({
+      cooks: cooks
+        .filter((c) => c.latitude != null && c.longitude != null)
+        .map((c) => ({
+          id: c.id,
+          name: c.displayName,
+          lat: c.latitude,
+          lng: c.longitude,
+          listings: c._count.listings,
+        })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/cooks', async (_req, res, next) => {
   try {
     const cooks = await prisma.cookProfile.findMany({
