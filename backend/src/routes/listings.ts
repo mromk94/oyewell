@@ -120,7 +120,10 @@ router.get('/around-me', async (req, res, next) => {
         const withDistance = listings
           .map((l) => {
             const cook = l.cook;
-            const distMeters = cook.latitude && cook.longitude ? distanceMeters({ lat, lng }, { lat: cook.latitude, lng: cook.longitude }) : Infinity;
+            const distMeters =
+              cook.latitude != null && cook.longitude != null && !Number.isNaN(cook.latitude) && !Number.isNaN(cook.longitude)
+                ? distanceMeters({ lat, lng }, { lat: cook.latitude, lng: cook.longitude })
+                : Infinity;
             return { ...l, distanceMeters: distMeters, distanceKm: distMeters / 1000 };
           })
           .sort((a, b) => a.distanceMeters - b.distanceMeters);
@@ -139,7 +142,9 @@ router.get('/around-me', async (req, res, next) => {
           lastEnd = r;
         }
 
-        const fallback = withDistance.length < minResults;
+        const outerLimit = rings[rings.length - 1];
+        const insideOuterRing = withDistance.filter((l) => l.distanceMeters <= outerLimit);
+        const fallback = insideOuterRing.length < minResults;
         if (fallback && withDistance.length > 0) {
           const best = withDistance.slice(0, Math.min(minResults, withDistance.length));
           sections.push({ label: 'Closest available', radiusMeters: best[best.length - 1]?.distanceMeters ?? 0, listings: best });
