@@ -51,6 +51,13 @@ export interface Rider {
   isActive: boolean;
   available: boolean;
   isApproved: boolean;
+  neighborhoodApproval: 'NOT_APPLIED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+  professionalApproval: 'NOT_APPLIED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+  professionalUpgradeStatus: string;
+  deliveryMode: 'WALK' | 'BICYCLE' | 'MOTORCYCLE' | 'CAR';
+  serviceRadiusMeters: number;
+  operatingArea?: string;
+  kycStatus: string;
   createdAt: string;
   updatedAt: string;
   user?: { id: string; email: string; firstName?: string; lastName?: string; phone?: string };
@@ -138,4 +145,20 @@ export async function fetchRiderEarnings() {
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error || 'Failed to load earnings');
   return json as { totalDelivered: number; totalEarnings: string; paidOut: string; pendingPayout: string };
+}
+
+export async function applyProfessionalUpgrade(body: {
+  documents: string[];
+  preferredDate?: string;
+  vehicle?: string;
+  deliveryMode?: string;
+}) {
+  const res = await fetch(R('/professional/apply'), {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify(body),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || 'Application failed');
+  return json as { rider: Rider };
 }

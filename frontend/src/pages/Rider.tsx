@@ -13,13 +13,16 @@ import {
   ArrowRight,
   LogOut,
   ShieldCheck,
+  Shield,
 } from 'lucide-react';
 import { riderLogin, riderRegister, riderLogout, fetchRiderMe, updateRiderMe, updateRiderAvailability, fetchRiderOrders, fetchAvailableOrders, claimOrder, verifyDeliveryCode, fetchRiderEarnings, type RiderOrder, type Rider } from '../lib/rider';
+import ProfessionalUpgradeModal from '../components/ProfessionalUpgradeModal';
 
 export default function Rider() {
   const [token, setToken] = useState(localStorage.getItem('rider_token') || '');
   const [rider, setRider] = useState<Rider | null>(null);
   const [tab, setTab] = useState<'orders' | 'available' | 'earnings' | 'profile' | 'verify'>('orders');
+  const [showUpgrade, setShowUpgrade] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,10 +80,45 @@ export default function Rider() {
                 <p className='text-sm text-white/60'>Welcome back</p>
                 <p className='text-xl font-black'>{rider.user?.firstName || 'Rider'} {rider.user?.lastName}</p>
                 <p className='text-xs text-white/40'>{rider.user?.email}</p>
+                <div className='mt-2 flex flex-wrap gap-2'>
+                  <span className='rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-300'>
+                    {rider.professionalApproval === 'APPROVED' ? 'Professional' : 'Neighborhood'}
+                  </span>
+                  {rider.professionalApproval === 'APPROVED' && (
+                    <span className='rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-bold text-blue-300'>
+                      Professional
+                    </span>
+                  )}
+                </div>
               </div>
-              <OnlineToggle rider={rider} onUpdate={setRider} onError={setError} />
+              <div className='flex flex-col items-end gap-2'>
+                <OnlineToggle rider={rider} onUpdate={setRider} onError={setError} />
+                {rider.professionalApproval === 'NOT_APPLIED' && (
+                  <button
+                    onClick={() => setShowUpgrade(true)}
+                    className='inline-flex items-center gap-1.5 rounded-full bg-white/10 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/20'
+                  >
+                    <Shield className='h-4 w-4' /> Upgrade to professional
+                  </button>
+                )}
+                {rider.professionalApproval === 'PENDING' && (
+                  <span className='inline-flex items-center gap-1.5 rounded-full bg-yellow-500/10 px-4 py-2 text-sm font-bold text-yellow-300'>
+                    <ShieldCheck className='h-4 w-4' /> Professional: pending
+                  </span>
+                )}
+              </div>
             </div>
           </div>
+        )}
+
+        {showUpgrade && rider && (
+          <ProfessionalUpgradeModal
+            onClose={() => setShowUpgrade(false)}
+            onSubmitted={() => {
+              setShowUpgrade(false);
+              fetchRiderMe().then((res) => setRider(res.rider));
+            }}
+          />
         )}
 
         {error && (

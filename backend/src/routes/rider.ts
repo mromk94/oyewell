@@ -62,6 +62,51 @@ router.get('/application', requireAuth, async (req: AuthRequest, res, next) => {
   }
 });
 
+router.post('/professional/apply', requireRider, async (req: AuthRequest, res, next) => {
+  try {
+    const userId = req.user!.id;
+    const { documents, preferredDate, vehicle, deliveryMode } = req.body as Record<string, unknown>;
+    if (!Array.isArray(documents) || documents.length === 0) {
+      throw new ApiError(400, 'At least one document is required');
+    }
+    const mode = ['WALK', 'BICYCLE', 'MOTORCYCLE', 'CAR'].includes(String(deliveryMode)) ? String(deliveryMode) : undefined;
+    const scheduledAt = preferredDate ? new Date(String(preferredDate)) : null;
+
+    const rider = await prisma.$transaction(async (tx) => {
+      const current = await tx.rider.findUnique({ where: { userId } });
+      if (!current) throw new ApiError(404, 'Rider not found');
+      if (current.professionalApproval === 'APPROVED') throw new ApiError(409, 'Already a professional partner');
+      if (current.professionalApproval === 'PENDING') throw new ApiError(409, 'Professional upgrade already requested');
+
+      const updated = await tx.rider.update({
+        where: { userId },
+        data: {
+          professionalApproval: 'PENDING',
+          professionalUpgradeStatus: 'PENDING_INSPECTION',
+          vehicle: vehicle ? String(vehicle) : undefined,
+          deliveryMode: mode as any,
+        },
+      });
+
+      await tx.riderInspection.create({
+        data: {
+          riderId: updated.id,
+          scheduledAt,
+          result: 'PENDING',
+          photos: documents.filter((d) => typeof d === 'string') as string[],
+          notes: 'Professional upgrade inspection requested',
+        },
+      });
+
+      return updated;
+    });
+
+    res.json({ rider });
+  } catch (e) {
+    next(e);
+  }
+});
+
 router.post('/login', async (req, res, next) => {
   try {
     const { email, password } = req.body as Record<string, string>;
