@@ -6,7 +6,7 @@ import { prisma } from '../prisma.js';
 import { requireAuth, requireRider, type AuthRequest } from '../middleware/auth.js';
 import { serializeOrder } from '../lib/order.js';
 import { isRiderEligibleForType } from '../lib/assignment.js';
-import { validateLocation } from '../lib/location.js';
+import { validateLocation, haversineMeters } from '../lib/location.js';
 import { ApiError } from '../lib/errors.js';
 import { formatKobo } from '../lib/money.js';
 import { emitEvent } from '../lib/realtime.js';
@@ -396,6 +396,19 @@ router.post('/location', requireAuth, requireRider, async (req: AuthRequest, res
     if (!rider.available || rider.operationalStatus !== 'ONLINE') {
       throw new ApiError(409, 'Go online and set yourself as available before reporting location');
     }
+
+    const existing = await prisma.riderLocation.findUnique({ where: { riderId: rider.id } });
+    if (existing) {
+      const distanceM = haversineMeters({ lat: existing.latitude, lng: existing.longitude }, point);
+      const timeMs = Date.now() - existing.updatedAt.getTime();
+      if (timeMs > 0) {
+        const speedMps = distanceM / (timeMs / 1000);
+        if (speedMps > 50) {
+          throw new ApiError(400, 'Location update rejected: unrealistic movement');
+        }
+      }
+    }
+
     const location = await prisma.riderLocation.upsert({
       where: { riderId: rider.id },
       create: { riderId: rider.id, latitude: point.lat, longitude: point.lng, accuracy: point.accuracy },
