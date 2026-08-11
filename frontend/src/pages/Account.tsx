@@ -9,7 +9,7 @@ import {
   type User,
   type OrderSummary,
 } from '../lib/api';
-import { useAuth } from '../lib/auth';
+import { useAuth, hasRole } from '../lib/auth';
 import {
   ArrowLeft,
   LogOut,
@@ -24,6 +24,9 @@ import {
   Pencil,
   Check,
   Download,
+  ChefHat,
+  Bike,
+  Shield,
 } from 'lucide-react';
 import Logo from '../components/Logo';
 
@@ -44,7 +47,7 @@ const PAYMENT_COLORS: Record<string, string> = {
 };
 
 export default function Account() {
-  const { isAuthenticated, openAuth, logout } = useAuth();
+  const { isAuthenticated, openAuth, logout, customer } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -154,12 +157,34 @@ export default function Account() {
             This is your home for orders, delivery history and account settings.
           </p>
 
-          <button
-            onClick={() => (window as unknown as { __openPwaInstallPrompt?: (force?: boolean) => boolean }).__openPwaInstallPrompt?.(true)}
-            className='mt-4 inline-flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-400'
-          >
-            <Download className='h-4 w-4' /> Install app
-          </button>
+          <div className='mt-4 flex flex-wrap gap-3'>
+            <button
+              onClick={() => (window as unknown as { __openPwaInstallPrompt?: (force?: boolean) => boolean }).__openPwaInstallPrompt?.(true)}
+              className='inline-flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-400'
+            >
+              <Download className='h-4 w-4' /> Install app
+            </button>
+            <Link
+              to='/cook'
+              className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20'
+            >
+              <ChefHat className='h-4 w-4' /> {hasRole(customer, 'COOK') ? 'Cook portal' : 'Become a cook'}
+            </Link>
+            <Link
+              to='/rider'
+              className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20'
+            >
+              <Bike className='h-4 w-4' /> {hasRole(customer, 'RIDER') ? 'Rider portal' : 'Become a rider'}
+            </Link>
+            {hasRole(customer, 'ADMIN') && (
+              <Link
+                to='/admin'
+                className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20'
+              >
+                <Shield className='h-4 w-4' /> Admin
+              </Link>
+            )}
+          </div>
 
           <div className='mt-6 grid gap-4 sm:grid-cols-3'>
             <ProfileRow icon={<Mail className='h-4 w-4' />} label='Email' value={user.email} />
