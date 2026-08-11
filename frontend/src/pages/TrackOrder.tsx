@@ -77,6 +77,18 @@ export default function TrackOrder() {
 
   useEffect(() => {
     reload();
+    const eventSource = new EventSource(`${import.meta.env.VITE_API_BASE || ''}/api/events`);
+    eventSource.onmessage = (e) => {
+      try {
+        const event = JSON.parse(e.data);
+        if (event.payload?.orderNumber === orderNumber) {
+          reload();
+        }
+      } catch {
+        // ignore malformed
+      }
+    };
+    return () => eventSource.close();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderNumber]);
 
