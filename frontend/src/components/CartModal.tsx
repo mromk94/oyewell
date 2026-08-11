@@ -355,12 +355,14 @@ export default function CartModal() {
                 </div>
               ) : null}
 
-              <button
-                onClick={handleDone}
-                className='mt-6 w-full rounded-full bg-white py-3 font-bold text-black transition hover:bg-white/90'
-              >
-                {isManualProvider(order.payment.provider) ? 'Done' : 'Track my order'}
-              </button>
+              {(!isManualProvider(order.payment.provider) || proofUploaded) && (
+                <button
+                  onClick={handleDone}
+                  className='mt-6 w-full rounded-full bg-white py-3 font-bold text-black transition hover:bg-white/90'
+                >
+                  {isManualProvider(order.payment.provider) ? 'Done' : 'Track my order'}
+                </button>
+              )}
             </div>
           ) : items.length === 0 ? (
             <div className='py-12 text-center text-white/70'>
