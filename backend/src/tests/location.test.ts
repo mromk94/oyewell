@@ -36,4 +36,10 @@ describe('location', () => {
     assert.equal(results.length, 100);
     assert.ok(results.every((d) => d > 0));
   });
+
+  it('regression: exact equator and prime meridian boundaries', () => {
+    assert.equal(validateLocation({ lat: 0, lng: 0 })?.lat, 0);
+    assert.equal(validateLocation({ lat: -90, lng: 180 })?.lat, -90);
+    assert.equal(validateLocation({ lat: 90, lng: -180 })?.lng, -180);
+  });
 });
