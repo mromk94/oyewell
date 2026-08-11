@@ -3,6 +3,7 @@ import { prisma } from '../prisma.js';
 import { requireAuth, requireRole, type AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../lib/errors.js';
 import { serializeOrder } from '../lib/order.js';
+import { dispatchOrder } from '../lib/assignment.js';
 import { emitEvent } from '../lib/realtime.js';
 
 const router = Router();
@@ -307,6 +308,9 @@ router.post('/me/orders/:orderNumber/ready', requireAuth, requireRole('COOK'), a
       cookAcceptedAt: updated.cookAcceptedAt,
       cookReadyAt: updated.cookReadyAt,
     });
+    dispatchOrder(updated.id, (riderId, ring) => {
+      emitEvent('order:dispatch', { orderId: updated.id, orderNumber: updated.orderNumber, riderId, ring });
+    }).catch(() => {});
     res.json({ order: serializeOrder(updated, true) });
   } catch (err) {
     next(err);

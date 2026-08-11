@@ -840,9 +840,24 @@ const DEFAULT_PROFESSIONAL_REQUIREMENTS = [
   { id: 'uniform', label: 'Branded packaging/uniform', required: false },
 ];
 
+const DEFAULT_PACKAGING_REQUIREMENTS = [
+  { id: 'sealed', label: 'Tamper-evident seal', required: true },
+  { id: 'hot', label: 'Insulated bag for hot food', required: true },
+  { id: 'cold', label: 'Cold pack for chilled items', required: false },
+  { id: 'fragile', label: 'Fragile item padding', required: false },
+];
+
 router.get('/professional-requirements', async (_req, res, next) => {
   try {
     res.json({ requirements: DEFAULT_PROFESSIONAL_REQUIREMENTS });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/packaging-requirements', async (_req, res, next) => {
+  try {
+    res.json({ requirements: DEFAULT_PACKAGING_REQUIREMENTS });
   } catch (err) {
     next(err);
   }
