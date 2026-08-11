@@ -12,6 +12,7 @@ import {
   type OrderSummary,
   type DeliveryApplication,
 } from '../lib/api';
+import { fetchCookMe, type CookProfile } from '../lib/cook';
 import { useAuth, hasRole } from '../lib/auth';
 import DeliveryApplicationModal from '../components/DeliveryApplicationModal';
 import {
@@ -57,8 +58,10 @@ export default function Account() {
   const [user, setUser] = useState<User | null>(null);
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [deliveryApp, setDeliveryApp] = useState<DeliveryApplication | null>(null);
+  const [cookProfile, setCookProfile] = useState<CookProfile | null>(null);
   const [showApply, setShowApply] = useState(false);
   const [showCookPrompt, setShowCookPrompt] = useState(false);
+  const [showPendingCook, setShowPendingCook] = useState(false);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +74,9 @@ export default function Account() {
       return;
     }
     load();
+    fetchCookMe()
+      .then((res) => setCookProfile(res.cook))
+      .catch(() => setCookProfile(null));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, authLoading]);
 
@@ -184,10 +190,16 @@ export default function Account() {
               <Download className='h-4 w-4' /> Install app
             </button>
             <button
-              onClick={() => setShowCookPrompt(true)}
+              onClick={() => {
+                if (cookProfile?.profileStatus === 'PENDING_APPROVAL' && !hasRole(customer, 'COOK')) {
+                  setShowPendingCook(true);
+                } else {
+                  setShowCookPrompt(true);
+                }
+              }}
               className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20'
             >
-              <ChefHat className='h-4 w-4' /> {hasRole(customer, 'COOK') ? 'Cook portal' : 'Become a cook'}
+              <ChefHat className='h-4 w-4' /> {hasRole(customer, 'COOK') || cookProfile?.profileStatus === 'PENDING_APPROVAL' ? 'Cook portal' : 'Become a cook'}
             </button>
             {deliveryApp ? (
               <button
@@ -251,6 +263,40 @@ export default function Account() {
             }}
           />
         )}
+
+        {showPendingCook &&
+          createPortal(
+            <div
+              className='fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4'
+              onClick={() => setShowPendingCook(false)}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className='w-full max-w-md rounded-t-3xl border border-white/10 bg-brand-900 p-6 shadow-2xl sm:rounded-3xl'
+              >
+                <div className='flex items-center justify-between'>
+                  <h2 className='text-xl font-black text-white'>Cook application pending</h2>
+                  <button
+                    onClick={() => setShowPendingCook(false)}
+                    className='rounded-full p-2 text-white/60 transition hover:bg-white/10 hover:text-white'
+                    aria-label='Close'
+                  >
+                    <X className='h-5 w-5' />
+                  </button>
+                </div>
+                <p className='mt-4 text-white/70'>
+                  Your cook application is under review. We'll notify you once your kitchen is approved and you can start posting food.
+                </p>
+                <button
+                  onClick={() => setShowPendingCook(false)}
+                  className='mt-6 w-full rounded-full bg-emerald-500 py-3 font-bold text-black transition hover:bg-emerald-400'
+                >
+                  Got it
+                </button>
+              </div>
+            </div>,
+            document.body
+          )}
 
         {showCookPrompt &&
           createPortal(

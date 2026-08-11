@@ -26,8 +26,8 @@ export default function CookListingFeed({ listings, loading }: Props) {
 
   return (
     <div className='w-full'>
-      {listings.map((listing) => (
-        <CookListingHero key={listing.id} listing={listing} />
+      {listings.map((listing, index) => (
+        <CookListingHero key={`cook-listing-${index}`} listing={listing} />
       ))}
     </div>
   );

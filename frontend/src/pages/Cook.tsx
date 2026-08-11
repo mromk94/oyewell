@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChefHat,
@@ -12,6 +13,9 @@ import {
   AlertCircle,
   Star,
   Upload,
+  X,
+  CheckCircle,
+  ArrowLeft,
 } from 'lucide-react';
 import { useAuth, hasRole } from '../lib/auth';
 import { formatPrice } from '../lib/api';
@@ -87,7 +91,7 @@ export default function Cook() {
   }
 
   if (!hasRole(customer, 'COOK')) {
-    return <CookApply onApply={setCook} />;
+    return <CookApply />;
   }
 
   if (loading) {
@@ -214,8 +218,10 @@ export default function Cook() {
   );
 }
 
-function CookApply({ onApply }: { onApply: (c: CookProfile) => void }) {
+function CookApply() {
+  const navigate = useNavigate();
   const [step, setStep] = useState(1);
+  const [showSuccess, setShowSuccess] = useState(false);
   const [form, setForm] = useState({
     displayName: '',
     bio: '',
@@ -249,7 +255,7 @@ function CookApply({ onApply }: { onApply: (c: CookProfile) => void }) {
       const safetyAcknowledgements = Object.entries(form.safety)
         .filter(([, v]) => v)
         .map(([k]) => k);
-      const res = await applyAsCook({
+      await applyAsCook({
         displayName: form.displayName,
         bio: form.bio,
         cuisineSpecialty: form.cuisineSpecialty,
@@ -265,7 +271,7 @@ function CookApply({ onApply }: { onApply: (c: CookProfile) => void }) {
         packagingPhotos,
         safetyAcknowledgements,
       });
-      if (res.cook) onApply(res.cook as CookProfile);
+      setShowSuccess(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Application failed');
     } finally {
@@ -439,6 +445,42 @@ function CookApply({ onApply }: { onApply: (c: CookProfile) => void }) {
           )}
         </form>
       </motion.div>
+      {showSuccess &&
+        createPortal(
+          <div
+            className='fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4'
+            onClick={() => setShowSuccess(false)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              className='w-full max-w-md rounded-t-3xl border border-white/10 bg-brand-900 p-6 shadow-2xl sm:rounded-3xl'
+            >
+              <div className='flex items-center justify-between'>
+                <h2 className='text-xl font-black text-white'>Application received</h2>
+                <button
+                  onClick={() => setShowSuccess(false)}
+                  className='rounded-full p-2 text-white/60 transition hover:bg-white/10 hover:text-white'
+                  aria-label='Close'
+                >
+                  <X className='h-5 w-5' />
+                </button>
+              </div>
+              <div className='mt-6 flex flex-col items-center text-center'>
+                <CheckCircle className='h-16 w-16 text-emerald-400' />
+                <p className='mt-4 text-white/70'>
+                  Your cook application has been submitted and is under review. We'll notify you once your kitchen is approved.
+                </p>
+              </div>
+              <button
+                onClick={() => { setShowSuccess(false); navigate('/account'); }}
+                className='mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 py-3 font-bold text-black transition hover:bg-emerald-400'
+              >
+                <ArrowLeft className='h-4 w-4' /> Back to profile
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

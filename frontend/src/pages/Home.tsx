@@ -26,9 +26,11 @@ export default function Home() {
   const [canScrollUp, setCanScrollUp] = useState(false);
   const [canScrollDown, setCanScrollDown] = useState(false);
   const [view, setView] = useState<'home' | 'cooks' | 'restaurants' | 'nearby'>('home');
+  const [reps, setReps] = useState(1);
   const [postModal, setPostModal] = useState(false);
   const [filters, setFilters] = useState<DiscoveryFiltersState>({ q: '', cuisine: '', maxPrice: '', available: false });
   const mainRef = useRef<HTMLElement>(null);
+  const isAppending = useRef(false);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -59,14 +61,35 @@ export default function Home() {
   }, [view, foods, cookListings]);
 
   useEffect(() => {
-    mainRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [view]);
+    setReps(1);
+    isAppending.current = false;
+    mainRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+  }, [view, filters.q, filters.cuisine, filters.maxPrice, filters.available]);
 
   function handleScroll() {
     const el = mainRef.current;
     if (!el) return;
     setCanScrollUp(el.scrollTop > 10);
     setCanScrollDown(el.scrollTop < el.scrollHeight - el.clientHeight - 10);
+    if (view === 'nearby' || isAppending.current) return;
+    const count = view === 'cooks' ? filteredCookListings.length : filteredFoods.length;
+    if (count < 2 || !el.clientHeight) return;
+    const totalHeight = reps * count * el.clientHeight;
+    if (el.scrollTop + el.clientHeight >= totalHeight - 100) {
+      isAppending.current = true;
+      setReps((r) => r + 1);
+    }
+  }
+
+  useEffect(() => {
+    isAppending.current = false;
+  }, [reps]);
+
+  function handleViewChange(next: 'home' | 'cooks' | 'restaurants' | 'nearby') {
+    setView(next);
+    setReps(1);
+    isAppending.current = false;
+    mainRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   }
 
   function handleNavigate(direction: 'up' | 'down') {
@@ -141,7 +164,7 @@ export default function Home() {
     <>
       <Logo />
       <div className="fixed left-0 right-0 top-20 z-30 flex justify-center bg-gradient-to-b from-black/70 via-black/40 to-transparent pb-6 pt-3">
-        <DiscoveryNav current={view} onChange={setView} />
+        <DiscoveryNav current={view} onChange={handleViewChange} />
       </div>
       <DiscoveryFilters view={view} filters={filters} onChange={setFilters} cuisines={cuisines} />
       <main
@@ -167,15 +190,18 @@ export default function Home() {
       >
         {view === 'home' && (
           <>
-            {filteredFoods.map((food) => (
-              <FoodCard key={food.id} food={food} />
-            ))}
+            {Array.from({ length: reps }).flatMap((_, rep) =>
+              filteredFoods.map((food) => <FoodCard key={`${food.id}-${rep}`} food={food} />)
+            )}
           </>
         )}
-        {view === 'restaurants' && filteredFoods.map((food) => <FoodCard key={food.id} food={food} />)}
+        {view === 'restaurants' &&
+          Array.from({ length: reps }).flatMap((_, rep) =>
+            filteredFoods.map((food) => <FoodCard key={`${food.id}-${rep}`} food={food} />)
+          )}
         {view === 'cooks' && (
           <>
-            <CookListingFeed listings={filteredCookListings} loading={cooksLoading} />
+            <CookListingFeed listings={Array.from({ length: reps }).flatMap(() => filteredCookListings)} loading={cooksLoading} />
             <button
               onClick={() => setPostModal(true)}
               className='fixed bottom-20 right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-black shadow-lg transition hover:scale-105'
