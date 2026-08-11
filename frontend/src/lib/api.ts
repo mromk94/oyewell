@@ -268,6 +268,44 @@ export interface User {
   roles?: string[];
 }
 
+export interface DeliveryApplication {
+  id: string;
+  userId: string;
+  vehicle?: string | null;
+  deliveryMode: 'WALK' | 'BICYCLE' | 'MOTORCYCLE' | 'CAR';
+  operatingArea?: string | null;
+  serviceRadiusMeters: number;
+  neighborhoodApproval: 'NOT_APPLIED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+  kycStatus: string;
+  isApproved: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function fetchDeliveryApplication() {
+  const res = await fetch(`${API_BASE}/api/rider/application`, { headers: authHeaders(getCustomerToken()) });
+  const data = (await res.json()) as { rider: DeliveryApplication | null; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to load application');
+  return data;
+}
+
+export async function applyAsDeliveryPartner(payload: {
+  deliveryMode: string;
+  vehicle?: string;
+  operatingArea: string;
+  serviceRadiusMeters: number;
+  kycSubmitted: boolean;
+}) {
+  const res = await fetch(`${API_BASE}/api/rider/apply`, {
+    method: 'POST',
+    headers: authHeaders(getCustomerToken()),
+    body: JSON.stringify(payload),
+  });
+  const data = (await res.json()) as { rider: DeliveryApplication; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Application failed');
+  return data;
+}
+
 export function hasRole(user: User | null, ...roles: string[]) {
   if (!user) return false;
   return (user.roles ?? [user.role]).some((r) => roles.includes(r));

@@ -6,10 +6,13 @@ import {
   fetchMyOrders,
   changePassword,
   updateProfile,
+  fetchDeliveryApplication,
   type User,
   type OrderSummary,
+  type DeliveryApplication,
 } from '../lib/api';
 import { useAuth, hasRole } from '../lib/auth';
+import DeliveryApplicationModal from '../components/DeliveryApplicationModal';
 import {
   ArrowLeft,
   LogOut,
@@ -50,6 +53,8 @@ export default function Account() {
   const { isAuthenticated, openAuth, logout, customer } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [orders, setOrders] = useState<OrderSummary[]>([]);
+  const [deliveryApp, setDeliveryApp] = useState<DeliveryApplication | null>(null);
+  const [showApply, setShowApply] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,9 +72,10 @@ export default function Account() {
     setLoading(true);
     setError(null);
     try {
-      const [me, myOrders] = await Promise.all([fetchMe(), fetchMyOrders()]);
+      const [me, myOrders, app] = await Promise.all([fetchMe(), fetchMyOrders(), fetchDeliveryApplication()]);
       setUser(me.user);
       setOrders(myOrders.orders);
+      setDeliveryApp(app.rider);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load account');
     } finally {
@@ -170,12 +176,19 @@ export default function Account() {
             >
               <ChefHat className='h-4 w-4' /> {hasRole(customer, 'COOK') ? 'Cook portal' : 'Become a cook'}
             </Link>
-            <Link
-              to='/rider'
-              className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20'
-            >
-              <Bike className='h-4 w-4' /> {hasRole(customer, 'RIDER') ? 'Rider portal' : 'Become a rider'}
-            </Link>
+            {deliveryApp ? (
+              <span className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white/70'>
+                <Bike className='h-4 w-4' />
+                {deliveryApp.isApproved ? 'Delivery partner' : 'Application: ' + deliveryApp.neighborhoodApproval.toLowerCase()}
+              </span>
+            ) : (
+              <button
+                onClick={() => setShowApply(true)}
+                className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20'
+              >
+                <Bike className='h-4 w-4' /> {hasRole(customer, 'RIDER') ? 'Delivery portal' : 'Make money with OyeWell'}
+              </button>
+            )}
             {hasRole(customer, 'ADMIN') && (
               <Link
                 to='/admin'
@@ -203,6 +216,19 @@ export default function Account() {
         <OrderSection title='Order history' explanation='Completed and delivered orders you can look back on.' icon={<CheckCircle className='h-5 w-5' />} orders={previousOrders} />
 
         <ChangePassword />
+
+        {showApply && user && (
+          <DeliveryApplicationModal
+            firstName={user.firstName}
+            lastName={user.lastName}
+            phone={user.phone}
+            onClose={() => setShowApply(false)}
+            onSubmitted={() => {
+              setShowApply(false);
+              load();
+            }}
+          />
+        )}
       </motion.div>
     </div>
   );

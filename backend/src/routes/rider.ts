@@ -12,6 +12,56 @@ const JWT_SECRET = process.env.JWT_SECRET ?? 'change-me';
 const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN ?? '7d') as any;
 const router = Router();
 
+router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {
+  try {
+    const userId = req.user!.id;
+    const { deliveryMode, vehicle, operatingArea, serviceRadiusMeters, kycSubmitted } = req.body as Record<string, unknown>;
+    if (!deliveryMode || !['WALK', 'BICYCLE', 'MOTORCYCLE', 'CAR'].includes(String(deliveryMode))) {
+      throw new ApiError(400, 'Valid delivery mode is required');
+    }
+    const radius = Number(serviceRadiusMeters) || 5000;
+    const existing = await prisma.rider.findUnique({ where: { userId } });
+    if (existing && ['APPROVED', 'PENDING'].includes(existing.neighborhoodApproval)) {
+      throw new ApiError(409, 'You have already applied or are already approved');
+    }
+    const rider = await prisma.rider.upsert({
+      where: { userId },
+      create: {
+        userId,
+        vehicle: vehicle ? String(vehicle) : undefined,
+        deliveryMode: String(deliveryMode) as any,
+        operatingArea: operatingArea ? String(operatingArea) : undefined,
+        serviceRadiusMeters: radius,
+        kycStatus: kycSubmitted ? 'SUBMITTED' : 'NOT_STARTED',
+        neighborhoodApproval: 'PENDING',
+        professionalApproval: 'NOT_APPLIED',
+        isActive: true,
+        isApproved: false,
+      },
+      update: {
+        vehicle: vehicle ? String(vehicle) : undefined,
+        deliveryMode: String(deliveryMode) as any,
+        operatingArea: operatingArea ? String(operatingArea) : undefined,
+        serviceRadiusMeters: radius,
+        kycStatus: kycSubmitted ? 'SUBMITTED' : 'NOT_STARTED',
+        neighborhoodApproval: 'PENDING',
+      },
+    });
+    res.status(201).json({ rider });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.get('/application', requireAuth, async (req: AuthRequest, res, next) => {
+  try {
+    const rider = await prisma.rider.findUnique({ where: { userId: req.user!.id } });
+    res.json({ rider });
+  } catch (e) {
+    next(e);
+  }
+});
+
 router.post('/login', async (req, res, next) => {
   try {
     const { email, password } = req.body as Record<string, string>;
