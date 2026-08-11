@@ -80,8 +80,21 @@ export async function fetchCookListingsNearby(lat: number, lng: number, radiusKm
   };
 }
 
-export async function fetchCookListingsAroundMe(lat: number, lng: number, minResults = 5, radiusKm = 10) {
-  const res = await fetch(`${API_BASE}/api/listings/around-me?lat=${lat}&lng=${lng}&minResults=${minResults}&radiusKm=${radiusKm}`);
+export async function fetchCookListingsAroundMe(
+  center: { lat: number; lng: number } | { address: string },
+  minResults = 5,
+  radiusKm = 10
+) {
+  const qs = new URLSearchParams();
+  qs.set('minResults', String(minResults));
+  qs.set('radiusKm', String(radiusKm));
+  if ('address' in center) {
+    qs.set('address', center.address);
+  } else {
+    qs.set('lat', String(center.lat));
+    qs.set('lng', String(center.lng));
+  }
+  const res = await fetch(`${API_BASE}/api/listings/around-me?${qs.toString()}`);
   if (!res.ok) throw new Error('Failed to load nearby listings');
   const data = (await res.json()) as { sections: { listings: (CookListing & { distanceKm: number })[] }[] };
   const seen = new Set<string>();

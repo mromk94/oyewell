@@ -50,6 +50,8 @@ import {
   fetchCookLocations,
   fetchAdminCooks,
   approveCook,
+  grantCookVisibility,
+  boostCook,
   rejectCook,
   deleteCook,
   requestCookMoreInfo,
@@ -501,6 +503,16 @@ function CooksTab({ cooks, onRefresh }: { cooks: any[]; onRefresh: () => void })
     await call(() => approveCook(id));
   }
 
+  async function handleGrantVisibility(id: string) {
+    if (!confirm('Grant full visibility to this cook and approve all pending listings?')) return;
+    await call(() => grantCookVisibility(id));
+  }
+
+  async function handleBoost(id: string, featured: boolean) {
+    if (!confirm(featured ? 'Boost this cook by featuring all approved listings?' : 'Remove boost from this cook?')) return;
+    await call(() => boostCook(id, featured));
+  }
+
   async function handleReject(id: string) {
     if (!confirm('Reject this cook?')) return;
     await call(() => rejectCook(id));
@@ -582,6 +594,14 @@ function CooksTab({ cooks, onRefresh }: { cooks: any[]; onRefresh: () => void })
                     </span>
                     {cook.packagingApproved && <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-300">Packaging OK</span>}
                     {cook.banned && <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-bold text-red-300">Banned</span>}
+                    {cook.latitude != null && cook.longitude != null && cook.profileStatus === 'APPROVED' && cook.kitchenStatus === 'OPEN' && (cook.listings || []).some((l: any) => l.status === 'APPROVED' && l.isActive) ? (
+                      <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-300">Visible on Around Me</span>
+                    ) : (
+                      <span className="rounded-full bg-yellow-500/20 px-2 py-0.5 text-xs font-bold text-yellow-300">Not visible</span>
+                    )}
+                    {(cook.listings || []).some((l: any) => l.featured) && (
+                      <span className="rounded-full bg-yellow-500/20 px-2 py-0.5 text-xs font-bold text-yellow-300">Boosted</span>
+                    )}
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -597,6 +617,20 @@ function CooksTab({ cooks, onRefresh }: { cooks: any[]; onRefresh: () => void })
                     className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50"
                   >
                     {processing === cook.id ? '...' : 'Approve'}
+                  </button>
+                  <button
+                    onClick={() => handleGrantVisibility(cook.id)}
+                    disabled={processing === cook.id}
+                    className="rounded-full bg-blue-500 px-4 py-2 text-sm font-bold text-black transition hover:bg-blue-400 disabled:opacity-50"
+                  >
+                    Grant visibility
+                  </button>
+                  <button
+                    onClick={() => handleBoost(cook.id, !(cook.listings || []).some((l: any) => l.featured))}
+                    disabled={processing === cook.id}
+                    className="rounded-full bg-yellow-500/20 px-4 py-2 text-sm font-bold text-yellow-300 transition hover:bg-yellow-500/30 disabled:opacity-50"
+                  >
+                    {(cook.listings || []).some((l: any) => l.featured) ? 'Unboost' : 'Boost'}
                   </button>
                   <button
                     onClick={() => handleReject(cook.id)}

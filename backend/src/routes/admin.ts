@@ -911,7 +911,11 @@ router.get('/cooks', async (_req, res, next) => {
   try {
     const cooks = await prisma.cookProfile.findMany({
       orderBy: { createdAt: 'desc' },
-      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } }, _count: { select: { listings: true, orders: true } } },
+      include: {
+        user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } },
+        _count: { select: { listings: true, orders: true } },
+        listings: { select: { id: true, status: true, isActive: true, featured: true } },
+      },
     });
     res.json({ cooks });
   } catch (err) {
@@ -1146,6 +1150,69 @@ router.patch('/cooks/:id/restore', async (req: AuthRequest, res, next) => {
       ip: req.ip ?? undefined,
     });
     res.json({ cook });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/cooks/:id/grant-visibility', async (req: AuthRequest, res, next) => {
+  try {
+    const id = req.params.id;
+    const cook = await prisma.cookProfile.findUnique({ where: { id } });
+    if (!cook) throw new ApiError(404, 'Cook not found');
+
+    const [updated, _] = await prisma.$transaction([
+      prisma.cookProfile.update({
+        where: { id },
+        data: { profileStatus: 'APPROVED', kitchenStatus: 'OPEN', isActive: true },
+      }),
+      prisma.cookListing.updateMany({
+        where: { cookId: id, status: 'PENDING_REVIEW' },
+        data: { status: 'APPROVED', isActive: true },
+      }),
+    ]);
+
+    await logAudit({
+      actorId: req.user!.id,
+      action: 'COOK_VISIBILITY_GRANTED',
+      targetId: cook.id,
+      targetType: 'CookProfile',
+      newState: { profileStatus: 'APPROVED', kitchenStatus: 'OPEN', isActive: true },
+      ip: req.ip ?? undefined,
+    });
+
+    res.json({ cook: updated });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/cooks/:id/boost', async (req: AuthRequest, res, next) => {
+  try {
+    const id = req.params.id;
+    const { featured = true, reason } = req.body as Record<string, any>;
+    const cook = await prisma.cookProfile.findUnique({ where: { id }, include: { listings: { where: { status: 'APPROVED', isActive: true } } } });
+    if (!cook) throw new ApiError(404, 'Cook not found');
+
+    const listingIds = cook.listings.map((l) => l.id);
+    if (listingIds.length) {
+      await prisma.cookListing.updateMany({
+        where: { id: { in: listingIds } },
+        data: { featured: featured === true },
+      });
+    }
+
+    await logAudit({
+      actorId: req.user!.id,
+      action: featured === true ? 'COOK_BOOSTED' : 'COOK_UNBOOSTED',
+      targetId: cook.id,
+      targetType: 'CookProfile',
+      reason,
+      newState: { featured },
+      ip: req.ip ?? undefined,
+    });
+
+    res.json({ cook: { id: cook.id, featured: featured === true, affectedListings: listingIds.length } });
   } catch (err) {
     next(err);
   }

@@ -489,6 +489,25 @@ export async function approveCook(id: string) {
   return res.json();
 }
 
+export async function grantCookVisibility(id: string) {
+  const res = await fetch(`${API_BASE}/api/admin/cooks/${id}/grant-visibility`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to grant visibility');
+  return res.json();
+}
+
+export async function boostCook(id: string, featured: boolean, reason?: string) {
+  const res = await fetch(`${API_BASE}/api/admin/cooks/${id}/boost`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ featured, reason }),
+  });
+  if (!res.ok) throw new Error('Failed to update boost');
+  return res.json();
+}
+
 export async function rejectCook(id: string) {
   const res = await fetch(`${API_BASE}/api/admin/cooks/${id}/reject`, {
     method: 'PATCH',

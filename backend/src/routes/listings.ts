@@ -135,7 +135,13 @@ router.get('/around-me', async (req, res, next) => {
 
         for (let i = 0; i < rings.length; i++) {
           const r = rings[i];
-          const sectionBucket = withDistance.filter((l) => l.distanceMeters > lastEnd && l.distanceMeters <= r);
+          const sectionBucket = withDistance
+            .filter((l) => l.distanceMeters > lastEnd && l.distanceMeters <= r)
+            .sort((a, b) => {
+              const featuredDiff = Number(b.featured) - Number(a.featured);
+              if (featuredDiff !== 0) return featuredDiff;
+              return a.distanceMeters - b.distanceMeters;
+            });
           if (sectionBucket.length) {
             sections.push({ label: ringLabels[i] ?? `Within ${r}m`, radiusMeters: r, listings: sectionBucket });
           }
