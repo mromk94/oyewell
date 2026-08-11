@@ -61,11 +61,19 @@ class MockMapProvider implements MapProvider {
   name = 'MOCK';
 
   async geocode(address: string) {
-    // Local fallback: return a deterministic coordinate based on the address hash
+    // Nigeria-aware local fallback: center on known cities and offset deterministically
+    const normalized = address.toLowerCase();
+    let baseLat = 6.5;
+    let baseLng = 3.3;
+    if (normalized.includes('lagos')) { baseLat = 6.5244; baseLng = 3.3792; }
+    else if (normalized.includes('abuja')) { baseLat = 9.0765; baseLng = 7.3986; }
+    else if (normalized.includes('ibadan')) { baseLat = 7.3775; baseLng = 3.9470; }
+    else if (normalized.includes('port harcourt') || normalized.includes('ph')) { baseLat = 4.8156; baseLng = 7.0498; }
+    else if (normalized.includes('kano')) { baseLat = 12.0022; baseLng = 8.5920; }
     const hash = Array.from(address).reduce((h, c) => h + c.charCodeAt(0), 0);
     return {
-      lat: 6.5 + (hash % 1000) / 10000,
-      lng: 3.3 + (hash % 1000) / 10000,
+      lat: baseLat + (hash % 1000) / 10000,
+      lng: baseLng + (hash % 1000) / 10000,
       formattedAddress: address,
     };
   }
