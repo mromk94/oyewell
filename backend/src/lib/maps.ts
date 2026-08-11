@@ -11,9 +11,18 @@ export interface MapGeocodeResult {
   formattedAddress: string;
 }
 
+export interface ReverseGeocodeResult extends GeoPoint {
+  formattedAddress: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postalCode?: string;
+}
+
 export interface MapProvider {
   name: string;
   geocode(address: string): Promise<GeoPoint | null>;
+  reverseGeocode(lat: number, lng: number): Promise<ReverseGeocodeResult | null>;
   isPointInZone(point: GeoPoint, boundary: unknown): boolean;
 }
 
@@ -55,6 +64,10 @@ class MockMapProvider implements MapProvider {
     };
   }
 
+  async reverseGeocode(lat: number, lng: number) {
+    return { lat, lng, formattedAddress: `Lat ${lat.toFixed(4)}, Lng ${lng.toFixed(4)}` };
+  }
+
   isPointInZone(point: GeoPoint, boundary: unknown): boolean {
     if (Array.isArray(boundary)) {
       const coords = boundary as GeoPoint[];
@@ -92,6 +105,31 @@ class GoogleMapsProvider implements MapProvider {
     };
   }
 
+  async reverseGeocode(lat: number, lng: number) {
+    if (!this.apiKey) throw new ApiError(500, 'GOOGLE_MAPS_API_KEY not configured');
+    const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${this.apiKey}`;
+    const res = await fetch(url);
+    const data = (await res.json()) as {
+      results: {
+        formatted_address: string;
+        address_components: { long_name: string; short_name: string; types: string[] }[];
+      }[];
+    };
+    if (!data.results.length) return null;
+    const r = data.results[0];
+    const components = r.address_components;
+    const get = (type: string) => components.find((c) => c.types.includes(type))?.long_name;
+    return {
+      lat,
+      lng,
+      formattedAddress: r.formatted_address,
+      city: get('locality') || get('administrative_area_level_2'),
+      state: get('administrative_area_level_1'),
+      country: get('country'),
+      postalCode: get('postal_code'),
+    };
+  }
+
   isPointInZone(point: GeoPoint, boundary: unknown): boolean {
     return new MockMapProvider().isPointInZone(point, boundary);
   }
@@ -115,6 +153,30 @@ class MapboxProvider implements MapProvider {
       lat: data.features[0].center[1],
       lng: data.features[0].center[0],
       formattedAddress: data.features[0].place_name,
+    };
+  }
+
+  async reverseGeocode(lat: number, lng: number) {
+    if (!this.accessToken) throw new ApiError(500, 'MAPBOX_ACCESS_TOKEN not configured');
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${this.accessToken}`;
+    const res = await fetch(url);
+    const data = (await res.json()) as {
+      features: {
+        place_name: string;
+        context: { id: string; text: string }[];
+      }[];
+    };
+    if (!data.features.length) return null;
+    const f = data.features[0];
+    const context = f.context ?? [];
+    return {
+      lat,
+      lng,
+      formattedAddress: f.place_name,
+      city: context.find((c) => c.id.startsWith('place'))?.text,
+      state: context.find((c) => c.id.startsWith('region'))?.text,
+      country: context.find((c) => c.id.startsWith('country'))?.text,
+      postalCode: context.find((c) => c.id.startsWith('postcode'))?.text,
     };
   }
 

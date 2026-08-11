@@ -81,6 +81,24 @@ export interface CartItemPayload {
   sideIds: string[];
 }
 
+export interface LocationResult {
+  lat: number;
+  lng: number;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postalCode?: string;
+}
+
+export async function reverseGeocode(lat: number, lng: number): Promise<LocationResult> {
+  const res = await fetch(`${API_BASE}/api/location/reverse?lat=${lat}&lng=${lng}`);
+  const data = (await res.json()) as { location: LocationResult | null; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Reverse geocoding failed');
+  if (!data.location) throw new Error('No address found');
+  return data.location;
+}
+
 export async function checkDelivery(payload: {
   address: string;
   phone: string;
