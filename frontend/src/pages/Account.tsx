@@ -169,6 +169,13 @@ export default function Account() {
             This is your home for orders, delivery history and account settings.
           </p>
 
+          {deliveryApp?.onboardingData && typeof deliveryApp.onboardingData === 'object' && (deliveryApp.onboardingData as Record<string, any>).__rejectionReason && (
+            <div className='mt-4 rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200'>
+              <p className='font-bold'>Application not approved</p>
+              <p className='mt-1 text-white/70'>{String((deliveryApp.onboardingData as Record<string, any>).__rejectionReason)}</p>
+            </div>
+          )}
+
           <div className='mt-4 flex flex-wrap gap-3'>
             <button
               onClick={() => (window as unknown as { __openPwaInstallPrompt?: (force?: boolean) => boolean }).__openPwaInstallPrompt?.(true)}
@@ -183,16 +190,24 @@ export default function Account() {
               <ChefHat className='h-4 w-4' /> {hasRole(customer, 'COOK') ? 'Cook portal' : 'Become a cook'}
             </button>
             {deliveryApp ? (
-              <span className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white/70'>
+              <button
+                onClick={() => setShowApply(true)}
+                disabled={deliveryApp.isApproved}
+                className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20 disabled:opacity-50'
+              >
                 <Bike className='h-4 w-4' />
-                {deliveryApp.isApproved ? 'Delivery partner' : 'Application: ' + deliveryApp.neighborhoodApproval.toLowerCase()}
-              </span>
+                {deliveryApp.isApproved
+                  ? 'Delivery partner'
+                  : deliveryApp.neighborhoodApproval === 'REJECTED'
+                    ? 'Reapply to deliver'
+                    : 'Application: ' + deliveryApp.neighborhoodApproval.toLowerCase()}
+              </button>
             ) : (
               <button
                 onClick={() => setShowApply(true)}
                 className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20'
               >
-                <Bike className='h-4 w-4' /> {hasRole(customer, 'RIDER') ? 'Delivery portal' : 'Make money with OyeWell'}
+                <Bike className='h-4 w-4' /> {hasRole(customer, 'RIDER') ? 'Delivery portal' : 'Make money on OyeWell'}
               </button>
             )}
             {hasRole(customer, 'ADMIN') && (
@@ -228,6 +243,7 @@ export default function Account() {
             firstName={user.firstName}
             lastName={user.lastName}
             phone={user.phone}
+            existing={deliveryApp ?? undefined}
             onClose={() => setShowApply(false)}
             onSubmitted={() => {
               setShowApply(false);

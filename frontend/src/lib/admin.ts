@@ -367,13 +367,63 @@ export async function fetchPendingRiders() {
   return res.json() as Promise<{ riders: any[] }>;
 }
 
-export async function approveRider(id: string) {
+export async function approveRider(id: string, note?: string) {
   const res = await fetch(`${API_BASE}/api/admin/riders/${id}/approve`, {
     method: 'POST',
     headers: authHeaders(),
+    body: JSON.stringify({ note }),
   });
   const data = (await res.json()) as { rider?: any; error?: string };
   if (!res.ok) throw new Error(data.error ?? 'Failed to approve rider');
+  return data;
+}
+
+export async function rejectRider(id: string, reason?: string) {
+  const res = await fetch(`${API_BASE}/api/admin/riders/${id}/reject`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ reason }),
+  });
+  const data = (await res.json()) as { rider?: any; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to reject rider');
+  return data;
+}
+
+export async function fetchRiderOnboardingFieldsAdmin() {
+  const res = await fetch(`${API_BASE}/api/admin/rider-onboarding/fields`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load rider onboarding fields');
+  return res.json() as Promise<{ fields: any[] }>;
+}
+
+export async function createRiderOnboardingField(field: Record<string, any>) {
+  const res = await fetch(`${API_BASE}/api/admin/rider-onboarding/fields`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(field),
+  });
+  const data = (await res.json()) as { field?: any; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to create field');
+  return data;
+}
+
+export async function updateRiderOnboardingField(id: string, field: Record<string, any>) {
+  const res = await fetch(`${API_BASE}/api/admin/rider-onboarding/fields/${id}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify(field),
+  });
+  const data = (await res.json()) as { field?: any; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to update field');
+  return data;
+}
+
+export async function deleteRiderOnboardingField(id: string) {
+  const res = await fetch(`${API_BASE}/api/admin/rider-onboarding/fields/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  const data = (await res.json()) as { ok?: boolean; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to delete field');
   return data;
 }
 

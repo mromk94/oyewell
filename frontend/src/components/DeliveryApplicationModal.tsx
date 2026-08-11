@@ -23,23 +23,27 @@ export default function DeliveryApplicationModal({
   firstName,
   lastName,
   phone,
+  existing,
   onClose,
   onSubmitted,
 }: {
   firstName?: string | null;
   lastName?: string | null;
   phone?: string | null;
+  existing?: Record<string, any> | null;
   onClose: () => void;
   onSubmitted: () => void;
 }) {
+  const rawData = existing?.onboardingData && typeof existing.onboardingData === 'object' ? existing.onboardingData as Record<string, any> : {};
+  const data = Object.fromEntries(Object.entries(rawData).filter(([k]) => !k.startsWith('__')));
   const [step, setStep] = useState(0);
-  const [mode, setMode] = useState('MOTORCYCLE');
-  const [vehicle, setVehicle] = useState('');
-  const [area, setArea] = useState('');
-  const [radius, setRadius] = useState(5000);
+  const [mode, setMode] = useState(existing?.deliveryMode || 'MOTORCYCLE');
+  const [vehicle, setVehicle] = useState(existing?.vehicle || '');
+  const [area, setArea] = useState(existing?.operatingArea || '');
+  const [radius, setRadius] = useState(existing?.serviceRadiusMeters || 5000);
   const [fields, setFields] = useState<OnboardingField[]>([]);
   const [fieldsLoading, setFieldsLoading] = useState(true);
-  const [onboardingData, setOnboardingData] = useState<Record<string, any>>({});
+  const [onboardingData, setOnboardingData] = useState<Record<string, any>>(data);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

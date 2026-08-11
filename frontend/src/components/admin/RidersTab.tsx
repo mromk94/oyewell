@@ -1,23 +1,29 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Map, Users, CheckCircle, XCircle, Loader2, User, Phone, Search } from 'lucide-react';
+import { Map, Users, CheckCircle, XCircle, Loader2, User, Phone, Search, Settings, Plus, X, Edit2, Trash2 } from 'lucide-react';
 import { toast } from '../../lib/toast';
 import { MapView } from '../MapView';
 import {
   approveRider,
+  rejectRider,
   pauseRider,
   banRider,
   restoreRider,
   deleteRider,
   fetchRiderLocations,
   fetchCookLocations,
+  fetchRiderOnboardingFieldsAdmin,
+  createRiderOnboardingField,
+  updateRiderOnboardingField,
+  deleteRiderOnboardingField,
 } from '../../lib/admin';
 
-type SubTab = 'all' | 'pending' | 'live';
+type SubTab = 'all' | 'pending' | 'live' | 'onboarding';
 
 const TABS: { id: SubTab; label: string; icon: any }[] = [
   { id: 'all', label: 'All Riders', icon: Users },
   { id: 'pending', label: 'Pending Approval', icon: CheckCircle },
   { id: 'live', label: 'Live Map', icon: Map },
+  { id: 'onboarding', label: 'Onboarding Fields', icon: Settings },
 ];
 
 export default function RidersTab({ riders, onRefresh }: { riders: any[]; onRefresh: () => void }) {
@@ -27,10 +33,19 @@ export default function RidersTab({ riders, onRefresh }: { riders: any[]; onRefr
   const [riderLocations, setRiderLocations] = useState<any[]>([]);
   const [cookLocations, setCookLocations] = useState<any[]>([]);
   const [loadingLocations, setLoadingLocations] = useState(false);
+  const [reviewRider, setReviewRider] = useState<any | null>(null);
+  const [reviewNote, setReviewNote] = useState('');
+  const [reviewTab, setReviewTab] = useState<'approve' | 'reject'>('approve');
+  const [fields, setFields] = useState<any[]>([]);
+  const [fieldsLoading, setFieldsLoading] = useState(false);
+  const [editingField, setEditingField] = useState<any | null>(null);
 
   useEffect(() => {
     if (subTab === 'live') {
       loadLocations();
+    }
+    if (subTab === 'onboarding') {
+      loadOnboardingFields();
     }
   }, [subTab]);
 
@@ -44,6 +59,38 @@ export default function RidersTab({ riders, onRefresh }: { riders: any[]; onRefr
       toast.error(err instanceof Error ? err.message : 'Failed to load locations');
     } finally {
       setLoadingLocations(false);
+    }
+  }
+
+  async function loadOnboardingFields() {
+    setFieldsLoading(true);
+    try {
+      const { fields } = await fetchRiderOnboardingFieldsAdmin();
+      setFields(fields);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to load onboarding fields');
+    } finally {
+      setFieldsLoading(false);
+    }
+  }
+
+  async function handleReviewAction(id: string, action: 'approve' | 'reject') {
+    setProcessing(`${action}:${id}`);
+    try {
+      if (action === 'approve') {
+        await approveRider(id, reviewNote);
+        toast.success('Rider approved');
+      } else {
+        await rejectRider(id, reviewNote);
+        toast.success('Rider rejected');
+      }
+      setReviewRider(null);
+      setReviewNote('');
+      onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Action failed');
+    } finally {
+      setProcessing(null);
     }
   }
 
@@ -172,11 +219,10 @@ export default function RidersTab({ riders, onRefresh }: { riders: any[]; onRefr
                 <div className='mt-3 flex flex-wrap gap-2 sm:mt-0'>
                   {!rider.isApproved && (
                     <button
-                      onClick={() => action(rider.id, approveRider, 'Approve')}
-                      disabled={processing === `Approve:${rider.id}`}
-                      className='rounded-full bg-emerald-500/20 px-3 py-1.5 text-sm font-bold text-emerald-300 disabled:opacity-50'
+                      onClick={() => { setReviewRider(rider); setReviewNote(''); setReviewTab('approve'); }}
+                      className='rounded-full bg-emerald-500/20 px-3 py-1.5 text-sm font-bold text-emerald-300'
                     >
-                      {processing === `Approve:${rider.id}` ? <Loader2 className='h-4 w-4 animate-spin' /> : 'Approve'}
+                      Review
                     </button>
                   )}
                   {rider.isApproved && rider.isActive && (
@@ -246,6 +292,245 @@ export default function RidersTab({ riders, onRefresh }: { riders: any[]; onRefr
           </div>
         </div>
       )}
+
+      {subTab === 'onboarding' && (
+        <OnboardingFieldsPanel
+          fields={fields}
+          loading={fieldsLoading}
+          onRefresh={loadOnboardingFields}
+          editingField={editingField}
+          setEditingField={setEditingField}
+        />
+      )}
+
+      {reviewRider && (
+        <ReviewModal
+          rider={reviewRider}
+          note={reviewNote}
+          setNote={setReviewNote}
+          tab={reviewTab}
+          setTab={setReviewTab}
+          processing={processing}
+          onAction={handleReviewAction}
+          onClose={() => { setReviewRider(null); setReviewNote(''); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function OnboardingFieldsPanel({
+  fields,
+  loading,
+  onRefresh,
+  editingField,
+  setEditingField,
+}: {
+  fields: any[];
+  loading: boolean;
+  onRefresh: () => void;
+  editingField: any | null;
+  setEditingField: (f: any) => void;
+}) {
+  const [isCreating, setIsCreating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState<Record<string, any>>({});
+
+  function startCreate() {
+    setIsCreating(true);
+    setForm({ key: '', label: '', type: 'text', required: false, active: true, order: 0, gatingRule: '', options: [] });
+  }
+
+  function startEdit(field: any) {
+    setEditingField(field);
+    setForm({
+      key: field.key,
+      label: field.label,
+      type: field.type,
+      required: field.required,
+      active: field.active,
+      order: field.order,
+      gatingRule: field.gatingRule || '',
+      options: (field.options || []).join(', '),
+    });
+  }
+
+  function reset() {
+    setIsCreating(false);
+    setEditingField(null);
+    setForm({});
+  }
+
+  async function save() {
+    const payload = {
+      ...form,
+      required: Boolean(form.required),
+      active: form.active !== false,
+      order: Number(form.order) || 0,
+      options: typeof form.options === 'string' ? form.options.split(',').map((s: string) => s.trim()).filter(Boolean) : form.options || [],
+    };
+    setSaving(true);
+    try {
+      if (editingField) {
+        await updateRiderOnboardingField(editingField.id, payload);
+        toast.success('Field updated');
+      } else {
+        await createRiderOnboardingField(payload);
+        toast.success('Field created');
+      }
+      reset();
+      onRefresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function remove(id: string) {
+    if (!window.confirm('Delete this onboarding field?')) return;
+    try {
+      await deleteRiderOnboardingField(id);
+      onRefresh();
+      toast.success('Field deleted');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Delete failed');
+    }
+  }
+
+  if (loading) return <Loader2 className='mx-auto h-8 w-8 animate-spin text-white/70' />;
+
+  return (
+    <div className='space-y-4'>
+      <div className='flex items-center justify-between'>
+        <h3 className='text-lg font-bold text-white'>Verification & reference fields</h3>
+        {!isCreating && !editingField && (
+          <button onClick={startCreate} className='inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-sm font-bold text-black hover:bg-emerald-400'>
+            <Plus className='h-4 w-4' /> Add field
+          </button>
+        )}
+      </div>
+
+      {(isCreating || editingField) && (
+        <div className='rounded-2xl border border-white/10 bg-white/5 p-4'>
+          <div className='grid gap-3 sm:grid-cols-2'>
+            <input value={form.key || ''} onChange={(e) => setForm({ ...form, key: e.target.value })} placeholder='Key' className='rounded-2xl border border-white/20 bg-white/5 p-3 text-white' />
+            <input value={form.label || ''} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder='Label' className='rounded-2xl border border-white/20 bg-white/5 p-3 text-white' />
+            <select value={form.type || 'text'} onChange={(e) => setForm({ ...form, type: e.target.value })} className='rounded-2xl border border-white/20 bg-white/5 p-3 text-white'>
+              {['text', 'textarea', 'select', 'number', 'checkbox', 'file', 'phone'].map((t) => (
+                <option key={t} value={t} className='bg-brand-900'>{t}</option>
+              ))}
+            </select>
+            <input type='number' value={form.order || 0} onChange={(e) => setForm({ ...form, order: Number(e.target.value) })} placeholder='Order' className='rounded-2xl border border-white/20 bg-white/5 p-3 text-white' />
+            <input value={form.gatingRule || ''} onChange={(e) => setForm({ ...form, gatingRule: e.target.value })} placeholder='Gating rule (e.g. country=Nigeria)' className='rounded-2xl border border-white/20 bg-white/5 p-3 text-white' />
+            <input value={typeof form.options === 'string' ? form.options : (form.options || []).join(', ')} onChange={(e) => setForm({ ...form, options: e.target.value })} placeholder='Options (comma separated)' className='rounded-2xl border border-white/20 bg-white/5 p-3 text-white' />
+          </div>
+          <div className='mt-3 flex flex-wrap items-center gap-4'>
+            <label className='flex items-center gap-2 text-sm text-white/70'>
+              <input type='checkbox' checked={!!form.required} onChange={(e) => setForm({ ...form, required: e.target.checked })} /> Required
+            </label>
+            <label className='flex items-center gap-2 text-sm text-white/70'>
+              <input type='checkbox' checked={form.active !== false} onChange={(e) => setForm({ ...form, active: e.target.checked })} /> Active
+            </label>
+          </div>
+          <div className='mt-4 flex gap-2'>
+            <button onClick={save} disabled={saving} className='rounded-full bg-emerald-500 px-5 py-2 text-sm font-bold text-black disabled:opacity-50'>{saving ? 'Saving...' : 'Save'}</button>
+            <button onClick={reset} className='rounded-full border border-white/20 px-5 py-2 text-sm font-bold text-white hover:bg-white/10'>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      <div className='space-y-2'>
+        {fields.map((f) => (
+          <div key={f.id} className='flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-4'>
+            <div>
+              <p className='font-bold text-white'>{f.label} <span className='text-xs font-normal text-white/50'>({f.key})</span></p>
+              <p className='text-xs text-white/60'>{f.type} · {f.required ? 'required' : 'optional'} · {f.active ? 'active' : 'inactive'} {f.gatingRule ? `· gating: ${f.gatingRule}` : ''}</p>
+            </div>
+            <div className='flex gap-2'>
+              <button onClick={() => startEdit(f)} className='rounded-full bg-white/10 p-2 text-white hover:bg-white/20' aria-label='Edit'><Edit2 className='h-4 w-4' /></button>
+              <button onClick={() => remove(f.id)} className='rounded-full bg-red-500/20 p-2 text-red-300 hover:bg-red-500/30' aria-label='Delete'><Trash2 className='h-4 w-4' /></button>
+            </div>
+          </div>
+        ))}
+        {fields.length === 0 && !isCreating && <p className='text-sm text-white/60'>No onboarding fields configured.</p>}
+      </div>
+    </div>
+  );
+}
+
+function ReviewModal({
+  rider,
+  note,
+  setNote,
+  tab,
+  setTab,
+  processing,
+  onAction,
+  onClose,
+}: {
+  rider: any;
+  note: string;
+  setNote: (s: string) => void;
+  tab: 'approve' | 'reject';
+  setTab: (t: 'approve' | 'reject') => void;
+  processing: string | null;
+  onAction: (id: string, action: 'approve' | 'reject') => void;
+  onClose: () => void;
+}) {
+  const data = rider.onboardingData && typeof rider.onboardingData === 'object' ? rider.onboardingData : {};
+  const fields = Object.entries(data).filter(([k]) => !k.startsWith('__'));
+
+  return (
+    <div className='fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-0 backdrop-blur-sm sm:items-center sm:p-4'>
+      <div className='w-full max-w-lg rounded-t-3xl border border-white/10 bg-brand-900 p-6 shadow-2xl sm:rounded-3xl'>
+        <div className='flex items-center justify-between'>
+          <h3 className='text-xl font-bold text-white'>Review rider application</h3>
+          <button onClick={onClose} className='rounded-full p-2 text-white/70 hover:bg-white/10'><X className='h-5 w-5' /></button>
+        </div>
+
+        <div className='mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80'>
+          <p className='flex justify-between'><span className='text-white/50'>Name</span> {rider.user?.firstName || ''} {rider.user?.lastName || ''}</p>
+          <p className='flex justify-between'><span className='text-white/50'>Email</span> {rider.user?.email}</p>
+          <p className='flex justify-between'><span className='text-white/50'>Phone</span> {rider.user?.phone || '—'}</p>
+          <p className='flex justify-between'><span className='text-white/50'>Vehicle</span> {rider.vehicle || '—'}</p>
+          <p className='flex justify-between'><span className='text-white/50'>Mode</span> {rider.deliveryMode}</p>
+          <p className='flex justify-between'><span className='text-white/50'>Area</span> {rider.operatingArea || '—'}</p>
+          <p className='flex justify-between'><span className='text-white/50'>Radius</span> {rider.serviceRadiusMeters} m</p>
+          {fields.map(([k, v]) => (
+            <p key={k} className='flex justify-between'>
+              <span className='text-white/50'>{k}</span>
+              <span className='truncate max-w-[160px]'>{String(v)}</span>
+            </p>
+          ))}
+        </div>
+
+        <div className='mt-4 flex gap-2'>
+          <button onClick={() => setTab('approve')} className={`flex-1 rounded-full px-4 py-2 text-sm font-bold ${tab === 'approve' ? 'bg-emerald-500 text-black' : 'border border-white/20 text-white'}`}>Approve</button>
+          <button onClick={() => setTab('reject')} className={`flex-1 rounded-full px-4 py-2 text-sm font-bold ${tab === 'reject' ? 'bg-red-500 text-white' : 'border border-white/20 text-white'}`}>Reject</button>
+        </div>
+
+        <label className='mt-4 block text-sm text-white/70'>
+          {tab === 'approve' ? 'Approval note (optional)' : 'Rejection reason (optional)'}
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className='mt-2 w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white'
+            rows={3}
+          />
+        </label>
+
+        <div className='mt-4 flex justify-end gap-2'>
+          <button onClick={onClose} className='rounded-full border border-white/20 px-5 py-2 text-sm font-bold text-white hover:bg-white/10'>Cancel</button>
+          <button
+            onClick={() => onAction(rider.id, tab)}
+            disabled={!!processing}
+            className={`rounded-full px-5 py-2 text-sm font-bold text-black ${tab === 'approve' ? 'bg-emerald-500 hover:bg-emerald-400' : 'bg-red-500 text-white hover:bg-red-400'}`}
+          >
+            {processing === `${tab}:${rider.id}` ? <Loader2 className='h-4 w-4 animate-spin' /> : (tab === 'approve' ? 'Approve' : 'Reject')}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

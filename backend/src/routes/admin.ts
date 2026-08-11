@@ -668,6 +668,55 @@ router.post('/riders/:id/approve', async (req, res, next) => {
   }
 });
 
+router.post('/riders/:id/reject', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body as Record<string, any>;
+    const rider = await prisma.$transaction(async (tx) => {
+      const current = await tx.rider.findUnique({ where: { id }, include: { user: true } });
+      if (!current) throw new ApiError(404, 'Rider not found');
+      const newRoles = current.user.roles.filter((r) => r !== 'RIDER');
+      if (newRoles.length === 0) newRoles.push('CUSTOMER');
+      const newRole = newRoles.includes('ADMIN') ? 'ADMIN' : 'CUSTOMER';
+      const rolesSet = Array.from(new Set(newRoles));
+      const previousData = current.onboardingData && typeof current.onboardingData === 'object' ? (current.onboardingData as Record<string, any>) : {};
+      const updatedOnboardingData = { ...previousData, __rejectionReason: reason || null, __rejectedAt: new Date().toISOString() };
+      const [, updatedRider] = await Promise.all([
+        tx.user.update({
+          where: { id: current.userId },
+          data: { role: newRole as any, roles: { set: rolesSet } },
+        }),
+        tx.rider.update({
+          where: { id },
+          data: { isApproved: false, isActive: false, neighborhoodApproval: 'REJECTED', onboardingData: updatedOnboardingData },
+          include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+        }),
+      ]);
+      return updatedRider;
+    });
+    await createApproval({
+      type: 'RIDER',
+      targetId: rider.id,
+      targetType: 'Rider',
+      submittedBy: rider.userId,
+      data: { decision: 'REJECTED' },
+      note: reason,
+    });
+    await logAudit({
+      actorId: (req as AuthRequest).user!.id,
+      action: 'RIDER_REJECTED',
+      targetId: rider.id,
+      targetType: 'Rider',
+      reason,
+      newState: { isApproved: false, isActive: false, neighborhoodApproval: 'REJECTED' },
+      ip: req.ip ?? undefined,
+    });
+    res.json({ rider });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post('/riders/:id/pause', async (req, res, next) => {
   try {
     const { id } = req.params;

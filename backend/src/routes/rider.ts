@@ -23,13 +23,20 @@ router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {
     }
     const radius = Number(serviceRadiusMeters) || 5000;
 
-    const dataRecord = onboardingData && typeof onboardingData === 'object' ? onboardingData : {};
+    let dataRecord = onboardingData && typeof onboardingData === 'object' ? onboardingData : {};
     await validateRiderOnboarding(dataRecord);
 
     const existing = await prisma.rider.findUnique({ where: { userId } });
     if (existing && ['APPROVED', 'PENDING'].includes(existing.neighborhoodApproval)) {
       throw new ApiError(409, 'You have already applied or are already approved');
     }
+    const previousRecord = existing?.onboardingData && typeof existing.onboardingData === 'object' ? (existing.onboardingData as Record<string, any>) : {};
+    const preservedMeta: Record<string, any> = {};
+    for (const key of Object.keys(previousRecord)) {
+      if (key.startsWith('__')) preservedMeta[key] = previousRecord[key];
+    }
+    dataRecord = { ...preservedMeta, ...dataRecord };
+
     const rider = await prisma.rider.upsert({
       where: { userId },
       create: {
