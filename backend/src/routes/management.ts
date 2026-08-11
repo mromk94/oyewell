@@ -3,6 +3,8 @@ import { prisma } from '../prisma.js';
 import { ApiError } from '../lib/errors.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import type { AuthRequest } from '../middleware/auth.js';
+import { runDataRetention } from '../lib/retention.js';
+import { logAudit } from '../lib/audit.js';
 
 const router = Router();
 
@@ -26,6 +28,27 @@ router.get('/reports', async (_req, res, next) => {
       community: { pendingApplications: cooksPending, approvedApplications: cooksApproved, approvalRate: cooksPending + cooksApproved === 0 ? 0 : cooksApproved / (cooksPending + cooksApproved) },
       moderation: reportsByType,
     });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post('/data-retention', async (req: AuthRequest, res, next) => {
+  try {
+    const { messageDays, auditLogDays, ticketDays, disputeDays } = req.body as Record<string, any>;
+    const deleted = await runDataRetention({
+      messageDays: messageDays ? Number(messageDays) : undefined,
+      auditLogDays: auditLogDays ? Number(auditLogDays) : undefined,
+      ticketDays: ticketDays ? Number(ticketDays) : undefined,
+      disputeDays: disputeDays ? Number(disputeDays) : undefined,
+    });
+    await logAudit({
+      actorId: req.user!.id,
+      action: 'DATA_RETENTION_RUN',
+      targetType: 'SYSTEM',
+      newState: deleted,
+    });
+    res.json({ deleted });
   } catch (e) {
     next(e);
   }

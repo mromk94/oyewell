@@ -5,6 +5,7 @@ import { prisma } from '../prisma.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { serializeOrder } from '../lib/order.js';
 import { JWT_SECRET, JWT_EXPIRES_IN } from '../lib/config.js';
+import { adminLoginRateLimit } from '../lib/admin-auth.js';
 
 const router = Router();
 
@@ -35,7 +36,7 @@ router.post('/register', async (req, res, next) => {
   }
 });
 
-router.post('/login', async (req, res, next) => {
+router.post('/login', adminLoginRateLimit, async (req, res, next) => {
   try {
     const { email, password } = req.body as Record<string, string>;
     const user = await prisma.user.findUnique({ where: { email } });
