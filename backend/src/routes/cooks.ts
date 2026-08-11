@@ -250,6 +250,28 @@ router.patch('/me/listings/:id', requireAuth, requireRole('COOK'), async (req: A
   }
 });
 
+router.delete('/me/listings/:id', requireAuth, requireRole('COOK'), async (req: AuthRequest, res, next) => {
+  try {
+    const { id } = req.params;
+    const cook = await prisma.cookProfile.findUnique({ where: { userId: req.user!.id } });
+    if (!cook) throw new ApiError(404, 'Cook profile not found');
+    const listing = await prisma.cookListing.findFirst({ where: { id, cookId: cook.id } });
+    if (!listing) throw new ApiError(404, 'Listing not found');
+    await prisma.$transaction(async (tx) => {
+      await tx.cookListingMedia.deleteMany({ where: { listingId: id } });
+      await tx.cookListingLike.deleteMany({ where: { listingId: id } });
+      await tx.cookListingView.deleteMany({ where: { listingId: id } });
+      await tx.cookListing.delete({ where: { id } });
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    if ((err as any).code === 'P2003') {
+      throw new ApiError(409, 'Cannot delete listing with linked orders or reviews');
+    }
+    next(err);
+  }
+});
+
 router.get('/me/orders', requireAuth, requireRole('COOK'), async (req: AuthRequest, res, next) => {
   try {
     const cook = await prisma.cookProfile.findUnique({ where: { userId: req.user!.id } });

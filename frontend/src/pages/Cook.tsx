@@ -25,6 +25,7 @@ import {
   fetchCookMe,
   updateCookMe,
   updateCookListing,
+  deleteCookListing,
   setKitchenStatus,
   createCookListing,
   fetchCookListings,
@@ -720,6 +721,17 @@ function MenuPanel({ onError, onEdit }: { onError: (msg: string) => void; onEdit
     }
   }
 
+  async function handleDelete(id: string) {
+    if (!window.confirm('Delete this food? This cannot be undone.')) return;
+    try {
+      await deleteCookListing(id);
+      const res = await fetchCookListings();
+      setListings(res.listings);
+    } catch (e) {
+      onError(e instanceof Error ? e.message : 'Delete failed');
+    }
+  }
+
   if (loading) return <Loader2 className='mx-auto h-8 w-8 animate-spin text-white/70' />;
 
   return (
@@ -759,6 +771,12 @@ function MenuPanel({ onError, onEdit }: { onError: (msg: string) => void; onEdit
                   Resume
                 </button>
               )}
+              <button
+                onClick={() => handleDelete(l.id)}
+                className='rounded-full bg-red-500/20 px-3 py-1.5 text-xs font-bold text-red-300 hover:bg-red-500/30'
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>

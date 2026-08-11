@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, X, SlidersHorizontal } from 'lucide-react';
+import { Search, X, SlidersHorizontal, Trash2 } from 'lucide-react';
 
 export interface DiscoveryFiltersState {
   q: string;
@@ -32,22 +32,45 @@ export default function DiscoveryFilters({ view, filters, onChange, cuisines = [
 
   const showCuisine = view === 'cooks' || view === 'nearby';
   const cuisineOptions = useMemo(() => ['All cuisine', ...cuisines.filter(Boolean)], [cuisines]);
+  const activeCount = useMemo(
+    () => [filters.q, filters.cuisine, filters.maxPrice, filters.available].filter(Boolean).length,
+    [filters]
+  );
 
   return (
     <>
       <button
         onClick={() => setOpen((s) => !s)}
-        className='fixed right-4 top-28 z-40 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white shadow-lg backdrop-blur-md transition hover:bg-white/10 active:scale-95'
+        className='fixed right-4 top-44 z-40 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white shadow-lg backdrop-blur-md transition hover:bg-white/10 active:scale-95'
         aria-label='Search and filter'
       >
         {open ? <X className='h-4 w-4' /> : <Search className='h-4 w-4' />}
+        {!!activeCount && (
+          <span className='absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-bold text-black'>
+            {activeCount}
+          </span>
+        )}
       </button>
 
       {open && (
-        <div className='fixed right-4 top-40 z-40 w-72 rounded-2xl border border-white/10 bg-black/80 p-4 shadow-2xl backdrop-blur-md sm:w-80'>
-          <div className='mb-4 flex items-center gap-2 text-emerald-300'>
-            <SlidersHorizontal className='h-4 w-4' />
-            <h3 className='text-sm font-bold uppercase tracking-wider'>Search &amp; filter</h3>
+        <div className='fixed right-4 top-56 z-40 w-72 rounded-2xl border border-white/10 bg-black/80 p-4 shadow-2xl backdrop-blur-md sm:w-80'>
+          <div className='mb-4 flex items-center justify-between text-emerald-300'>
+            <div className='flex items-center gap-2'>
+              <SlidersHorizontal className='h-4 w-4' />
+              <h3 className='text-sm font-bold uppercase tracking-wider'>Search &amp; filter</h3>
+            </div>
+            {!!activeCount && (
+              <button
+                onClick={() => {
+                  const cleared: DiscoveryFiltersState = { q: '', cuisine: '', maxPrice: '', available: false };
+                  setDraft(cleared);
+                  onChange(cleared);
+                }}
+                className='flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold text-white/70 transition hover:bg-white/10'
+              >
+                <Trash2 className='h-3 w-3' /> Clear
+              </button>
+            )}
           </div>
 
           <div className='space-y-3'>

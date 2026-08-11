@@ -1609,4 +1609,73 @@ router.get('/riders/:id/audit', async (req, res, next) => {
   }
 });
 
+router.delete('/riders/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    await prisma.$transaction(async (tx) => {
+      const rider = await tx.rider.findUnique({ where: { id }, include: { user: true } });
+      if (!rider) throw new ApiError(404, 'Rider not found');
+      await tx.order.updateMany({ where: { riderId: id }, data: { riderId: null, riderStatus: 'UNASSIGNED' } });
+      await tx.review.updateMany({ where: { riderId: id }, data: { riderId: null } });
+      await tx.dispute.updateMany({ where: { riderId: id }, data: { riderId: null } });
+      await tx.genericTask.updateMany({ where: { riderId: id }, data: { riderId: null } });
+      await tx.rider.delete({ where: { id } });
+      const newRoles = rider.user.roles.filter((r) => r !== 'RIDER');
+      if (newRoles.length === 0) newRoles.push('CUSTOMER');
+      const newRole = newRoles.includes('ADMIN') ? 'ADMIN' : 'CUSTOMER';
+      await tx.user.update({
+        where: { id: rider.userId },
+        data: { role: newRole as any, roles: { set: newRoles } },
+      });
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/cooks/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    await prisma.$transaction(async (tx) => {
+      const cook = await tx.cookProfile.findUnique({ where: { id }, include: { user: true } });
+      if (!cook) throw new ApiError(404, 'Cook not found');
+      await tx.cookProfile.delete({ where: { id } });
+      const newRoles = cook.user.roles.filter((r) => r !== 'COOK');
+      if (newRoles.length === 0) newRoles.push('CUSTOMER');
+      const newRole = newRoles.includes('ADMIN') ? 'ADMIN' : 'CUSTOMER';
+      await tx.user.update({
+        where: { id: cook.userId },
+        data: { role: newRole as any, roles: { set: newRoles } },
+      });
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    if ((err as any).code === 'P2003') {
+      throw new ApiError(409, 'Cannot delete cook with linked orders or other records');
+    }
+    next(err);
+  }
+});
+
+router.delete('/customers/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const user = await prisma.user.findUnique({ where: { id }, include: { rider: true, cookProfile: true } });
+    if (!user) throw new ApiError(404, 'User not found');
+    await prisma.$transaction(async (tx) => {
+      if (user.rider) await tx.rider.delete({ where: { id: user.rider.id } });
+      if (user.cookProfile) await tx.cookProfile.delete({ where: { id: user.cookProfile.id } });
+      await tx.order.updateMany({ where: { customerId: id }, data: { customerId: null } });
+      await tx.user.delete({ where: { id } });
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    if ((err as any).code === 'P2003') {
+      throw new ApiError(409, 'Cannot delete user with linked records (reviews, tickets, disputes or addresses)');
+    }
+    next(err);
+  }
+});
+
 export default router;

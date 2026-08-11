@@ -291,6 +291,36 @@ export async function deleteSide(id: string) {
   return data;
 }
 
+export async function deleteRider(id: string) {
+  const res = await fetch(`${API_BASE}/api/admin/riders/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  const data = (await res.json()) as { ok?: boolean; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to delete rider');
+  return data;
+}
+
+export async function deleteCook(id: string) {
+  const res = await fetch(`${API_BASE}/api/admin/cooks/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  const data = (await res.json()) as { ok?: boolean; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to delete cook');
+  return data;
+}
+
+export async function deleteCustomer(id: string) {
+  const res = await fetch(`${API_BASE}/api/admin/customers/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  const data = (await res.json()) as { ok?: boolean; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to delete user');
+  return data;
+}
+
 export async function fetchCustomers() {
   const res = await fetch(`${API_BASE}/api/admin/customers`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load customers');

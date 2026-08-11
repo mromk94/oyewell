@@ -7,6 +7,7 @@ import {
   pauseRider,
   banRider,
   restoreRider,
+  deleteRider,
   fetchRiderLocations,
   fetchCookLocations,
 } from '../../lib/admin';
@@ -202,6 +203,13 @@ export default function RidersTab({ riders, onRefresh }: { riders: any[]; onRefr
                     className='rounded-full bg-red-500/20 px-3 py-1.5 text-sm font-bold text-red-300 disabled:opacity-50'
                   >
                     {processing === `Ban:${rider.id}` ? <Loader2 className='h-4 w-4 animate-spin' /> : 'Ban'}
+                  </button>
+                  <button
+                    onClick={() => action(rider.id, deleteRider, 'Delete')}
+                    disabled={processing === `Delete:${rider.id}`}
+                    className='rounded-full bg-red-500 px-3 py-1.5 text-sm font-bold text-black disabled:opacity-50'
+                  >
+                    {processing === `Delete:${rider.id}` ? <Loader2 className='h-4 w-4 animate-spin' /> : 'Delete'}
                   </button>
                 </div>
               </div>

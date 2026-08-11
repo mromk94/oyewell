@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Users, Shield, Bike, ChefHat, Search, X, ShoppingBag, Phone, Mail, Calendar, Loader2 } from 'lucide-react';
 import { formatPrice } from '../../lib/api';
 import { toast } from '../../lib/toast';
-import { updateCustomerRole, fetchCustomerOrders } from '../../lib/admin';
+import { updateCustomerRole, fetchCustomerOrders, deleteCustomer } from '../../lib/admin';
 
 type SubTab = 'all' | 'admins' | 'riders' | 'cooks';
 
@@ -61,6 +61,17 @@ export default function CustomersTab({ customers, onRefresh }: { customers: any[
       toast.success(`Role updated to ${role}`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Role update failed');
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!window.confirm('Permanently delete this user?')) return;
+    try {
+      await deleteCustomer(id);
+      onRefresh();
+      toast.success('User deleted');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Delete failed');
     }
   }
 
@@ -193,6 +204,12 @@ export default function CustomersTab({ customers, onRefresh }: { customers: any[
                   Make cook
                 </button>
               )}
+              <button
+                onClick={() => handleDelete(customer.id)}
+                className='rounded-full bg-red-500 px-4 py-2 text-sm font-bold text-black hover:bg-red-400'
+              >
+                Delete
+              </button>
             </div>
           </div>
         ))}

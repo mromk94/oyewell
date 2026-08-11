@@ -51,6 +51,7 @@ import {
   fetchAdminCooks,
   approveCook,
   rejectCook,
+  deleteCook,
   requestCookMoreInfo,
   approveCookPackaging,
   banCook,
@@ -530,6 +531,11 @@ function CooksTab({ cooks, onRefresh }: { cooks: any[]; onRefresh: () => void })
     await call(() => restoreCook(id));
   }
 
+  async function handleDeleteCook(id: string) {
+    if (!confirm('Permanently delete this cook application and all linked listings?')) return;
+    await call(() => deleteCook(id));
+  }
+
   function open(cook: any) {
     setSelected(cook);
     setMoreInfoReason('');
@@ -598,6 +604,13 @@ function CooksTab({ cooks, onRefresh }: { cooks: any[]; onRefresh: () => void })
                     className="rounded-full bg-red-500/20 px-4 py-2 text-sm font-bold text-red-300 transition hover:bg-red-500/30 disabled:opacity-50"
                   >
                     Reject
+                  </button>
+                  <button
+                    onClick={() => handleDeleteCook(cook.id)}
+                    disabled={processing === cook.id}
+                    className="rounded-full bg-red-500 px-4 py-2 text-sm font-bold text-black transition hover:bg-red-400 disabled:opacity-50"
+                  >
+                    Delete
                   </button>
                 </div>
               </div>

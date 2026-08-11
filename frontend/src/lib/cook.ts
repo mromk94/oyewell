@@ -183,6 +183,16 @@ export async function fetchCookListings(): Promise<{ listings: CookListing[] }> 
   return res.json() as Promise<{ listings: CookListing[] }>;
 }
 
+export async function deleteCookListing(id: string) {
+  const res = await fetch(`${API_BASE}/api/cooks/me/listings/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  const data = (await res.json()) as { ok?: boolean; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to delete listing');
+  return data;
+}
+
 export async function fetchCookOrders(): Promise<{ orders: CookOrder[] }> {
   const res = await fetch(`${API_BASE}/api/cooks/me/orders`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load orders');
