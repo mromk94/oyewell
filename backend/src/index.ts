@@ -18,6 +18,7 @@ import eventsRouter from './routes/events.js';
 import locationRouter from './routes/location.js';
 import managementRouter from './routes/management.js';
 import approvalsRouter from './routes/approvals.js';
+import auditRouter from './routes/audit.js';
 import { rateLimit } from './middleware/rateLimit.js';
 import { ApiError } from './lib/errors.js';
 
@@ -61,6 +62,7 @@ app.use('/api/events', eventsRouter);
 app.use('/api/location', locationRouter);
 app.use('/api/management', managementRouter);
 app.use('/api/approvals', approvalsRouter);
+app.use('/api/audit', auditRouter);
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof ApiError) {

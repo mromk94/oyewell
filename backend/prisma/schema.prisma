@@ -745,3 +745,23 @@ model Approval {
   @@index([type, status])
   @@index([targetId, targetType])
 }
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorId     String?
+  actorType   String?
+  action      String
+  targetId    String?
+  targetType  String?
+  reason      String?
+  oldState    Json?    @default("{}")
+  newState    Json?    @default("{}")
+  reference   String?
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([action, createdAt])
+  @@index([actorId, createdAt])
+  @@index([targetId, targetType])
+}
