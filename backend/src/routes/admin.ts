@@ -627,10 +627,40 @@ router.get('/riders/pending', async (_req, res, next) => {
 router.post('/riders/:id/approve', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const rider = await prisma.rider.update({
-      where: { id },
-      data: { isApproved: true, isActive: true },
-      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    const { note } = req.body as Record<string, any>;
+    const rider = await prisma.$transaction(async (tx) => {
+      const current = await tx.rider.findUnique({ where: { id }, include: { user: true } });
+      if (!current) throw new ApiError(404, 'Rider not found');
+      const roles = Array.from(new Set([...current.user.roles, 'RIDER']));
+      const [, updatedRider] = await Promise.all([
+        tx.user.update({
+          where: { id: current.userId },
+          data: { role: 'RIDER', roles: { set: roles } },
+        }),
+        tx.rider.update({
+          where: { id },
+          data: { isApproved: true, isActive: true, neighborhoodApproval: 'APPROVED' },
+          include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+        }),
+      ]);
+      return updatedRider;
+    });
+    await createApproval({
+      type: 'RIDER',
+      targetId: rider.id,
+      targetType: 'Rider',
+      submittedBy: rider.userId,
+      data: { decision: 'APPROVED' },
+      note,
+    });
+    await logAudit({
+      actorId: (req as AuthRequest).user!.id,
+      action: 'RIDER_APPROVED',
+      targetId: rider.id,
+      targetType: 'Rider',
+      reason: note,
+      newState: { isApproved: true, isActive: true, neighborhoodApproval: 'APPROVED' },
+      ip: req.ip ?? undefined,
     });
     res.json({ rider });
   } catch (err) {
