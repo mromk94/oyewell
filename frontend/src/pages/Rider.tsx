@@ -315,7 +315,9 @@ function MyOrdersPanel({ onError }: { onError: (m: string) => void }) {
 
   async function handlePickup(orderNumber: string) {
     try {
-      await pickupOrder(orderNumber);
+      const code = window.prompt('Enter the pickup code from the cook:');
+      if (!code) return;
+      await pickupOrder(orderNumber, code);
       load();
     } catch (e: any) {
       onError(e.message);

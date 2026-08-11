@@ -131,8 +131,12 @@ export async function claimOrder(orderNumber: string) {
   return json as { order: RiderOrder };
 }
 
-export async function pickupOrder(orderNumber: string) {
-  const res = await fetch(R(`/orders/${orderNumber}/pickup`), { method: 'POST', headers: headers() });
+export async function pickupOrder(orderNumber: string, code: string) {
+  const res = await fetch(R(`/orders/${orderNumber}/pickup`), {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({ code }),
+  });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error || 'Failed to mark picked up');
   return json as { order: RiderOrder };

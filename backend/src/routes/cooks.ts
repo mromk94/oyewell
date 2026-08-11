@@ -307,7 +307,7 @@ router.post('/me/orders/:orderNumber/ready', requireAuth, requireRole('COOK'), a
       cookAcceptedAt: updated.cookAcceptedAt,
       cookReadyAt: updated.cookReadyAt,
     });
-    res.json({ order: serializeOrder(updated) });
+    res.json({ order: serializeOrder(updated, true) });
   } catch (err) {
     next(err);
   }

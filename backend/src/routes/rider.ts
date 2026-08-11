@@ -317,12 +317,16 @@ router.post('/orders/:orderNumber/claim', requireAuth, requireRider, async (req:
 router.post('/orders/:orderNumber/pickup', requireAuth, requireRider, async (req: AuthRequest, res, next) => {
   try {
     const { orderNumber } = req.params;
+    const { code } = req.body as Record<string, string>;
+    if (!code) throw new ApiError(400, 'Pickup code is required');
     const rider = await prisma.rider.findUnique({ where: { userId: req.user!.id } });
     if (!rider) throw new ApiError(404, 'Rider not found');
     const updated = await prisma.$transaction(async (tx) => {
       const order = await tx.order.findFirst({ where: { orderNumber, riderId: rider.id } });
       if (!order) throw new ApiError(404, 'Order not assigned to you');
       if (order.status !== 'OUT_FOR_DELIVERY') throw new ApiError(400, 'Order is not ready for pickup');
+      if (!order.cookReadyAt) throw new ApiError(400, 'Cook has not marked the order ready yet');
+      if (order.deliveryCode !== String(code)) throw new ApiError(400, 'Invalid pickup code');
       return await tx.order.update({
         where: { id: order.id },
         data: {
