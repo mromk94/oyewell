@@ -1,5 +1,14 @@
 import { getMapProvider, type GeoPoint } from './maps.js';
 
+export type LocationType =
+  | 'CUSTOMER_LOCATION'
+  | 'COOK_LOCATION'
+  | 'RESTAURANT_LOCATION'
+  | 'PICKUP_LOCATION'
+  | 'DROPOFF_LOCATION'
+  | 'RIDER_LOCATION'
+  | 'DELIVERY_LOCATION';
+
 export interface Location extends GeoPoint {
   address?: string;
   city?: string;
