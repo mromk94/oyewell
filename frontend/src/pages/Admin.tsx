@@ -31,6 +31,7 @@ import { OrdersTab as OrdersTabNew } from '../components/admin/OrdersTab';
 import EmailTab from '../components/admin/EmailTab';
 import ManagementDashboard from '../components/admin/ManagementDashboard';
 import ModerationPanel from '../components/admin/ModerationPanel';
+import CustomersTab from '../components/admin/CustomersTab';
 import DeliveryTab from '../components/admin/DeliveryTab';
 import RidersTab from '../components/admin/RidersTab';
 import SettingsTab from '../components/admin/SettingsTab';
@@ -44,8 +45,6 @@ import {
   fetchSettings,
   fetchSides,
   fetchCustomers,
-  fetchCustomerOrders,
-  updateCustomerRole,
   fetchRiders,
   fetchRiderLocations,
   fetchCookLocations,
@@ -470,100 +469,6 @@ function LiveMapTab({ riders, cooks }: { riders: any[]; cooks: any[] }) {
 
 
 
-function CustomersTab({ customers, onRefresh }: { customers: any[]; onRefresh: () => void }) {
-  const [selected, setSelected] = useState<any | null>(null);
-  const [query, setQuery] = useState('');
-
-  const visible = customers.filter((customer) => {
-    const q = query.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      customer.firstName?.toLowerCase().includes(q) ||
-      customer.lastName?.toLowerCase().includes(q) ||
-      customer.email?.toLowerCase().includes(q) ||
-      customer.phone?.toLowerCase().includes(q) ||
-      customer.role?.toLowerCase().includes(q)
-    );
-  });
-
-  return (
-    <div>
-      <h2 className="text-2xl font-bold text-white">Customers</h2>
-      <input
-        type="text"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search name, email, phone..."
-        className="mt-4 w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white placeholder-white/40 outline-none focus:border-white"
-      />
-      <div className="mt-6 space-y-4">
-        {visible.map((customer) => (
-          <div
-            key={customer.id}
-            className="rounded-2xl border border-white/10 bg-white/5 p-4"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-bold text-white">{customer.firstName} {customer.lastName}</p>
-                <p className="text-sm text-white/60">{customer.email}</p>
-                <p className="text-sm text-white/60">{customer.phone}</p>
-                <p className="text-sm text-white/60">Orders: {customer._count?.orders ?? 0}</p>
-              </div>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <button
-                  onClick={async () => {
-                    if (!confirm(`Make ${customer.email} an admin?`)) return;
-                    await updateCustomerRole(customer.id, 'ADMIN');
-                    onRefresh();
-                  }}
-                  className="rounded-full bg-white/10 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/20"
-                >
-                  Make admin
-                </button>
-                <button
-                  onClick={async () => {
-                    const { orders } = await fetchCustomerOrders(customer.id);
-                    setSelected({ customer, orders });
-                  }}
-                  className="rounded-full bg-white px-4 py-2 text-sm font-bold text-black"
-                >
-                  View orders
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {selected && (
-        <div className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-6">
-          <h3 className="text-xl font-bold text-white">{selected.customer.email}'s orders</h3>
-          <div className="mt-4 space-y-3">
-            {selected.orders.length === 0 ? (
-              <p className="text-white/60">No orders yet.</p>
-            ) : (
-              selected.orders.map((order: any) => (
-                <div key={order.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="flex justify-between">
-                    <span className="font-bold text-white">{order.orderNumber}</span>
-                    <span className="text-white/70">{formatPrice(order.totalKobo)}</span>
-                  </div>
-                  <p className="text-sm text-white/60">{order.status} · {order.paymentStatus}</p>
-                </div>
-              ))
-            )}
-          </div>
-          <button
-            onClick={() => setSelected(null)}
-            className="mt-4 rounded-full border border-white/20 px-4 py-2 text-sm text-white"
-          >
-            Close
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
 
 
 function CooksTab({ cooks, onRefresh }: { cooks: any[]; onRefresh: () => void }) {

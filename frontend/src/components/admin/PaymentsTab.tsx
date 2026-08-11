@@ -197,11 +197,19 @@ export function PaymentsTab({ methods, onRefresh }: { methods: any[]; onRefresh:
     setDraft((d) => ({ ...d, config: { ...d.config, [key]: value } }));
   };
 
+  const stats = {
+    total: methods.length,
+    enabled: methods.filter((m) => m.enabled).length,
+    disabled: methods.filter((m) => !m.enabled).length,
+    mock: methods.filter((m) => m.provider === 'MOCK').length,
+    real: methods.filter((m) => m.provider !== 'MOCK').length,
+  };
+
   return (
     <div>
       <div className='flex items-center justify-between'>
         <div>
-          <h2 className='text-2xl font-bold text-white'>Payment methods</h2>
+          <h2 className='text-2xl font-bold text-white'>Payment Command Center</h2>
           <p className='text-sm text-white/60'>Set up the ways customers can pay.</p>
         </div>
         <button
@@ -210,6 +218,21 @@ export function PaymentsTab({ methods, onRefresh }: { methods: any[]; onRefresh:
         >
           {isFormOpen ? 'Close' : 'Add method'}
         </button>
+      </div>
+
+      <div className='mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5'>
+        {[
+          { label: 'Total', value: stats.total, color: 'text-white' },
+          { label: 'Enabled', value: stats.enabled, color: 'text-emerald-300' },
+          { label: 'Disabled', value: stats.disabled, color: 'text-red-300' },
+          { label: 'Live', value: stats.real, color: 'text-cyan-300' },
+          { label: 'Mock', value: stats.mock, color: 'text-yellow-300' },
+        ].map((s) => (
+          <div key={s.label} className='rounded-2xl border border-white/10 bg-white/5 p-4'>
+            <p className='text-2xl font-black text-white'>{s.value}</p>
+            <p className={`text-sm font-medium ${s.color}`}>{s.label}</p>
+          </div>
+        ))}
       </div>
 
       <div className='mt-6 space-y-4'>

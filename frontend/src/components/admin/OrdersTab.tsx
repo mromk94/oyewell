@@ -136,10 +136,29 @@ export function OrdersTab({ orders, onRefresh }: { orders: any[]; onRefresh: () 
     return matchesQuery && matchesStatus;
   });
 
+  const total = orders.length;
+  const paid = orders.filter((o: any) => o.paymentStatus === 'PAID').length;
+  const pendingPayment = orders.filter((o: any) => o.paymentStatus === 'PENDING').length;
+  const active = orders.filter((o: any) => !['DELIVERED', 'CANCELLED'].includes(o.status)).length;
+
   return (
     <div>
-      <h2 className='text-2xl font-bold text-white'>Orders</h2>
-      <p className='text-sm text-white/60'>Review, update and verify payments.</p>
+      <h2 className='text-2xl font-bold text-white'>Order Command Center</h2>
+      <p className='text-sm text-white/60'>Review, update and assign riders.</p>
+
+      <div className='mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
+        {[
+          { label: 'Total', value: total, color: 'text-white' },
+          { label: 'Paid', value: paid, color: 'text-emerald-300' },
+          { label: 'Pending payment', value: pendingPayment, color: 'text-yellow-300' },
+          { label: 'Active', value: active, color: 'text-cyan-300' },
+        ].map((s) => (
+          <div key={s.label} className='rounded-2xl border border-white/10 bg-white/5 p-4'>
+            <p className='text-2xl font-black text-white'>{s.value}</p>
+            <p className={`text-sm font-medium ${s.color}`}>{s.label}</p>
+          </div>
+        ))}
+      </div>
 
       <div className='mt-4 flex flex-col gap-3 sm:flex-row'>
         <input
