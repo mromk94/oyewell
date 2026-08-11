@@ -499,9 +499,16 @@ function OrderCard({ order, actions }: { order: RiderOrder; actions?: { label: s
           <p className='text-sm font-bold'>{order.orderNumber}</p>
           <p className='text-xs text-white/50'>{new Date(order.createdAt).toLocaleString()}</p>
         </div>
-        <span className='rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-300'>
-          {order.status.replace(/_/g, ' ')}
-        </span>
+        <div className='flex gap-2'>
+          <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+            order.deliveryType === 'PROFESSIONAL' ? 'bg-blue-500/20 text-blue-300' : 'bg-emerald-500/10 text-emerald-300'
+          }`}>
+            {order.deliveryType === 'PROFESSIONAL' ? 'Professional' : 'Neighborhood'}
+          </span>
+          <span className='rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-300'>
+            {order.status.replace(/_/g, ' ')}
+          </span>
+        </div>
       </div>
       <div className='mt-3 space-y-1 text-sm text-white/70'>
         <p><MapPin className='mr-1 inline h-4 w-4' /> {order.address}</p>
