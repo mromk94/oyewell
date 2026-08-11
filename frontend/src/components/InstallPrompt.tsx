@@ -49,7 +49,7 @@ function isDismissed() {
 
 export default function InstallPrompt() {
   const location = useLocation();
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(() => (window as any).deferredPrompt || null);
   const [installed, setInstalled] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [showIOS, setShowIOS] = useState(false);
