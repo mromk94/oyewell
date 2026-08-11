@@ -5,7 +5,8 @@ import bcrypt from 'bcryptjs';
 import { ApiError } from '../lib/errors.js';
 import { createApproval } from '../lib/approval.js';
 import { logAudit } from '../lib/audit.js';
-import { dispatchOrder } from '../lib/assignment.js';
+import { dispatchOrder, findEligibleRiders } from '../lib/assignment.js';
+import { applyMapSettingsFromDB } from '../lib/map-settings.js';
 import { isLocationFresh } from '../lib/location.js';
 import { emitEvent } from '../lib/realtime.js';
 import { getEmailConfig, saveEmailConfig, sendEmail, sendOrderStatusEmail } from '../lib/email.js';
@@ -395,12 +396,18 @@ router.put('/settings', async (req, res, next) => {
     if (body.name !== undefined) data.name = String(body.name);
     if (body.contactPhone !== undefined) data.contactPhone = body.contactPhone ? String(body.contactPhone) : null;
     if (body.contactEmail !== undefined) data.contactEmail = body.contactEmail ? String(body.contactEmail) : null;
+    if (body.latitude !== undefined) data.latitude = body.latitude === null || body.latitude === '' ? null : Number(body.latitude);
+    if (body.longitude !== undefined) data.longitude = body.longitude === null || body.longitude === '' ? null : Number(body.longitude);
+    if (body.mapSettings !== undefined) {
+      data.mapSettings = typeof body.mapSettings === 'object' ? (body.mapSettings as Record<string, unknown>) : {};
+    }
 
     const setting = await prisma.restaurantSetting.upsert({
       where: { id: existing?.id ?? 'default' },
       update: data,
       create: { id: 'default', ...data },
     });
+    await applyMapSettingsFromDB();
     res.json({ settings: setting });
   } catch (err) {
     next(err);
@@ -728,6 +735,46 @@ router.post('/orders/:orderNumber/assign-rider', async (req: AuthRequest, res, n
       riderFeeKobo: updated.riderFeeKobo,
     });
     res.json({ order: updated });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/orders/:orderNumber/eligible-riders', async (req, res, next) => {
+  try {
+    const { orderNumber } = req.params;
+    const order = await prisma.order.findUnique({ where: { orderNumber } });
+    if (!order) throw new ApiError(404, 'Order not found');
+    const eligible = await findEligibleRiders(order.id);
+    res.json({
+      riders: eligible.map((r) => ({
+        id: r.id,
+        firstName: r.user?.firstName,
+        lastName: r.user?.lastName,
+        email: r.user?.email,
+        phone: r.user?.phone,
+        vehicle: r.vehicle,
+        distanceMeters: r.distanceMeters,
+        estimatedMinutes: r.estimatedMinutes,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/orders/:orderNumber/dispatch', async (req, res, next) => {
+  try {
+    const { orderNumber } = req.params;
+    const order = await prisma.order.findUnique({ where: { orderNumber } });
+    if (!order) throw new ApiError(404, 'Order not found');
+    if (order.status === 'DELIVERED' || order.status === 'CANCELLED') {
+      throw new ApiError(400, 'Cannot dispatch a delivered or cancelled order');
+    }
+    const eligible = await dispatchOrder(order.id, (riderId, ring) => {
+      emitEvent('rider:dispatch', { orderId: order.id, orderNumber, riderId, ring });
+    });
+    res.json({ dispatched: eligible.length > 0, riders: eligible.map((r) => ({ id: r.id, distanceMeters: r.distanceMeters, estimatedMinutes: r.estimatedMinutes })) });
   } catch (err) {
     next(err);
   }

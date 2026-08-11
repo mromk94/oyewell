@@ -80,6 +80,23 @@ export async function fetchCookListingsNearby(lat: number, lng: number, radiusKm
   };
 }
 
+export async function fetchCookListingsAroundMe(lat: number, lng: number, minResults = 5, radiusKm = 10) {
+  const res = await fetch(`${API_BASE}/api/listings/around-me?lat=${lat}&lng=${lng}&minResults=${minResults}&radiusKm=${radiusKm}`);
+  if (!res.ok) throw new Error('Failed to load nearby listings');
+  const data = (await res.json()) as { sections: { listings: (CookListing & { distanceKm: number })[] }[] };
+  const seen = new Set<string>();
+  const listings: (CookListing & { distanceKm: number })[] = [];
+  for (const section of data.sections) {
+    for (const l of section.listings) {
+      if (!seen.has(l.id)) {
+        seen.add(l.id);
+        listings.push(l);
+      }
+    }
+  }
+  return { listings: listings.map((l) => ({ ...l, price: formatPrice(l.priceKobo) })) };
+}
+
 export async function fetchCookPublic(cookId: string) {
   const res = await fetch(`${API_BASE}/api/listings/cooks/${cookId}`);
   if (!res.ok) throw new Error('Failed to load cook');

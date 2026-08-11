@@ -99,6 +99,22 @@ export async function fetchCookLocations() {
   return res.json() as Promise<{ cooks: { id: string; name: string; lat: number; lng: number; listings: number }[] }>;
 }
 
+export async function fetchEligibleRiders(orderNumber: string) {
+  const res = await fetch(`${API_BASE}/api/admin/orders/${orderNumber}/eligible-riders`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load eligible riders');
+  return res.json() as Promise<{ riders: any[] }>;
+}
+
+export async function dispatchOrder(orderNumber: string) {
+  const res = await fetch(`${API_BASE}/api/admin/orders/${orderNumber}/dispatch`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  const data = (await res.json()) as { dispatched?: boolean; riders?: any[]; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Dispatch failed');
+  return data;
+}
+
 export async function assignRider(orderNumber: string, riderId: string, riderFeeKobo: number) {
   const res = await fetch(`${API_BASE}/api/admin/orders/${orderNumber}/assign-rider`, {
     method: 'POST',

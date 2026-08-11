@@ -12,6 +12,8 @@ export const deliveryCheckSchema = z.object({
   phone: z.string().min(5),
   items: z.array(cartItemSchema).min(1),
   deliveryType: z.enum(['NEIGHBORHOOD', 'PROFESSIONAL']).default('NEIGHBORHOOD'),
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
 });
 
 const orderBase = z.object({
@@ -20,6 +22,8 @@ const orderBase = z.object({
   paymentProvider: z.string().min(1).default('MOCK'),
   deliveryType: z.enum(['NEIGHBORHOOD', 'PROFESSIONAL']).default('NEIGHBORHOOD'),
   idempotencyKey: z.string().optional(),
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
 });
 
 const restaurantOrderSchema = z.object({

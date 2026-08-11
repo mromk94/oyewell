@@ -153,15 +153,24 @@ export async function findDeliveryZone(address: string, coords?: Coords | null) 
   return matches[0].zone;
 }
 
-export async function resolveDelivery(address: string, subtotalKobo: number, type: DeliveryType = DeliveryType.NEIGHBORHOOD) {
+export function applyMultiSourceSurcharge(feeKobo: number, sourceIds: string[]) {
+  const distinct = new Set(sourceIds.filter(Boolean));
+  const extra = Math.max(0, distinct.size - 1);
+  if (extra === 0) return feeKobo;
+  const percent = Number(process.env.MULTI_SOURCE_SURCHARGE_PERCENT) || 50;
+  const multiplier = 1 + extra * (percent / 100);
+  return Math.round(feeKobo * multiplier);
+}
+
+export async function resolveDelivery(address: string, subtotalKobo: number, type: DeliveryType = DeliveryType.NEIGHBORHOOD, sourceIds?: string[], providedCoords?: Coords) {
   const [neighborhoodEnabled, professionalEnabled] = await Promise.all([
     isFeatureEnabled('neighborhood_delivery'),
     isFeatureEnabled('professional_delivery'),
   ]);
   if (type === DeliveryType.PROFESSIONAL && !professionalEnabled) return null;
   if (type === DeliveryType.NEIGHBORHOOD && !neighborhoodEnabled) return null;
-  const coords = await geocodeAddress(address);
-  const zone = await findDeliveryZone(address, coords);
+  const effectiveCoords = providedCoords ?? await geocodeAddress(address);
+  const zone = await findDeliveryZone(address, effectiveCoords);
   if (!zone) return null;
 
   const rule = await prisma.deliveryPricingRule.findFirst({
@@ -175,10 +184,10 @@ export async function resolveDelivery(address: string, subtotalKobo: number, typ
 
   let feeKobo = rule?.baseFeeKobo ?? zone.feeKobo;
 
-  if (rule && rule.perMeterKobo > 0 && coords) {
+  if (rule && rule.perMeterKobo > 0 && effectiveCoords) {
     const center = await getZoneCenter(zone);
     if (center) {
-      const distance = haversineMeters(center, coords);
+      const distance = haversineMeters(center, effectiveCoords);
       feeKobo += Math.round(rule.perMeterKobo * distance);
     }
   }
@@ -189,17 +198,20 @@ export async function resolveDelivery(address: string, subtotalKobo: number, typ
       ? Math.max(10, Math.round(zone.estimatedMinutes * 0.8))
       : zone.estimatedMinutes);
 
-  if (!estimatedMinutes && coords) {
+  if (!estimatedMinutes && effectiveCoords) {
     const center = await getZoneCenter(zone);
     if (center) {
-      estimatedMinutes = await eta(center, coords);
+      estimatedMinutes = await eta(center, effectiveCoords);
     }
   }
+
+  feeKobo = applyMultiSourceSurcharge(feeKobo, sourceIds ?? []);
 
   return {
     zone,
     feeKobo,
     available: true,
     estimatedMinutes,
+    coords: effectiveCoords ?? undefined,
   };
 }

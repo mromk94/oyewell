@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, Loader2, AlertCircle } from 'lucide-react';
 import CookListingCard from './CookListingCard';
-import { fetchCookListingsNearby, type CookListing } from '../lib/listings';
+import { fetchCookListingsAroundMe, type CookListing } from '../lib/listings';
 
 export default function FoodAroundMe() {
   const navigate = useNavigate();
@@ -20,7 +20,7 @@ export default function FoodAroundMe() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
-          const res = await fetchCookListingsNearby(pos.coords.latitude, pos.coords.longitude, 10);
+          const res = await fetchCookListingsAroundMe(pos.coords.latitude, pos.coords.longitude, 8, 10);
           setListings(res.listings);
         } catch (e) {
           setError(e instanceof Error ? e.message : 'Failed to load nearby food');

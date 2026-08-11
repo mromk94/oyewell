@@ -18,6 +18,7 @@ import {
 import { useCart } from '../lib/cart';
 import { toast } from '../lib/toast';
 import { useAuth } from '../lib/auth';
+import { MapView } from './MapView';
 
 function readImageFile(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -156,6 +157,8 @@ export default function CartModal() {
         phone: phone.trim(),
         paymentProvider: selectedMethod.provider,
         deliveryType,
+        lat: selectedDelivery?.lat,
+        lng: selectedDelivery?.lng,
         items: items.map((item) => ({
           foodSlug: item.foodSlug,
           optionId: item.option.id,
@@ -476,6 +479,15 @@ export default function CartModal() {
                     placeholder='e.g. 12 Alhaji Road, Lagos'
                     className='mt-2 w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white placeholder-white/40'
                   />
+                  {selectedDelivery?.lat != null && selectedDelivery?.lng != null && (
+                    <div className='mt-3'>
+                      <MapView
+                        center={{ lat: selectedDelivery.lat, lng: selectedDelivery.lng }}
+                        markers={[{ id: 'delivery', point: { lat: selectedDelivery.lat, lng: selectedDelivery.lng }, label: 'Delivery' }]}
+                        height={160}
+                      />
+                    </div>
+                  )}
                 </label>
 
                 <label className='block'>

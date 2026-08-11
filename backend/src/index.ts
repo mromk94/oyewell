@@ -3,6 +3,7 @@ import express, { type Request, type Response, type NextFunction } from 'express
 import cors from 'cors';
 import morgan from 'morgan';
 import path from 'path';
+import { applyMapSettingsFromDB } from './lib/map-settings.js';
 import foodsRouter from './routes/foods.js';
 import authRouter from './routes/auth.js';
 import deliveryRouter from './routes/delivery.js';
@@ -29,6 +30,8 @@ import evidenceRouter from './routes/evidence.js';
 import legalRouter from './routes/legal.js';
 import { rateLimit } from './middleware/rateLimit.js';
 import { ApiError } from './lib/errors.js';
+
+await applyMapSettingsFromDB();
 
 const app = express();
 app.disable('x-powered-by');

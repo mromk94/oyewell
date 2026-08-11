@@ -10,15 +10,17 @@ const router = Router();
 router.post('/check', async (req, res, next) => {
   try {
     const body = deliveryCheckSchema.parse(req.body);
-    const { address, items, deliveryType } = body;
+    const { address, items, deliveryType, lat, lng } = body;
 
     let subtotalKobo = 0;
     const selectedSides = new Map<string, { id: string; name: string; priceKobo: number; count: number }>();
+    const sourceIds: string[] = [];
+    const providedCoords = lat != null && lng != null ? { lat, lng } : undefined;
 
     for (const item of items) {
       const food = await prisma.food.findUnique({
         where: { slug: item.foodSlug },
-        include: { options: true },
+        include: { options: true, cook: { select: { id: true } } },
       });
 
       if (!food || food.status !== 'PUBLISHED' || !food.isAvailable) {
@@ -34,6 +36,7 @@ router.post('/check', async (req, res, next) => {
         throw new ApiError(400, 'Invalid quantity');
       }
 
+      sourceIds.push(food.cookId ?? 'restaurant');
       subtotalKobo += option.priceKobo * item.quantity;
 
       if (item.sideIds.length) {
@@ -52,7 +55,7 @@ router.post('/check', async (req, res, next) => {
       }
     }
 
-    const delivery = await resolveDelivery(address, subtotalKobo, deliveryType);
+    const delivery = await resolveDelivery(address, subtotalKobo, deliveryType, sourceIds, providedCoords);
 
     if (!delivery || !delivery.available) {
       res.json({
@@ -81,6 +84,8 @@ router.post('/check', async (req, res, next) => {
       total: formatKobo(subtotalKobo + delivery.feeKobo),
       sides: Array.from(selectedSides.values()).map((s) => ({ id: s.id, name: s.name, priceKobo: s.priceKobo })),
       sidesKobo,
+      lat: delivery.coords?.lat,
+      lng: delivery.coords?.lng,
     });
   } catch (err) {
     next(err);

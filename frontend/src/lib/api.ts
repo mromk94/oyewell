@@ -72,6 +72,8 @@ export interface DeliveryResult {
   sidesKobo: number;
   deliveryType: 'NEIGHBORHOOD' | 'PROFESSIONAL';
   estimatedMinutes: number | null;
+  lat?: number;
+  lng?: number;
 }
 
 export interface CartItemPayload {
@@ -133,6 +135,8 @@ export async function checkDelivery(payload: {
   phone: string;
   items: CartItemPayload[];
   deliveryType?: 'NEIGHBORHOOD' | 'PROFESSIONAL';
+  lat?: number;
+  lng?: number;
 }): Promise<DeliveryResult> {
   const res = await fetch(`${API_BASE}/api/delivery/check`, {
     method: 'POST',
@@ -166,6 +170,8 @@ export async function createOrder(
     address: string;
     phone: string;
     paymentProvider: string;
+    lat?: number;
+    lng?: number;
   },
   customerToken?: string | null
 ): Promise<CreatedOrder> {
@@ -189,6 +195,8 @@ export async function createCookOrder(
     address: string;
     phone: string;
     paymentProvider: string;
+    lat?: number;
+    lng?: number;
   },
   customerToken?: string | null
 ): Promise<CreatedOrder> {

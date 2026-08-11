@@ -36,6 +36,8 @@ interface RestaurantOrderPayload {
   customerId?: string;
   deliveryType?: 'NEIGHBORHOOD' | 'PROFESSIONAL';
   idempotencyKey?: string;
+  lat?: number;
+  lng?: number;
 }
 
 interface CookOrderPayload {
@@ -48,12 +50,15 @@ interface CookOrderPayload {
   customerId?: string;
   deliveryType?: 'NEIGHBORHOOD' | 'PROFESSIONAL';
   idempotencyKey?: string;
+  lat?: number;
+  lng?: number;
 }
 
 type OrderPayload = RestaurantOrderPayload | CookOrderPayload;
 
 async function createCookOrder(payload: CookOrderPayload) {
-  const { cookListingId, quantity, address, phone, paymentProvider, customerId, deliveryType = 'NEIGHBORHOOD', idempotencyKey } = payload;
+  const { cookListingId, quantity, address, phone, paymentProvider, customerId, deliveryType = 'NEIGHBORHOOD', idempotencyKey, lat, lng } = payload;
+  const providedCoords = lat != null && lng != null ? { lat, lng } : undefined;
 
   if (idempotencyKey) {
     const existing = await prisma.order.findUnique({ where: { idempotencyKey } });
@@ -79,7 +84,7 @@ async function createCookOrder(payload: CookOrderPayload) {
   }
 
   const subtotalKobo = listing.priceKobo * quantity;
-  const delivery = await resolveDelivery(address, subtotalKobo, deliveryType as any);
+  const delivery = await resolveDelivery(address, subtotalKobo, deliveryType as any, [listing.cookId ?? 'restaurant'], providedCoords);
   if (!delivery || !delivery.available) {
     throw new ApiError(400, 'Delivery is not available for this address', 'DELIVERY_UNAVAILABLE');
   }
@@ -180,7 +185,8 @@ async function createCookOrder(payload: CookOrderPayload) {
 
 export async function createOrder(payload: OrderPayload) {
   if (payload.source === 'COOK') return createCookOrder(payload);
-  const { items, address, phone, paymentProvider, customerId, deliveryType = 'NEIGHBORHOOD', idempotencyKey } = payload;
+  const { items, address, phone, paymentProvider, customerId, deliveryType = 'NEIGHBORHOOD', idempotencyKey, lat, lng } = payload;
+  const providedCoords = lat != null && lng != null ? { lat, lng } : undefined;
 
   if (idempotencyKey) {
     const existing = await prisma.order.findUnique({ where: { idempotencyKey } });
@@ -204,11 +210,12 @@ export async function createOrder(payload: OrderPayload) {
   const selectedSides = new Map<string, { id: string; name: string; priceKobo: number; count: number }>();
   const stockDecrements = new Map<string, number>();
   let subtotalKobo = 0;
+  const sourceIds: string[] = [];
 
   for (const item of items) {
     const food = await prisma.food.findUnique({
       where: { slug: item.foodSlug },
-      include: { options: true },
+      include: { options: true, cook: { select: { id: true } } },
     });
 
     if (!food || food.status !== 'PUBLISHED' || !food.isAvailable) {
@@ -241,6 +248,7 @@ export async function createOrder(payload: OrderPayload) {
     }
 
     subtotalKobo += itemSubtotalKobo;
+    sourceIds.push(food.cookId ?? 'restaurant');
     stockDecrements.set(option.id, (stockDecrements.get(option.id) ?? 0) + item.quantity);
 
     orderItemInputs.push({
@@ -254,7 +262,7 @@ export async function createOrder(payload: OrderPayload) {
     });
   }
 
-  const delivery = await resolveDelivery(address, subtotalKobo, deliveryType as any);
+  const delivery = await resolveDelivery(address, subtotalKobo, deliveryType as any, sourceIds, providedCoords);
   if (!delivery || !delivery.available) {
     throw new ApiError(400, 'Delivery is not available for this address', 'DELIVERY_UNAVAILABLE');
   }

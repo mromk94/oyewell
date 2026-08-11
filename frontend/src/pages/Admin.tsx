@@ -745,21 +745,79 @@ function CustomersTab({ customers, onRefresh }: { customers: any[]; onRefresh: (
   );
 }
 
+function MapSettings({ mapSettings, onChange }: { mapSettings: any; onChange: (s: any) => void }) {
+  const provider = mapSettings?.provider ?? 'MOCK';
+  const safeProvider = provider === 'GOOGLE' || provider === 'MAPBOX' || provider === 'MOCK' ? provider : 'MOCK';
+  const set = (key: string, value: string) => onChange({ ...mapSettings, [key]: value });
+  return (
+    <div className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-6">
+      <h3 className="text-lg font-semibold text-white">Map & Geocoding</h3>
+      <select
+        value={safeProvider}
+        onChange={(e) => set('provider', e.target.value)}
+        className="w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white"
+      >
+        <option value="MOCK" className="bg-brand-900">MOCK (default / no API key)</option>
+        <option value="GOOGLE" className="bg-brand-900">Google Maps</option>
+        <option value="MAPBOX" className="bg-brand-900">Mapbox</option>
+      </select>
+      {safeProvider === 'GOOGLE' && (
+        <input
+          type="password"
+          placeholder="Google Maps API key"
+          value={mapSettings?.googleMapsApiKey ?? ''}
+          onChange={(e) => set('googleMapsApiKey', e.target.value)}
+          className="w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white"
+        />
+      )}
+      {safeProvider === 'MAPBOX' && (
+        <>
+          <input
+            type="password"
+            placeholder="Mapbox server access token"
+            value={mapSettings?.mapboxToken ?? ''}
+            onChange={(e) => set('mapboxToken', e.target.value)}
+            className="w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white"
+          />
+          <input
+            type="password"
+            placeholder="Mapbox public access token (for frontend tiles)"
+            value={mapSettings?.publicMapToken ?? ''}
+            onChange={(e) => set('publicMapToken', e.target.value)}
+            className="w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white"
+          />
+        </>
+      )}
+      <p className="text-xs text-white/60">Mock provider returns synthetic coordinates for development. Real providers require billing-enabled API keys.</p>
+    </div>
+  );
+}
+
 function SettingsTab({ settings, onRefresh }: { settings: any; onRefresh: () => void }) {
   const [name, setName] = useState(settings?.name ?? '');
   const [phone, setPhone] = useState(settings?.contactPhone ?? '');
   const [email, setEmail] = useState(settings?.contactEmail ?? '');
+  const [lat, setLat] = useState(settings?.latitude != null ? String(settings.latitude) : '');
+  const [lng, setLng] = useState(settings?.longitude != null ? String(settings.longitude) : '');
+  const [mapSettings, setMapSettings] = useState<any>(settings?.mapSettings ?? {});
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    await updateSettings({ name, contactPhone: phone, contactEmail: email });
+    await updateSettings({
+      name,
+      contactPhone: phone,
+      contactEmail: email,
+      latitude: lat,
+      longitude: lng,
+      mapSettings,
+    });
     onRefresh();
   }
 
   return (
-    <div>
+    <div className="space-y-6">
       <h2 className="text-2xl font-bold text-white">Settings</h2>
-      <form onSubmit={handleSave} className="mt-6 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-6">
+      <form onSubmit={handleSave} className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-6">
         <input
           placeholder="Restaurant name"
           value={name}
@@ -778,6 +836,21 @@ function SettingsTab({ settings, onRefresh }: { settings: any; onRefresh: () => 
           onChange={(e) => setEmail(e.target.value)}
           className="w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white"
         />
+        <div className="grid grid-cols-2 gap-4">
+          <input
+            placeholder="Default latitude"
+            value={lat}
+            onChange={(e) => setLat(e.target.value)}
+            className="w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white"
+          />
+          <input
+            placeholder="Default longitude"
+            value={lng}
+            onChange={(e) => setLng(e.target.value)}
+            className="w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white"
+          />
+        </div>
+        <MapSettings mapSettings={mapSettings} onChange={setMapSettings} />
         <button type="submit" className="rounded-full bg-white px-6 py-2 font-bold text-black">
           Save settings
         </button>

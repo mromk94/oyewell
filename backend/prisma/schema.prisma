@@ -60,9 +60,13 @@ model Food {
   featured     Boolean      @default(false)
   displayOrder Int          @default(0)
   orderingMode OrderingMode @default(PLATE)
+  cookId       String?
+  cook         CookProfile? @relation(fields: [cookId], references: [id], onDelete: SetNull)
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   options      FoodOption[]
+
+  @@index([cookId])
 }
 
 model FoodOption {
@@ -345,6 +349,7 @@ model RestaurantSetting {
   contactEmail String?
   latitude     Float?
   longitude    Float?
+  mapSettings  Json?    @default("{}")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
@@ -465,6 +470,7 @@ model CookProfile {
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
   listings             CookListing[]
+  foods                Food[]
   orders               Order[]
   earnings             CookEarning[]
   reviews              Review[]

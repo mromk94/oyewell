@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { CheckCircle, XCircle, Loader2, ArrowRight, Bike, User } from 'lucide-react';
 import { formatPrice } from '../../lib/api';
-import { updateOrderStatus, verifyOrderPayment, fetchRiders, assignRider } from '../../lib/admin';
+import { updateOrderStatus, verifyOrderPayment, fetchRiders, fetchEligibleRiders, assignRider, dispatchOrder } from '../../lib/admin';
 import { toast } from '../../lib/toast';
 
 const STATUSES = [
@@ -35,6 +35,8 @@ export function OrdersTab({ orders, onRefresh }: { orders: any[]; onRefresh: () 
   const [riderId, setRiderId] = useState('');
   const [riderFee, setRiderFee] = useState('');
   const [ridersLoading, setRidersLoading] = useState(false);
+  const [eligible, setEligible] = useState<any[]>([]);
+  const [dispatching, setDispatching] = useState(false);
 
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -69,11 +71,15 @@ export function OrdersTab({ orders, onRefresh }: { orders: any[]; onRefresh: () 
     setAssigning(order);
     setRiderId(order.riderId ?? '');
     setRiderFee(order.riderFeeKobo ? String(order.riderFeeKobo / 100) : '');
+    setEligible([]);
     setRidersLoading(true);
     try {
-      const { riders } = await fetchRiders();
+      const [{ riders }, { riders: eligibleRiders }] = await Promise.all([fetchRiders(), fetchEligibleRiders(order.orderNumber)]);
       setRiders(riders);
-      if (!order.riderId && riders.length > 0) {
+      setEligible(eligibleRiders);
+      if (!order.riderId && eligibleRiders.length > 0) {
+        setRiderId(eligibleRiders[0].id);
+      } else if (!order.riderId && riders.length > 0) {
         const firstApproved = riders.find((r: any) => r.isApproved);
         if (firstApproved) setRiderId(firstApproved.id);
       }
@@ -81,6 +87,21 @@ export function OrdersTab({ orders, onRefresh }: { orders: any[]; onRefresh: () 
       toast.error(err instanceof Error ? err.message : 'Failed to load riders.');
     } finally {
       setRidersLoading(false);
+    }
+  }
+
+  async function handleDispatch() {
+    if (!assigning) return;
+    setDispatching(true);
+    try {
+      await dispatchOrder(assigning.orderNumber);
+      setAssigning(null);
+      onRefresh();
+      toast.success('Order dispatched to nearest riders.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Dispatch failed.');
+    } finally {
+      setDispatching(false);
     }
   }
 
@@ -330,6 +351,30 @@ export function OrdersTab({ orders, onRefresh }: { orders: any[]; onRefresh: () 
                 Order {assigning.orderNumber} · {formatPrice(assigning.totalKobo)} · {assigning.address}
               </p>
 
+              {eligible.length > 0 && (
+                <div className='mt-4 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-4'>
+                  <p className='text-sm font-semibold text-emerald-100'>Closest eligible riders</p>
+                  <div className='mt-2 max-h-40 space-y-2 overflow-y-auto'>
+                    {eligible.map((rider) => (
+                      <button
+                        key={rider.id}
+                        onClick={() => setRiderId(rider.id)}
+                        className={`w-full rounded-xl p-2 text-left text-sm transition ${
+                          riderId === rider.id ? 'bg-emerald-500/20 text-emerald-100' : 'text-white/80 hover:bg-white/5'
+                        }`}
+                      >
+                        <p className='font-medium'>
+                          {rider.firstName || rider.email || rider.id} — {rider.vehicle || 'No vehicle'}
+                        </p>
+                        <p className='text-xs text-white/60'>
+                          {Math.round(rider.distanceMeters ?? 0)}m · ~{rider.estimatedMinutes ?? 0} min
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <label className='mt-6 block'>
                 <span className='text-sm text-white/80'>Approved rider</span>
                 <select
@@ -365,14 +410,22 @@ export function OrdersTab({ orders, onRefresh }: { orders: any[]; onRefresh: () 
               <div className='mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end'>
                 <button
                   onClick={() => setAssigning(null)}
-                  disabled={loading || ridersLoading}
+                  disabled={loading || ridersLoading || dispatching}
                   className='rounded-full border border-white/20 px-6 py-2 text-white disabled:opacity-50'
                 >
                   Close
                 </button>
                 <button
+                  onClick={handleDispatch}
+                  disabled={dispatching || loading || ridersLoading || eligible.length === 0}
+                  className='inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500/20 px-6 py-2 font-bold text-emerald-300 hover:bg-emerald-500/30 disabled:opacity-50'
+                >
+                  {dispatching ? <Loader2 className='h-4 w-4 animate-spin' /> : <Bike className='h-4 w-4' />}
+                  Auto-dispatch
+                </button>
+                <button
                   onClick={handleAssign}
-                  disabled={!riderId || loading || ridersLoading}
+                  disabled={!riderId || loading || ridersLoading || dispatching}
                   className='inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 py-2 font-bold text-white hover:bg-emerald-400 disabled:opacity-50'
                 >
                   {loading ? <Loader2 className='h-4 w-4 animate-spin' /> : <Bike className='h-4 w-4' />}
