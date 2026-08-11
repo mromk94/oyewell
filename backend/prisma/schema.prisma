@@ -821,3 +821,42 @@ model UserBlock {
 
   @@unique([blockerId, blockedId])
 }
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_CUSTOMER
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model Ticket {
+  id              String         @id @default(cuid())
+  ticketNumber    String         @unique
+  customerId      String
+  category        String
+  internalCategory String?
+  orderId         String?
+  deliveryId      String?
+  priority        TicketPriority @default(NORMAL)
+  status          TicketStatus   @default(OPEN)
+  assignedTo      String?
+  subject         String
+  messages        Json?          @default("[]")
+  attachments     String[]
+  internalNotes   Json?          @default("[]")
+  resolution      String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([customerId, createdAt])
+  @@index([status, createdAt])
+  @@index([assignedTo, status])
+}
