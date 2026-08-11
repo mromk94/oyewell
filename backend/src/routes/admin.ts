@@ -1,8 +1,10 @@
 import { Router } from 'express';
-import bcrypt from 'bcryptjs';
 import { prisma } from '../prisma.js';
 import { requireAuth, requireAdmin, type AuthRequest } from '../middleware/auth.js';
+import bcrypt from 'bcryptjs';
 import { ApiError } from '../lib/errors.js';
+import { createApproval } from '../lib/approval.js';
+import { logAudit } from '../lib/audit.js';
 import { dispatchOrder } from '../lib/assignment.js';
 import { isLocationFresh } from '../lib/location.js';
 import { emitEvent } from '../lib/realtime.js';
@@ -761,12 +763,30 @@ router.get('/cooks', async (_req, res, next) => {
   }
 });
 
-router.patch('/cooks/:id/approve', async (req, res, next) => {
+router.patch('/cooks/:id/approve', async (req: AuthRequest, res, next) => {
   try {
+    const { note } = req.body as Record<string, any>;
     const cook = await prisma.cookProfile.update({
       where: { id: req.params.id },
       data: { profileStatus: 'APPROVED', kitchenStatus: 'OPEN' },
       include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    });
+    await createApproval({
+      type: 'COOK',
+      targetId: cook.id,
+      targetType: 'CookProfile',
+      submittedBy: cook.userId,
+      data: { decision: 'APPROVED' },
+      note,
+    });
+    await logAudit({
+      actorId: req.user!.id,
+      action: 'COOK_APPROVED',
+      targetId: cook.id,
+      targetType: 'CookProfile',
+      reason: note,
+      newState: { profileStatus: 'APPROVED', kitchenStatus: 'OPEN' },
+      ip: req.ip ?? undefined,
     });
     emitEvent('cook:approved', { cookId: cook.id, displayName: cook.displayName });
     res.json({ cook });
@@ -775,12 +795,32 @@ router.patch('/cooks/:id/approve', async (req, res, next) => {
   }
 });
 
-router.patch('/cooks/:id/reject', async (req, res, next) => {
+router.patch('/cooks/:id/reject', async (req: AuthRequest, res, next) => {
   try {
+    const { note } = req.body as Record<string, any>;
+    const before = await prisma.cookProfile.findUnique({ where: { id: req.params.id }, include: { user: { select: { id: true } } } });
     const cook = await prisma.cookProfile.update({
       where: { id: req.params.id },
       data: { profileStatus: 'REJECTED', isActive: false },
       include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    });
+    await createApproval({
+      type: 'COOK',
+      targetId: cook.id,
+      targetType: 'CookProfile',
+      submittedBy: before?.userId,
+      data: { decision: 'REJECTED' },
+      note,
+    });
+    await logAudit({
+      actorId: req.user!.id,
+      action: 'COOK_REJECTED',
+      targetId: cook.id,
+      targetType: 'CookProfile',
+      reason: note,
+      oldState: { profileStatus: before?.profileStatus },
+      newState: { profileStatus: 'REJECTED', isActive: false },
+      ip: req.ip ?? undefined,
     });
     res.json({ cook });
   } catch (err) {
@@ -801,13 +841,32 @@ router.get('/cook-listings', async (_req, res, next) => {
   }
 });
 
-router.patch('/cooks/:id/request-more-info', async (req, res, next) => {
+router.patch('/cooks/:id/request-more-info', async (req: AuthRequest, res, next) => {
   try {
     const { reason, fields } = req.body as Record<string, any>;
+    const before = await prisma.cookProfile.findUnique({ where: { id: req.params.id }, include: { user: { select: { id: true } } } });
     const cook = await prisma.cookProfile.update({
       where: { id: req.params.id },
       data: { profileStatus: 'PENDING_APPROVAL' },
       include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    });
+    await createApproval({
+      type: 'COOK',
+      targetId: cook.id,
+      targetType: 'CookProfile',
+      submittedBy: before?.userId,
+      data: { decision: 'MORE_INFO', fields },
+      note: reason,
+    });
+    await logAudit({
+      actorId: req.user!.id,
+      action: 'COOK_MORE_INFO_REQUESTED',
+      targetId: cook.id,
+      targetType: 'CookProfile',
+      reason,
+      oldState: { profileStatus: before?.profileStatus },
+      newState: { profileStatus: 'PENDING_APPROVAL' },
+      ip: req.ip ?? undefined,
     });
     res.json({ cook, request: { reason, fields } });
   } catch (err) {
@@ -815,14 +874,30 @@ router.patch('/cooks/:id/request-more-info', async (req, res, next) => {
   }
 });
 
-router.patch('/cooks/:id/approve-packaging', async (req, res, next) => {
+router.patch('/cooks/:id/approve-packaging', async (req: AuthRequest, res, next) => {
   try {
     const { approved, note } = req.body as Record<string, any>;
-    const status = approved === false ? 'PENDING_APPROVAL' : 'APPROVED';
-    const cook = await prisma.cookProfile.update({
+    const cook = await prisma.cookProfile.findUnique({
       where: { id: req.params.id },
-      data: { profileStatus: status },
       include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    });
+    if (!cook) throw new ApiError(404, 'Cook not found');
+    await createApproval({
+      type: 'PACKAGING',
+      targetId: cook.id,
+      targetType: 'CookProfile',
+      submittedBy: cook.userId,
+      data: { decision: approved ? 'APPROVED' : 'REJECTED' },
+      note,
+    });
+    await logAudit({
+      actorId: req.user!.id,
+      action: 'COOK_PACKAGING_REVIEWED',
+      targetId: cook.id,
+      targetType: 'CookProfile',
+      reason: note,
+      newState: { packagingApproved: approved },
+      ip: req.ip ?? undefined,
     });
     res.json({ cook, packaging: { approved, note } });
   } catch (err) {
