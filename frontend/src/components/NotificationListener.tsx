@@ -17,31 +17,51 @@ export default function NotificationListener() {
         const data = JSON.parse(e.data);
         const type = data.type || '';
 
+        const orderRef = data.orderNumber ? `order #${data.orderNumber}` : data.orderId ? `order ${data.orderId}` : 'Your order';
+
+        const statusMessages: Record<string, string> = {
+          PENDING_PAYMENT: `${orderRef} is waiting for payment.`,
+          PAID: `Payment confirmed for ${orderRef}.`,
+          CONFIRMED: `${orderRef} is confirmed and heading to the kitchen.`,
+          COOK_ACCEPTED: `You accepted ${orderRef}. Fire up the kitchen!`,
+          PREPARING: `${orderRef} is being prepared.`,
+          READY_FOR_PICKUP: `${orderRef} is ready for pickup.`,
+          READY_FOR_DISPATCH: `${orderRef} is ready for pickup.`,
+          OUT_FOR_DELIVERY: `A rider is heading to the kitchen for ${orderRef}.`,
+          PICKED_UP: `${orderRef} has been picked up.`,
+          IN_TRANSIT: `${orderRef} is on the way to the customer.`,
+          DELIVERED: `${orderRef} has been delivered. Enjoy!`,
+          CANCELLED: `${orderRef} was cancelled.`,
+        };
+
         if (type === 'order:status') {
-          const message = `Order ${data.orderNumber || data.orderId} is now ${data.status?.replace(/_/g, ' ').toLowerCase()}`;
-          toast.info(message);
-          addNotification({ type, message });
+          const message = statusMessages[data.status] || `${orderRef} was updated.`;
+          if (data.status && (data.orderNumber || data.orderId)) {
+            toast.info(message);
+            addNotification({ type, message });
+          }
         } else if (type === 'order:created') {
-          toast.success(`New order created`);
-          addNotification({ type, message: `New order created` });
+          const message = `A new order just came in.`;
+          toast.success(message);
+          addNotification({ type, message });
         } else if (type === 'payment:confirmed') {
-          const message = `Order ${data.orderNumber} payment confirmed`;
+          const message = `Payment confirmed for ${orderRef}.`;
           toast.success(message);
           addNotification({ type, message });
         } else if (type === 'delivery:open') {
-          const message = `Order ${data.orderNumber} is ready for pickup`;
+          const message = `${orderRef} is ready for pickup.`;
           toast.info(message);
           addNotification({ type, message });
         } else if (type === 'delivery:assigned') {
-          const message = `Order ${data.orderNumber} assigned to a rider`;
+          const message = `A rider has been assigned to ${orderRef}.`;
           toast.info(message);
           addNotification({ type, message });
         } else if (type === 'delivery:completed') {
-          const message = `Order ${data.orderNumber} delivered`;
+          const message = `${orderRef} has been delivered. Enjoy!`;
           toast.success(message);
           addNotification({ type, message });
         } else if (type === 'payment:proof') {
-          const message = `Payment proof uploaded for order ${data.orderNumber}`;
+          const message = `Payment proof received for ${orderRef}.`;
           toast.info(message);
           addNotification({ type, message });
         }

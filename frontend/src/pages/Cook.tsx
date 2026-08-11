@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAuth, hasRole } from '../lib/auth';
 import { formatPrice } from '../lib/api';
+import ConfirmModal from '../components/ConfirmModal';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   type CookProfile,
@@ -789,6 +790,7 @@ function AddFoodPanel({
 function MenuPanel({ onError, onEdit }: { onError: (msg: string) => void; onEdit: (l: CookListing) => void }) {
   const [listings, setListings] = useState<CookListing[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCookListings()
@@ -807,8 +809,10 @@ function MenuPanel({ onError, onEdit }: { onError: (msg: string) => void; onEdit
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!window.confirm('Delete this food? This cannot be undone.')) return;
+  async function doDelete() {
+    if (!deleteId) return;
+    const id = deleteId;
+    setDeleteId(null);
     try {
       await deleteCookListing(id);
       const res = await fetchCookListings();
@@ -821,8 +825,9 @@ function MenuPanel({ onError, onEdit }: { onError: (msg: string) => void; onEdit
   if (loading) return <Loader2 className='mx-auto h-8 w-8 animate-spin text-white/70' />;
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className='space-y-4'>
-      {listings.length === 0 && <p className='text-white/60'>No listings yet. Add your first food.</p>}
+    <>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className='space-y-4'>
+        {listings.length === 0 && <p className='text-white/60'>No listings yet. Add your first food.</p>}
       {listings.map((l) => (
         <div key={l.id} className='rounded-2xl border border-white/10 bg-white/5 p-4'>
           <div className='flex items-start justify-between'>
@@ -858,7 +863,7 @@ function MenuPanel({ onError, onEdit }: { onError: (msg: string) => void; onEdit
                 </button>
               )}
               <button
-                onClick={() => handleDelete(l.id)}
+                onClick={() => setDeleteId(l.id)}
                 className='rounded-full bg-red-500/20 px-3 py-1.5 text-xs font-bold text-red-300 hover:bg-red-500/30'
               >
                 Delete
@@ -867,7 +872,18 @@ function MenuPanel({ onError, onEdit }: { onError: (msg: string) => void; onEdit
           </div>
         </div>
       ))}
-    </motion.div>
+      </motion.div>
+      <ConfirmModal
+        open={!!deleteId}
+        title='Delete this food?'
+        message='This will permanently remove the listing. Customers will no longer be able to order it.'
+        confirmLabel='Yes, delete'
+        cancelLabel='Keep it'
+        danger
+        onConfirm={doDelete}
+        onCancel={() => setDeleteId(null)}
+      />
+    </>
   );
 }
 
@@ -933,21 +949,19 @@ function OrdersPanel({ onError }: { onError: (msg: string) => void }) {
                 Accept
               </button>
             )}
+            {!['OUT_FOR_DELIVERY', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED'].includes(o.status) && o.pickupCode && (
+              <div className='w-full rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-3 text-center'>
+                <p className='text-xs text-yellow-200'>Give this pickup code to the rider</p>
+                <p className='text-2xl font-black tracking-widest text-yellow-300'>{o.pickupCode}</p>
+              </div>
+            )}
             {o.status === 'COOK_ACCEPTED' && (
-              <>
-                {o.pickupCode && (
-                  <div className='w-full rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-3 text-center'>
-                    <p className='text-xs text-yellow-200'>Give this pickup code to the rider</p>
-                    <p className='text-2xl font-black tracking-widest text-yellow-300'>{o.pickupCode}</p>
-                  </div>
-                )}
-                <button
-                  onClick={() => action(o.orderNumber, 'preparing')}
-                  className='rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-bold text-black hover:bg-emerald-400'
-                >
-                  Start cooking
-                </button>
-              </>
+              <button
+                onClick={() => action(o.orderNumber, 'preparing')}
+                className='rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-bold text-black hover:bg-emerald-400'
+              >
+                Start cooking
+              </button>
             )}
             {o.status === 'PREPARING' && (
               <button

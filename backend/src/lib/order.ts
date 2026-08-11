@@ -380,7 +380,9 @@ export function serializeOrder(
   const showCode =
     audience === 'ADMIN' || terminal || (audience === 'CUSTOMER' && order.paymentStatus === 'PAID');
   // Pickup code: cook hands it to the rider at handover. Cook + admin only.
-  const showPickupCode = audience === 'ADMIN' || audience === 'COOK';
+  // It is only useful until the rider has picked up the order and is out for delivery.
+  const pickupCleared = ['OUT_FOR_DELIVERY', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED'].includes(order.status);
+  const showPickupCode = audience === 'ADMIN' || (audience === 'COOK' && !pickupCleared);
   const showPickupLocation = audience === 'RIDER' || audience === 'ADMIN';
   const showCustomerInfo = !maskCustomerInfo || delivered || audience === 'RIDER' || audience === 'ADMIN';
   return {

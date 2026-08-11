@@ -18,6 +18,7 @@ import {
   Shield,
 } from 'lucide-react';
 import { riderLogin, riderRegister, riderLogout, fetchRiderMe, updateRiderMe, updateRiderAvailability, fetchRiderOrders, fetchAvailableOrders, claimOrder, pickupOrder, startTrip, verifyDeliveryCode, fetchRiderEarnings, fetchRiderPayouts, withdrawRiderEarnings, type RiderOrder, type Rider } from '../lib/rider';
+import PromptModal from '../components/PromptModal';
 import ProfessionalUpgradeModal from '../components/ProfessionalUpgradeModal';
 
 export default function Rider() {
@@ -300,6 +301,7 @@ function RiderLogin({ onLogin }: { onLogin: (token: string) => void }) {
 function MyOrdersPanel({ onError }: { onError: (m: string) => void }) {
   const [orders, setOrders] = useState<RiderOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [prompt, setPrompt] = useState<{ open: boolean; orderNumber: string }>({ open: false, orderNumber: '' });
 
   async function load() {
     setLoading(true);
@@ -315,11 +317,10 @@ function MyOrdersPanel({ onError }: { onError: (m: string) => void }) {
 
   useEffect(() => { load(); }, [onError]);
 
-  async function handlePickup(orderNumber: string) {
+  async function handlePickupConfirm(code: string) {
     try {
-      const code = window.prompt('Enter the pickup code from the cook:');
-      if (!code) return;
-      await pickupOrder(orderNumber, code);
+      setPrompt({ open: false, orderNumber: '' });
+      await pickupOrder(prompt.orderNumber, code);
       load();
     } catch (e: any) {
       onError(e.message);
@@ -339,18 +340,29 @@ function MyOrdersPanel({ onError }: { onError: (m: string) => void }) {
   if (!orders.length) return <Empty message='No assigned orders yet.' />;
 
   return (
-    <div className='space-y-4'>
-      {orders.map((order) => (
-        <OrderCard key={order.id} order={order} actions={[
-          ...(order.status === 'OUT_FOR_DELIVERY' ? [{ label: 'Picked up', icon: CheckCircle, onClick: () => handlePickup(order.orderNumber) }] : []),
-          ...(order.riderStatus === 'PICKED_UP' ? [
-            { label: 'Start trip', icon: Navigation, onClick: () => handleStart(order.orderNumber) },
-            { label: 'Verify delivery', icon: ShieldCheck, onClick: () => { /* handled by verify tab */ } },
-          ] : []),
-          ...(order.riderStatus === 'IN_TRANSIT' ? [{ label: 'Verify delivery', icon: ShieldCheck, onClick: () => { /* handled by verify tab */ } }] : []),
-        ]} />
-      ))}
-    </div>
+    <>
+      <div className='space-y-4'>
+        {orders.map((order) => (
+          <OrderCard key={order.id} order={order} actions={[
+            ...(order.status === 'OUT_FOR_DELIVERY' ? [{ label: 'Picked up', icon: CheckCircle, onClick: () => setPrompt({ open: true, orderNumber: order.orderNumber }) }] : []),
+            ...(order.riderStatus === 'PICKED_UP' ? [
+              { label: 'Start trip', icon: Navigation, onClick: () => handleStart(order.orderNumber) },
+              { label: 'Verify delivery', icon: ShieldCheck, onClick: () => { /* handled by verify tab */ } },
+            ] : []),
+            ...(order.riderStatus === 'IN_TRANSIT' ? [{ label: 'Verify delivery', icon: ShieldCheck, onClick: () => { /* handled by verify tab */ } }] : []),
+          ]} />
+        ))}
+      </div>
+      <PromptModal
+        open={prompt.open}
+        title='Pickup code'
+        message='Ask the cook for the pickup code and enter it below.'
+        placeholder='Pickup code'
+        confirmLabel='Confirm pickup'
+        onConfirm={handlePickupConfirm}
+        onCancel={() => setPrompt({ open: false, orderNumber: '' })}
+      />
+    </>
   );
 }
 
