@@ -389,8 +389,8 @@ router.post('/orders/:orderNumber/verify', requireAuth, requireRider, async (req
 router.post('/location', requireAuth, requireRider, async (req: AuthRequest, res, next) => {
   try {
     const { latitude, longitude, accuracy } = req.body as Record<string, any>;
-    const point = validateLocation({ lat: latitude, lng: longitude });
-    if (!point) throw new ApiError(400, 'latitude and longitude must be valid numbers');
+    const point = validateLocation({ lat: latitude, lng: longitude, accuracy: accuracy != null ? Number(accuracy) : undefined });
+    if (!point) throw new ApiError(400, 'latitude, longitude and accuracy must be valid');
     const rider = await prisma.rider.findUnique({ where: { userId: req.user!.id } });
     if (!rider) throw new ApiError(404, 'Rider not found');
     if (!rider.available || rider.operationalStatus !== 'ONLINE') {
@@ -398,8 +398,8 @@ router.post('/location', requireAuth, requireRider, async (req: AuthRequest, res
     }
     const location = await prisma.riderLocation.upsert({
       where: { riderId: rider.id },
-      create: { riderId: rider.id, latitude: point.lat, longitude: point.lng },
-      update: { latitude: point.lat, longitude: point.lng },
+      create: { riderId: rider.id, latitude: point.lat, longitude: point.lng, accuracy: point.accuracy },
+      update: { latitude: point.lat, longitude: point.lng, accuracy: point.accuracy },
     });
     emitEvent('rider:location', {
       riderId: rider.id,

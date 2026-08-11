@@ -124,10 +124,15 @@ export const LOCAL_SEARCH_RINGS_METERS = (() => {
   return [2000, 5000, 10000];
 })();
 
+export const MIN_LOCATION_ACCURACY_METERS = Number(process.env.MIN_LOCATION_ACCURACY_METERS) || 100;
+
 export function validateLocation(input: unknown): Location | null {
   if (!input || typeof input !== 'object') return null;
-  const { lat, lng } = input as Record<string, unknown>;
+  const { lat, lng, accuracy } = input as Record<string, unknown>;
   if (typeof lat !== 'number' || typeof lng !== 'number') return null;
   if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
-  return { lat, lng } as Location;
+  const acc = typeof accuracy === 'number' ? accuracy : undefined;
+  if (acc != null && acc < 0) return null;
+  if (acc != null && acc > MIN_LOCATION_ACCURACY_METERS) return null;
+  return { lat, lng, accuracy: acc } as Location;
 }
