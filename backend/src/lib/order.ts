@@ -172,7 +172,7 @@ async function createCookOrder(payload: CookOrderPayload) {
     },
     payment: {
       id: order.payment.id,
-      idempotencyKey: order.payment.idempotencyKey,
+      idempotencyKey: order.idempotencyKey,
       provider: order.payment.provider,
     },
   };
@@ -339,7 +339,7 @@ export async function createOrder(payload: OrderPayload) {
     },
     payment: {
       id: order.payment.id,
-      idempotencyKey: order.payment.idempotencyKey,
+      idempotencyKey: order.idempotencyKey,
       provider: order.payment.provider,
     },
   };

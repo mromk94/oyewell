@@ -1,5 +1,6 @@
 import { prisma } from '../prisma.js';
 import { collectDisputeEvidence } from './evidence.js';
+import { createRefund } from './refund.js';
 
 export function generateDisputeNumber() {
   return `DISPUTE-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`;
@@ -52,11 +53,25 @@ export async function assignDispute(id: string, assignedTo: string) {
   });
 }
 
-export async function resolveDispute(id: string, resolution: string, refundKobo?: number) {
-  return prisma.dispute.update({
+export async function resolveDispute(id: string, resolution: string, refundKobo: number | undefined, approvedBy: string | undefined) {
+  const before = await prisma.dispute.findUnique({ where: { id } });
+  const dispute = await prisma.dispute.update({
     where: { id },
     data: { resolution, refundKobo, status: 'RESOLVED' },
   });
+  if (refundKobo && refundKobo > 0 && before?.orderId && approvedBy) {
+    const payment = await prisma.payment.findUnique({ where: { orderId: before.orderId } });
+    if (payment) {
+      await createRefund({
+        orderId: before.orderId,
+        amountKobo: refundKobo,
+        reason: resolution,
+        approvedBy,
+        disputeId: id,
+      });
+    }
+  }
+  return dispute;
 }
 
 export async function addDisputeTimelineEvent(id: string, event: string) {

@@ -30,7 +30,6 @@ export async function createPaymentForOrder(
       currency: 'NGN',
       provider,
       status: providerPayment.status === 'SUCCESS' ? PaymentStatus.SUCCESS : PaymentStatus.PENDING,
-      idempotencyKey,
       providerRef: providerPayment.providerRef,
     },
   });
@@ -50,7 +49,7 @@ export async function verifyPayment(
     throw new ApiError(404, 'Payment not found');
   }
 
-  if (payment.idempotencyKey !== idempotencyKey) {
+  if (payment.order.idempotencyKey !== idempotencyKey) {
     throw new ApiError(403, 'Invalid payment token');
   }
 
@@ -59,7 +58,7 @@ export async function verifyPayment(
   }
 
   const adapter = getProvider(payment.provider);
-  const verification = await adapter.verify(payment.providerRef ?? payment.idempotencyKey);
+  const verification = await adapter.verify(payment.providerRef ?? payment.order.idempotencyKey);
 
   if (verification.status !== 'SUCCESS') {
     throw new ApiError(400, `Payment ${verification.status.toLowerCase()}`);

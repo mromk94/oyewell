@@ -93,7 +93,7 @@ router.patch('/:id/resolve', async (req: AuthRequest, res, next) => {
     const withinLimit = refundKobo == null || await isWithinLimit(req.user!.id, 'REFUND_APPROVE', refundKobo);
     if (!withinLimit) throw new ApiError(403, 'Refund exceeds your authorization limit');
     const before = await getDispute(req.params.id);
-    const dispute = await resolveDispute(req.params.id, resolution, refundKobo);
+    const dispute = await resolveDispute(req.params.id, resolution, refundKobo, req.user!.id);
     await logAudit({
       actorId: req.user!.id,
       action: 'DISPUTE_RESOLVED',

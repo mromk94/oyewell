@@ -212,6 +212,7 @@ model Order {
   totalKobo                Int
   currency                 String               @default("NGN")
   payment                  Payment?
+  refunds                  Refund[]
   statusHistory            OrderStatusHistory[]
   messages                 Message[]
   review                   Review?
@@ -274,18 +275,43 @@ enum PaymentProvider {
 }
 
 model Payment {
-  id             String           @id @default(cuid())
-  order          Order            @relation(fields: [orderId], references: [id])
-  orderId        String           @unique
-  amountKobo     Int
-  currency       String
-  provider       PaymentProvider  @default(MOCK)
-  providerRef    String?
-  status         PaymentStatus    @default(PENDING)
-  idempotencyKey String           @unique
-  attempts       PaymentAttempt[]
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  id            String          @id @default(cuid())
+  order         Order           @relation(fields: [orderId], references: [id])
+  orderId       String          @unique
+  status        PaymentStatus   @default(PENDING)
+  provider      PaymentProvider @default(MOCK)
+  providerRef   String?
+  amountKobo    Int
+  currency      String          @default("NGN")
+  feeKobo       Int             @default(0)
+  metadata      Json?           @default("{}")
+  refundKobo    Int             @default(0)
+  refunds       Refund[]
+  attempts      PaymentAttempt[]
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([providerRef])
+}
+
+model Refund {
+  id            String   @id @default(cuid())
+  payment       Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  paymentId     String
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId       String
+  amountKobo    Int
+  reason        String?
+  disputeId     String?
+  ticketId      String?
+  approvedBy    String?
+  status        String   @default("PENDING") // PENDING, ISSUED, FAILED
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([paymentId])
+  @@index([orderId])
+  @@index([disputeId])
 }
 
 model PaymentAttempt {
