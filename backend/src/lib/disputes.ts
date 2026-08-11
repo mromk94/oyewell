@@ -69,3 +69,16 @@ export async function addDisputeTimelineEvent(id: string, event: string) {
     data: { timeline },
   });
 }
+
+export async function appealDispute(id: string, reason: string, customerId: string) {
+  const dispute = await prisma.dispute.findUnique({ where: { id } });
+  if (!dispute) return null;
+  if (dispute.customerId !== customerId) throw new Error('Only the customer can appeal');
+  if (dispute.status !== 'RESOLVED' && dispute.status !== 'CLOSED') throw new Error('Dispute is not resolved yet');
+  const timeline = (dispute.timeline as any[]) ?? [];
+  timeline.push({ at: new Date().toISOString(), event: `Appeal requested: ${reason}` });
+  return prisma.dispute.update({
+    where: { id },
+    data: { status: 'APPEALED', timeline },
+  });
+}

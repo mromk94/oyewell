@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { ApiError } from '../lib/errors.js';
-import { createDispute, getDisputes, getDispute, assignDispute, resolveDispute, addDisputeTimelineEvent } from '../lib/disputes.js';
+import { createDispute, getDisputes, getDispute, assignDispute, resolveDispute, addDisputeTimelineEvent, appealDispute } from '../lib/disputes.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { hasPermission, isWithinLimit } from '../lib/management.js';
 import { logAudit } from '../lib/audit.js';
@@ -117,6 +117,28 @@ router.post('/:id/timeline', async (req: AuthRequest, res, next) => {
     if (!event) throw new ApiError(400, 'event is required');
     const dispute = await addDisputeTimelineEvent(req.params.id, event);
     if (!dispute) throw new ApiError(404, 'Dispute not found');
+    res.json({ dispute });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post('/:id/appeal', async (req: AuthRequest, res, next) => {
+  try {
+    const { reason } = req.body as Record<string, any>;
+    if (!reason) throw new ApiError(400, 'reason is required');
+    const dispute = await appealDispute(req.params.id, reason, req.user!.id);
+    if (!dispute) throw new ApiError(404, 'Dispute not found');
+    await logAudit({
+      actorId: req.user!.id,
+      action: 'DISPUTE_APPEALED',
+      targetId: dispute.id,
+      targetType: 'DISPUTE',
+      reference: dispute.disputeNumber,
+      newState: { status: dispute.status, reason },
+      reason,
+      ip: req.ip ?? undefined,
+    });
     res.json({ dispute });
   } catch (e) {
     next(e);
