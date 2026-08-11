@@ -21,6 +21,7 @@ import {
 import { riderLogin, riderRegister, riderLogout, fetchRiderMe, updateRiderMe, updateRiderAvailability, fetchRiderOrders, fetchAvailableOrders, claimOrder, pickupOrder, startTrip, verifyDeliveryCode, fetchRiderEarnings, fetchRiderPayouts, withdrawRiderEarnings, type RiderOrder, type Rider } from '../lib/rider';
 import { formatPrice } from '../lib/api';
 import PromptModal from '../components/PromptModal';
+import ConfirmModal from '../components/ConfirmModal';
 import ProfessionalUpgradeModal from '../components/ProfessionalUpgradeModal';
 
 export default function Rider() {
@@ -307,6 +308,8 @@ function MyOrdersPanel({ onError }: { onError: (m: string) => void }) {
   const [orders, setOrders] = useState<RiderOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [prompt, setPrompt] = useState<{ open: boolean; orderNumber: string }>({ open: false, orderNumber: '' });
+  const [deliveryPrompt, setDeliveryPrompt] = useState<{ open: boolean; orderNumber: string }>({ open: false, orderNumber: '' });
+  const [startConfirm, setStartConfirm] = useState<{ open: boolean; orderNumber: string }>({ open: false, orderNumber: '' });
 
   async function load() {
     setLoading(true);
@@ -325,19 +328,36 @@ function MyOrdersPanel({ onError }: { onError: (m: string) => void }) {
   async function handlePickupConfirm(code: string) {
     try {
       setPrompt({ open: false, orderNumber: '' });
+      setLoading(true);
       await pickupOrder(prompt.orderNumber, code);
       load();
     } catch (e: any) {
       onError(e.message);
+      setLoading(false);
+    }
+  }
+
+  async function handleDeliveryConfirm(code: string) {
+    try {
+      setDeliveryPrompt({ open: false, orderNumber: '' });
+      setLoading(true);
+      await verifyDeliveryCode(deliveryPrompt.orderNumber, code);
+      load();
+    } catch (e: any) {
+      onError(e.message);
+      setLoading(false);
     }
   }
 
   async function handleStart(orderNumber: string) {
     try {
+      setStartConfirm({ open: false, orderNumber: '' });
+      setLoading(true);
       await startTrip(orderNumber);
       load();
     } catch (e: any) {
       onError(e.message);
+      setLoading(false);
     }
   }
 
@@ -349,23 +369,40 @@ function MyOrdersPanel({ onError }: { onError: (m: string) => void }) {
       <div className='space-y-4'>
         {orders.map((order) => (
           <OrderCard key={order.id} order={order} actions={[
-            ...(order.status === 'OUT_FOR_DELIVERY' ? [{ label: 'Picked up', icon: CheckCircle, onClick: () => setPrompt({ open: true, orderNumber: order.orderNumber }) }] : []),
+            ...(order.status === 'OUT_FOR_DELIVERY' ? [{ label: 'I have collected the food', icon: CheckCircle, onClick: () => setPrompt({ open: true, orderNumber: order.orderNumber }) }] : []),
             ...(order.riderStatus === 'PICKED_UP' ? [
-              { label: 'Start trip', icon: Navigation, onClick: () => handleStart(order.orderNumber) },
-              { label: 'Verify delivery', icon: ShieldCheck, onClick: () => { /* handled by verify tab */ } },
+              { label: 'I am on my way', icon: Navigation, onClick: () => setStartConfirm({ open: true, orderNumber: order.orderNumber }) },
+              { label: 'Customer has their food', icon: ShieldCheck, onClick: () => setDeliveryPrompt({ open: true, orderNumber: order.orderNumber }) },
             ] : []),
-            ...(order.riderStatus === 'IN_TRANSIT' ? [{ label: 'Verify delivery', icon: ShieldCheck, onClick: () => { /* handled by verify tab */ } }] : []),
+            ...(order.riderStatus === 'IN_TRANSIT' ? [{ label: 'Customer has their food', icon: ShieldCheck, onClick: () => setDeliveryPrompt({ open: true, orderNumber: order.orderNumber }) }] : []),
           ]} />
         ))}
       </div>
       <PromptModal
         open={prompt.open}
-        title='Pickup code'
-        message='Ask the cook for the pickup code and enter it below.'
+        title='Pickup code from the cook'
+        message='The cook will give you a code to confirm you collected the food. Enter it below.'
         placeholder='Pickup code'
-        confirmLabel='Confirm pickup'
+        confirmLabel='Yes, I have collected the food'
         onConfirm={handlePickupConfirm}
         onCancel={() => setPrompt({ open: false, orderNumber: '' })}
+      />
+      <PromptModal
+        open={deliveryPrompt.open}
+        title='Customer delivery code'
+        message='Ask the customer for the 5-digit code they received. Enter it to finish this delivery.'
+        placeholder='12345'
+        confirmLabel='Delivery completed'
+        onConfirm={handleDeliveryConfirm}
+        onCancel={() => setDeliveryPrompt({ open: false, orderNumber: '' })}
+      />
+      <ConfirmModal
+        open={startConfirm.open}
+        title='Start trip'
+        message='You are about to leave the kitchen with the food. The customer will see that you are on your way. Continue?'
+        confirmLabel='Yes, start trip'
+        onConfirm={() => handleStart(startConfirm.orderNumber)}
+        onCancel={() => setStartConfirm({ open: false, orderNumber: '' })}
       />
     </>
   );
@@ -374,6 +411,7 @@ function MyOrdersPanel({ onError }: { onError: (m: string) => void }) {
 function AvailableOrdersPanel({ onClaim, onError }: { onClaim: () => void; onError: (m: string) => void }) {
   const [orders, setOrders] = useState<RiderOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [claim, setClaim] = useState<{ open: boolean; orderNumber: string }>({ open: false, orderNumber: '' });
 
   async function load() {
     try {
@@ -391,10 +429,13 @@ function AvailableOrdersPanel({ onClaim, onError }: { onClaim: () => void; onErr
 
   async function handleClaim(orderNumber: string) {
     try {
+      setClaim({ open: false, orderNumber: '' });
+      setLoading(true);
       await claimOrder(orderNumber);
       onClaim();
     } catch (e: any) {
       onError(e.message);
+      setLoading(false);
     }
   }
 
@@ -402,13 +443,23 @@ function AvailableOrdersPanel({ onClaim, onError }: { onClaim: () => void; onErr
   if (!orders.length) return <Empty message='No available orders right now.' action={{ label: 'Refresh', onClick: load }} />;
 
   return (
-    <div className='space-y-4'>
-      {orders.map((order) => (
-        <OrderCard key={order.id} order={order} actions={[
-          { label: 'Claim delivery', icon: ArrowRight, onClick: () => handleClaim(order.orderNumber), primary: true },
-        ]} />
-      ))}
-    </div>
+    <>
+      <div className='space-y-4'>
+        {orders.map((order) => (
+          <OrderCard key={order.id} order={order} actions={[
+            { label: 'Yes, I will deliver this', icon: ArrowRight, onClick: () => setClaim({ open: true, orderNumber: order.orderNumber }), primary: true },
+          ]} />
+        ))}
+      </div>
+      <ConfirmModal
+        open={claim.open}
+        title='Take this delivery'
+        message='You are about to promise to pick up this food and take it to the customer. Only claim it if you are ready.'
+        confirmLabel='Claim delivery'
+        onConfirm={() => handleClaim(claim.orderNumber)}
+        onCancel={() => setClaim({ open: false, orderNumber: '' })}
+      />
+    </>
   );
 }
 
