@@ -5,17 +5,27 @@ import { distanceMeters, geocode, LOCAL_SEARCH_RINGS_METERS } from '../lib/locat
 
 const router = Router();
 
-const COOK_SELECT = {
+const COOK_PUBLIC_SELECT = {
   id: true,
   displayName: true,
   profilePhoto: true,
   bio: true,
-  latitude: true,
-  longitude: true,
   cuisineSpecialty: true,
   kitchenStatus: true,
   rating: true,
 } as const;
+
+const COOK_SELECT = {
+  ...COOK_PUBLIC_SELECT,
+  latitude: true,
+  longitude: true,
+} as const;
+
+function stripCookLocation(listing: any) {
+  if (!listing.cook) return listing;
+  const { latitude, longitude, ...publicCook } = listing.cook;
+  return { ...listing, cook: publicCook };
+}
 
 const LISTING_INCLUDE = {
   cook: { select: COOK_SELECT },
@@ -49,7 +59,7 @@ router.get('/', async (req, res, next) => {
       }),
       prisma.cookListing.count({ where }),
     ]);
-    res.json({ listings, total, skip, take });
+    res.json({ listings: listings.map(stripCookLocation), total, skip, take });
   } catch (err) {
     next(err);
   }
@@ -113,7 +123,12 @@ router.get('/around-me', async (req, res, next) => {
       sections.push({ label: 'Closest available', radiusMeters: best[best.length - 1]?.distanceMeters ?? 0, listings: best });
     }
 
-    res.json({ sections, fallback, center: { lat, lng }, total: withDistance.length });
+    res.json({
+      sections: sections.map((s) => ({ ...s, listings: s.listings.map(stripCookLocation) })),
+      fallback,
+      center: { lat, lng },
+      total: withDistance.length,
+    });
   } catch (err) {
     next(err);
   }
@@ -147,7 +162,7 @@ router.get('/nearby', async (req, res, next) => {
       .filter((l) => l.distanceMeters <= radiusKm * 1000)
       .sort((a, b) => a.distanceMeters - b.distanceMeters);
 
-    res.json({ listings: withDistance });
+    res.json({ listings: withDistance.map(stripCookLocation) });
   } catch (err) {
     next(err);
   }
@@ -162,7 +177,7 @@ router.get('/:id', async (req, res, next) => {
     if (!listing || listing.status !== 'APPROVED' || !listing.isActive) {
       throw new ApiError(404, 'Listing not found');
     }
-    res.json({ listing });
+    res.json({ listing: stripCookLocation(listing) });
   } catch (err) {
     next(err);
   }
@@ -178,7 +193,7 @@ router.get('/cooks/:id', async (req, res, next) => {
       },
     });
     if (!cook || cook.profileStatus !== 'APPROVED' || !cook.isActive) throw new ApiError(404, 'Cook not found');
-    res.json({ cook });
+    res.json({ cook: { ...cook, latitude: undefined, longitude: undefined } });
   } catch (err) {
     next(err);
   }
