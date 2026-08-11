@@ -6,6 +6,7 @@ import { prisma } from '../prisma.js';
 import { requireAuth, requireRider, type AuthRequest } from '../middleware/auth.js';
 import { serializeOrder } from '../lib/order.js';
 import { isRiderEligibleForType } from '../lib/assignment.js';
+import { validateLocation } from '../lib/location.js';
 import { ApiError } from '../lib/errors.js';
 import { formatKobo } from '../lib/money.js';
 import { emitEvent } from '../lib/realtime.js';
@@ -387,18 +388,20 @@ router.post('/orders/:orderNumber/verify', requireAuth, requireRider, async (req
 
 router.post('/location', requireAuth, requireRider, async (req: AuthRequest, res, next) => {
   try {
-    const { latitude, longitude } = req.body as { latitude?: number; longitude?: number };
-    if (typeof latitude !== 'number' || typeof longitude !== 'number') {
-      throw new ApiError(400, 'latitude and longitude are required');
-    }
+    const { latitude, longitude, accuracy } = req.body as Record<string, any>;
+    const point = validateLocation({ lat: latitude, lng: longitude });
+    if (!point) throw new ApiError(400, 'latitude and longitude must be valid numbers');
     const rider = await prisma.rider.findUnique({ where: { userId: req.user!.id } });
     if (!rider) throw new ApiError(404, 'Rider not found');
+    if (!rider.available || rider.operationalStatus !== 'ONLINE') {
+      throw new ApiError(409, 'Go online and set yourself as available before reporting location');
+    }
     const location = await prisma.riderLocation.upsert({
       where: { riderId: rider.id },
-      create: { riderId: rider.id, latitude, longitude },
-      update: { latitude, longitude },
+      create: { riderId: rider.id, latitude: point.lat, longitude: point.lng },
+      update: { latitude: point.lat, longitude: point.lng },
     });
-    res.json({ location });
+    res.json({ location: { ...location, accuracy: accuracy != null ? Number(accuracy) : undefined } });
   } catch (e) {
     next(e);
   }
