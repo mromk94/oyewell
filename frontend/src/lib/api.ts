@@ -91,6 +91,35 @@ export interface LocationResult {
   postalCode?: string;
 }
 
+export interface SavedAddress {
+  id: string;
+  label: string;
+  address: string;
+  latitude: number | null;
+  longitude: number | null;
+  isDefault: boolean;
+}
+
+export async function fetchSavedAddresses(token: string): Promise<{ addresses: SavedAddress[] }> {
+  const res = await fetch(`${API_BASE}/api/location/addresses`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const data = (await res.json()) as { addresses: SavedAddress[]; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to load addresses');
+  return data;
+}
+
+export async function saveAddress(token: string, payload: Omit<SavedAddress, 'id'>): Promise<SavedAddress> {
+  const res = await fetch(`${API_BASE}/api/location/addresses`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload),
+  });
+  const data = (await res.json()) as { address: SavedAddress; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to save address');
+  return data.address;
+}
+
 export async function reverseGeocode(lat: number, lng: number): Promise<LocationResult> {
   const res = await fetch(`${API_BASE}/api/location/reverse?lat=${lat}&lng=${lng}`);
   const data = (await res.json()) as { location: LocationResult | null; error?: string };
