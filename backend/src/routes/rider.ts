@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../prisma.js';
 import { requireAuth, requireRider, type AuthRequest } from '../middleware/auth.js';
 import { serializeOrder } from '../lib/order.js';
@@ -303,6 +304,12 @@ router.post('/orders/:orderNumber/claim', requireAuth, requireRider, async (req:
     });
     res.json({ order: serializeOrder(updated) });
   } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError) {
+      if (e.code === 'P2025') {
+        next(new ApiError(409, 'This delivery has already been claimed by another partner'));
+        return;
+      }
+    }
     next(e);
   }
 });
