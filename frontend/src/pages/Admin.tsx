@@ -15,6 +15,9 @@ import {
   Bike,
   ChefHat,
   Map,
+  X,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import Logo from '../components/Logo';
 import { MapView } from '../components/MapView';
@@ -757,6 +760,8 @@ function CooksTab({ cooks, onRefresh }: { cooks: any[]; onRefresh: () => void })
 
 function CookListingsTab({ listings, onRefresh }: { listings: any[]; onRefresh: () => void }) {
   const [processing, setProcessing] = useState<string | null>(null);
+  const [selected, setSelected] = useState<any | null>(null);
+  const [mediaIndex, setMediaIndex] = useState(0);
 
   async function handleApprove(id: string) {
     if (!confirm('Approve this listing?')) return;
@@ -796,6 +801,39 @@ function CookListingsTab({ listings, onRefresh }: { listings: any[]; onRefresh: 
     }
   }
 
+  function open(listing: any) {
+    setSelected(listing);
+    setMediaIndex(0);
+  }
+
+  function close() {
+    setSelected(null);
+  }
+
+  const media = selected?.media ?? [];
+  const activeMedia = media[mediaIndex] ?? null;
+
+  function nextMedia() {
+    setMediaIndex((i) => (i + 1) % media.length);
+  }
+
+  function prevMedia() {
+    setMediaIndex((i) => (i - 1 + media.length) % media.length);
+  }
+
+  function statusColor(status: string) {
+    switch (status) {
+      case 'APPROVED':
+        return 'bg-emerald-500/20 text-emerald-300';
+      case 'PENDING_REVIEW':
+        return 'bg-yellow-500/20 text-yellow-300';
+      case 'REJECTED':
+        return 'bg-red-500/20 text-red-300';
+      default:
+        return 'bg-white/10 text-white/70';
+    }
+  }
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-white">Home cook listings</h2>
@@ -810,36 +848,195 @@ function CookListingsTab({ listings, onRefresh }: { listings: any[]; onRefresh: 
                 <div>
                   <p className="font-bold text-white">{listing.title}</p>
                   <p className="text-sm text-white/60">{listing.cook?.displayName}</p>
-                  <p className="text-sm text-white/60">{formatPrice(listing.priceKobo)} · {listing.status}</p>
+                  <p className="mt-1 flex items-center gap-2 text-sm text-white/60">
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${statusColor(listing.status)}`}>
+                      {listing.status?.replace(/_/g, ' ')}
+                    </span>
+                    <span>{formatPrice(listing.priceKobo)}</span>
+                    {listing.featured && <span className="text-yellow-300">★ Featured</span>}
+                  </p>
                 </div>
-                <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => open(listing)}
+                    className="rounded-full border border-white/20 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/10"
+                  >
+                    View
+                  </button>
                   <button
                     onClick={() => handleApprove(listing.id)}
                     disabled={processing === listing.id || listing.status === 'APPROVED'}
-                    className="rounded-full bg-emerald-500 px-6 py-2 font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50"
+                    className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50"
                   >
                     {processing === listing.id ? '...' : 'Approve'}
                   </button>
                   <button
                     onClick={() => handleReject(listing.id)}
                     disabled={processing === listing.id}
-                    className="rounded-full bg-red-500/20 px-6 py-2 font-bold text-red-300 transition hover:bg-red-500/30 disabled:opacity-50"
+                    className="rounded-full bg-red-500/20 px-4 py-2 text-sm font-bold text-red-300 transition hover:bg-red-500/30 disabled:opacity-50"
                   >
                     Reject
                   </button>
                   <button
                     onClick={() => handleFeature(listing.id, !listing.featured)}
                     disabled={processing === listing.id}
-                    className={`rounded-full px-6 py-2 font-bold transition disabled:opacity-50 ${
+                    className={`rounded-full px-4 py-2 text-sm font-bold transition disabled:opacity-50 ${
                       listing.featured ? 'bg-yellow-500/20 text-yellow-300' : 'border border-white/20 text-white'
                     }`}
                   >
-                    {listing.featured ? 'Featured' : 'Feature'}
+                    {listing.featured ? 'Unfeature' : 'Feature'}
                   </button>
                 </div>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {selected && (
+        <div className="fixed inset-0 z-50 bg-black/80 p-4 backdrop-blur-sm md:p-8">
+          <div className="mx-auto h-full max-w-6xl overflow-hidden rounded-3xl border border-white/10 bg-brand-900 shadow-2xl">
+            <div className="flex h-full flex-col lg:flex-row">
+              <div className="relative flex flex-1 flex-col border-b border-white/10 bg-black/30 p-4 lg:border-b-0 lg:border-r">
+                <button
+                  onClick={close}
+                  className="absolute right-4 top-4 z-10 rounded-full bg-black/50 p-2 text-white transition hover:bg-white/20"
+                  aria-label="Close"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+                <div className="flex flex-1 items-center justify-center">
+                  {activeMedia ? (
+                    activeMedia.type === 'VIDEO' ? (
+                      <video
+                        src={activeMedia.url}
+                        poster={activeMedia.thumbnailUrl}
+                        controls
+                        playsInline
+                        className="max-h-[60vh] w-full rounded-2xl object-contain"
+                      />
+                    ) : (
+                      <img
+                        src={activeMedia.url}
+                        alt={selected.title}
+                        className="max-h-[60vh] w-full rounded-2xl object-contain"
+                      />
+                    )
+                  ) : (
+                    <p className="text-white/50">No media</p>
+                  )}
+                </div>
+                {media.length > 1 && (
+                  <div className="mt-4 flex items-center justify-center gap-4">
+                    <button onClick={prevMedia} className="rounded-full bg-white/10 p-2 text-white hover:bg-white/20">
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <span className="text-sm text-white/70">
+                      {mediaIndex + 1} / {media.length}
+                    </span>
+                    <button onClick={nextMedia} className="rounded-full bg-white/10 p-2 text-white hover:bg-white/20">
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="h-96 flex-1 overflow-y-auto p-6 lg:h-auto">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="text-2xl font-bold text-white">{selected.title}</h3>
+                    <p className="mt-1 text-xl font-semibold text-emerald-300">{formatPrice(selected.priceKobo)}</p>
+                  </div>
+                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${statusColor(selected.status)}`}>
+                    {selected.status?.replace(/_/g, ' ')}
+                  </span>
+                </div>
+
+                {selected.description && (
+                  <p className="mt-4 text-white/80">{selected.description}</p>
+                )}
+
+                <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-sm text-white/50">Cuisine</p>
+                    <p className="font-semibold text-white">{selected.cuisine || '—'}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-sm text-white/50">Prep time</p>
+                    <p className="font-semibold text-white">
+                      {selected.prepTimeMinutesMax ? `${selected.prepTimeMinutesMax} min` : '—'}
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-sm text-white/50">Stock</p>
+                    <p className="font-semibold text-white">{selected.stock ?? selected.quantity ?? '—'}</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-sm text-white/50">Engagement</p>
+                    <p className="font-semibold text-white">{selected.likeCount ?? 0} likes · {selected.viewCount ?? 0} views</p>
+                  </div>
+                </div>
+
+                <div className="mt-6 space-y-2 text-sm text-white/80">
+                  {selected.ingredients && (
+                    <p><span className="text-white/50">Ingredients:</span> {selected.ingredients}</p>
+                  )}
+                  {selected.allergens && (
+                    <p><span className="text-white/50">Allergens:</span> {selected.allergens}</p>
+                  )}
+                  {selected.portionDescription && (
+                    <p><span className="text-white/50">Portion:</span> {selected.portionDescription}</p>
+                  )}
+                </div>
+
+                <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <h4 className="font-bold text-white">Cook</h4>
+                  <div className="mt-2 space-y-1 text-sm text-white/80">
+                    <p><span className="text-white/50">Name:</span> {selected.cook?.displayName || '—'}</p>
+                    <p><span className="text-white/50">Email:</span> {selected.cook?.user?.email || '—'}</p>
+                    <p><span className="text-white/50">Phone:</span> {selected.cook?.user?.phone || '—'}</p>
+                    <p><span className="text-white/50">Profile status:</span> {selected.cook?.profileStatus || '—'}</p>
+                    <p><span className="text-white/50">Rating:</span> {selected.cook?.rating ? selected.cook.rating.toFixed(1) : '—'}</p>
+                    <p><span className="text-white/50">Address:</span> {selected.cook?.address || '—'}</p>
+                    <p>
+                      <span className="text-white/50">Verified:</span>{' '}
+                      {selected.cook?.verified ? 'Yes' : 'No'} ·{' '}
+                      <span className="text-white/50">Packaging approved:</span>{' '}
+                      {selected.cook?.packagingApproved ? 'Yes' : 'No'} ·{' '}
+                      <span className="text-white/50">Banned:</span>{' '}
+                      {selected.cook?.banned ? 'Yes' : 'No'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <button
+                    onClick={() => handleApprove(selected.id)}
+                    disabled={processing === selected.id || selected.status === 'APPROVED'}
+                    className="rounded-full bg-emerald-500 px-6 py-2 font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50"
+                  >
+                    {processing === selected.id ? '...' : 'Approve'}
+                  </button>
+                  <button
+                    onClick={() => handleReject(selected.id)}
+                    disabled={processing === selected.id}
+                    className="rounded-full bg-red-500/20 px-6 py-2 font-bold text-red-300 transition hover:bg-red-500/30 disabled:opacity-50"
+                  >
+                    Reject
+                  </button>
+                  <button
+                    onClick={() => handleFeature(selected.id, !selected.featured)}
+                    disabled={processing === selected.id}
+                    className={`rounded-full px-6 py-2 font-bold transition disabled:opacity-50 ${
+                      selected.featured ? 'bg-yellow-500/20 text-yellow-300' : 'border border-white/20 text-white'
+                    }`}
+                  >
+                    {selected.featured ? 'Unfeature' : 'Feature'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
