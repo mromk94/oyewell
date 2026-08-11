@@ -117,11 +117,11 @@ export default function RidersTab({ riders, onRefresh }: { riders: any[]; onRefr
     if (!q) return list;
     return list.filter(
       (r) =>
-        r.user?.firstName?.toLowerCase().includes(q) ||
-        r.user?.lastName?.toLowerCase().includes(q) ||
-        r.user?.email?.toLowerCase().includes(q) ||
-        r.user?.phone?.toLowerCase().includes(q) ||
-        r.vehicle?.toLowerCase().includes(q)
+        r.user?.firstName?.toLowerCase()?.includes(q) ||
+        r.user?.lastName?.toLowerCase()?.includes(q) ||
+        r.user?.email?.toLowerCase()?.includes(q) ||
+        r.user?.phone?.toLowerCase()?.includes(q) ||
+        r.vehicle?.toLowerCase()?.includes(q)
     );
   }, [riders, query, subTab]);
 

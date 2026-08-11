@@ -34,8 +34,11 @@ export default function DeliveryApplicationModal({
   onClose: () => void;
   onSubmitted: () => void;
 }) {
-  const rawData = existing?.onboardingData && typeof existing.onboardingData === 'object' ? existing.onboardingData as Record<string, any> : {};
-  const data = Object.fromEntries(Object.entries(rawData).filter(([k]) => !k.startsWith('__')));
+  const rawData = existing?.onboardingData && typeof existing.onboardingData === 'object' ? (existing.onboardingData as Record<string, any>) : {};
+  const data = Object.entries(rawData).reduce<Record<string, any>>((acc, [k, v]) => {
+    if (!k.startsWith('__')) acc[k] = v;
+    return acc;
+  }, {});
   const [step, setStep] = useState(0);
   const [mode, setMode] = useState(existing?.deliveryMode || 'MOTORCYCLE');
   const [vehicle, setVehicle] = useState(existing?.vehicle || '');
