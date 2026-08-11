@@ -22,8 +22,7 @@ export async function createDispute(input: {
       cookId: input.cookId,
       riderId: input.riderId,
       description: input.description,
-      evidence: input.evidence ?? [],
-      timeline: [{ at: new Date().toISOString(), event: 'Dispute opened' }],
+        timeline: [{ at: new Date().toISOString(), event: 'Dispute opened' }],
     },
   });
 }

@@ -896,7 +896,6 @@ model Dispute {
   status        DisputeStatus @default(OPEN)
   assignedTo    String?
   description   String?
-  evidence      String[]
   timeline      Json?         @default("[]")
   resolution    String?
   refundKobo    Int?
@@ -906,4 +905,32 @@ model Dispute {
   @@index([customerId, createdAt])
   @@index([status, createdAt])
   @@index([assignedTo, status])
+}
+
+enum CaseEvidenceType {
+  ORDER_SNAPSHOT
+  PAYMENT_RECORD
+  CHAT_MESSAGE
+  LOCATION_RECORD
+  UPLOADED_PHOTO
+  UPLOADED_VIDEO
+  SYSTEM_LOG
+  REFUND_RECORD
+  TIMELINE_EVENT
+}
+
+model CaseEvidence {
+  id          String          @id @default(cuid())
+  caseType    String          // DISPUTE, TICKET, REPORT, APPROVAL
+  caseId      String
+  evidenceType CaseEvidenceType
+  title       String?
+  description String?
+  data        Json?           @default("{}")
+  sourceUrl   String?
+  createdBy   String?
+  createdAt   DateTime        @default(now())
+
+  @@index([caseType, caseId])
+  @@index([evidenceType, createdAt])
 }
