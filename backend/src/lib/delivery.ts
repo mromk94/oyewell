@@ -2,8 +2,26 @@ import { prisma } from '../prisma.js';
 import { DeliveryType, DeliveryZone, DeliveryZoneType } from '@prisma/client';
 import { getMapProvider } from './maps.js';
 
-const PROFESSIONAL_MULTIPLIER = 1.5;
-const PROFESSIONAL_TIME_MULTIPLIER = 0.8;
+async function getZoneCenter(zone: DeliveryZone): Promise<Coords | null> {
+  const boundary = zone.boundary as Record<string, unknown>;
+  switch (zone.type) {
+    case DeliveryZoneType.RADIUS: {
+      const lat = Number(boundary.lat ?? 0);
+      const lng = Number(boundary.lng ?? 0);
+      if (lat && lng) return { lat, lng };
+      return null;
+    }
+    case DeliveryZoneType.POLYGON: {
+      const coords = (boundary.coordinates as number[][]) ?? [];
+      if (coords.length === 0) return null;
+      const lat = coords.reduce((sum, [x]) => sum + x, 0) / coords.length;
+      const lng = coords.reduce((sum, [, y]) => sum + y, 0) / coords.length;
+      return { lat, lng };
+    }
+    default:
+      return null;
+  }
+}
 
 export interface Coords {
   lat: number;
@@ -137,17 +155,32 @@ export async function resolveDelivery(address: string, subtotalKobo: number, typ
   const coords = await geocodeAddress(address);
   const zone = await findDeliveryZone(address, coords);
   if (!zone) return null;
-  if (zone.minOrderKobo && subtotalKobo < zone.minOrderKobo) {
+
+  const rule = await prisma.deliveryPricingRule.findFirst({
+    where: { deliveryZoneId: zone.id, deliveryType: type, enabled: true },
+  });
+
+  const minOrderKobo = rule?.minOrderKobo ?? zone.minOrderKobo;
+  if (minOrderKobo && subtotalKobo < minOrderKobo) {
     return { zone, feeKobo: 0, available: false, reason: 'Minimum order not met' };
   }
-  const feeKobo =
-    type === DeliveryType.PROFESSIONAL
-      ? Math.round(zone.feeKobo * PROFESSIONAL_MULTIPLIER)
-      : zone.feeKobo;
+
+  let feeKobo = rule?.baseFeeKobo ?? zone.feeKobo;
+
+  if (rule && rule.perMeterKobo > 0 && coords) {
+    const center = await getZoneCenter(zone);
+    if (center) {
+      const distance = haversineMeters(center, coords);
+      feeKobo += Math.round(rule.perMeterKobo * distance);
+    }
+  }
+
   const estimatedMinutes =
-    type === DeliveryType.PROFESSIONAL && zone.estimatedMinutes
-      ? Math.max(10, Math.round(zone.estimatedMinutes * PROFESSIONAL_TIME_MULTIPLIER))
-      : zone.estimatedMinutes;
+    rule?.estimatedMinutes ??
+    (type === DeliveryType.PROFESSIONAL && zone.estimatedMinutes
+      ? Math.max(10, Math.round(zone.estimatedMinutes * 0.8))
+      : zone.estimatedMinutes);
+
   return {
     zone,
     feeKobo,

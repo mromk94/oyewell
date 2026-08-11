@@ -82,17 +82,34 @@ enum DeliveryZoneType {
 }
 
 model DeliveryZone {
-  id               String           @id @default(cuid())
+  id               String                @id @default(cuid())
   name             String
   type             DeliveryZoneType
   boundary         Json
-  isActive         Boolean          @default(true)
-  feeKobo          Int              @default(0)
+  isActive         Boolean               @default(true)
+  feeKobo          Int                   @default(0)
   minOrderKobo     Int?
   estimatedMinutes Int?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
   orders           Order[]
+  pricingRules     DeliveryPricingRule[]
+}
+
+model DeliveryPricingRule {
+  id              String        @id @default(cuid())
+  zone            DeliveryZone  @relation(fields: [deliveryZoneId], references: [id], onDelete: Cascade)
+  deliveryZoneId  String
+  deliveryType    DeliveryType
+  baseFeeKobo     Int           @default(0)
+  perMeterKobo    Int           @default(0)
+  minOrderKobo    Int           @default(0)
+  estimatedMinutes Int?
+  enabled         Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([deliveryZoneId, deliveryType])
 }
 
 model Rider {

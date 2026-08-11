@@ -780,4 +780,55 @@ router.get('/cook-earnings', async (_req, res, next) => {
   }
 });
 
+router.get('/delivery-pricing-rules', async (_req, res, next) => {
+  try {
+    const rules = await prisma.deliveryPricingRule.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { zone: { select: { id: true, name: true } } },
+    });
+    res.json({ rules });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/delivery-pricing-rules', async (req, res, next) => {
+  try {
+    const { deliveryZoneId, deliveryType, baseFeeKobo, perMeterKobo, minOrderKobo, estimatedMinutes, enabled } = req.body as Record<string, unknown>;
+    if (!deliveryZoneId || !deliveryType) throw new ApiError(400, 'Zone and delivery type required');
+    const rule = await prisma.deliveryPricingRule.upsert({
+      where: { deliveryZoneId_deliveryType: { deliveryZoneId: String(deliveryZoneId), deliveryType: String(deliveryType) as any } },
+      create: {
+        deliveryZoneId: String(deliveryZoneId),
+        deliveryType: String(deliveryType) as any,
+        baseFeeKobo: Number(baseFeeKobo ?? 0),
+        perMeterKobo: Number(perMeterKobo ?? 0),
+        minOrderKobo: Number(minOrderKobo ?? 0),
+        estimatedMinutes: estimatedMinutes !== undefined ? Number(estimatedMinutes) : null,
+        enabled: enabled !== undefined ? Boolean(enabled) : true,
+      },
+      update: {
+        baseFeeKobo: Number(baseFeeKobo ?? 0),
+        perMeterKobo: Number(perMeterKobo ?? 0),
+        minOrderKobo: Number(minOrderKobo ?? 0),
+        estimatedMinutes: estimatedMinutes !== undefined ? Number(estimatedMinutes) : null,
+        enabled: enabled !== undefined ? Boolean(enabled) : true,
+      },
+      include: { zone: { select: { id: true, name: true } } },
+    });
+    res.status(201).json({ rule });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/delivery-pricing-rules/:id', async (req, res, next) => {
+  try {
+    await prisma.deliveryPricingRule.delete({ where: { id: req.params.id } });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;
