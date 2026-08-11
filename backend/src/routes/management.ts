@@ -8,6 +8,29 @@ const router = Router();
 
 router.use(requireAuth, requireRole('ADMIN'));
 
+router.get('/reports', async (_req, res, next) => {
+  try {
+    const [openTickets, resolvedTickets, openDisputes, resolvedDisputes, refunds, cooksPending, cooksApproved, reportsByType] = await Promise.all([
+      prisma.ticket.count({ where: { status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
+      prisma.ticket.count({ where: { status: 'RESOLVED' } }),
+      prisma.dispute.count({ where: { status: { in: ['OPEN', 'UNDER_REVIEW'] } } }),
+      prisma.dispute.count({ where: { status: 'RESOLVED' } }),
+      prisma.dispute.aggregate({ where: { status: 'RESOLVED' }, _sum: { refundKobo: true } }),
+      prisma.cookProfile.count({ where: { profileStatus: 'PENDING_APPROVAL' } }),
+      prisma.cookProfile.count({ where: { profileStatus: 'APPROVED' } }),
+      prisma.report.groupBy({ by: ['targetType'], _count: { id: true } }),
+    ]);
+    res.json({
+      support: { openTickets, resolvedTickets },
+      disputes: { openDisputes, resolvedDisputes, refundKobo: refunds._sum.refundKobo ?? 0 },
+      community: { pendingApplications: cooksPending, approvedApplications: cooksApproved, approvalRate: cooksPending + cooksApproved === 0 ? 0 : cooksApproved / (cooksPending + cooksApproved) },
+      moderation: reportsByType,
+    });
+  } catch (e) {
+    next(e);
+  }
+});
+
 router.get('/dashboard', async (_req, res, next) => {
   try {
     const today = new Date();
