@@ -189,12 +189,24 @@ export default function Cook() {
 }
 
 function CookApply({ onApply }: { onApply: (c: CookProfile) => void }) {
+  const [step, setStep] = useState(1);
   const [form, setForm] = useState({
     displayName: '',
     bio: '',
     cuisineSpecialty: '',
     serviceRadiusKm: '5',
     profilePhoto: '',
+    categories: '',
+    signatureDishes: '',
+    capacity: '',
+    prepTime: '',
+    packagingPhotos: '',
+    safety: {
+      hygiene: false,
+      allergens: false,
+      temperature: false,
+      labeling: false,
+    },
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -204,12 +216,22 @@ function CookApply({ onApply }: { onApply: (c: CookProfile) => void }) {
     setLoading(true);
     setError(null);
     try {
+      const packagingPhotos = form.packagingPhotos.split('\n').map((u) => u.trim()).filter(Boolean);
+      const safetyAcknowledgements = Object.entries(form.safety)
+        .filter(([, v]) => v)
+        .map(([k]) => k);
       const res = await applyAsCook({
         displayName: form.displayName,
         bio: form.bio,
         cuisineSpecialty: form.cuisineSpecialty,
         serviceRadiusKm: Number(form.serviceRadiusKm) || 5,
         profilePhoto: form.profilePhoto,
+        categories: form.categories.split(',').map((c) => c.trim()).filter(Boolean),
+        signatureDishes: form.signatureDishes.split(',').map((c) => c.trim()).filter(Boolean),
+        capacity: form.capacity,
+        prepTime: form.prepTime,
+        packagingPhotos,
+        safetyAcknowledgements,
       });
       if (res.cook) onApply(res.cook as CookProfile);
     } catch (e) {
@@ -231,46 +253,120 @@ function CookApply({ onApply }: { onApply: (c: CookProfile) => void }) {
         <p className='mt-2 text-sm text-white/60'>Apply to cook and sell food in your neighborhood.</p>
         {error && <p className='mt-4 text-sm text-red-300'>{error}</p>}
         <form onSubmit={handleSubmit} className='mt-6 space-y-4'>
-          <input
-            placeholder='Kitchen / display name'
-            value={form.displayName}
-            onChange={(e) => setForm({ ...form, displayName: e.target.value })}
-            className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
-            required
-          />
-          <input
-            placeholder='What you cook (cuisine)'
-            value={form.cuisineSpecialty}
-            onChange={(e) => setForm({ ...form, cuisineSpecialty: e.target.value })}
-            className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
-          />
-          <input
-            type='number'
-            placeholder='Delivery radius (km)'
-            value={form.serviceRadiusKm}
-            onChange={(e) => setForm({ ...form, serviceRadiusKm: e.target.value })}
-            className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
-          />
-          <input
-            placeholder='Profile photo URL'
-            value={form.profilePhoto}
-            onChange={(e) => setForm({ ...form, profilePhoto: e.target.value })}
-            className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
-          />
-          <textarea
-            placeholder='Tell customers about your kitchen'
-            value={form.bio}
-            onChange={(e) => setForm({ ...form, bio: e.target.value })}
-            className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
-            rows={3}
-          />
-          <button
-            type='submit'
-            disabled={loading}
-            className='w-full rounded-full bg-emerald-500 py-3 font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50'
-          >
-            {loading ? <Loader2 className='mx-auto h-5 w-5 animate-spin' /> : 'Submit application'}
-          </button>
+          {step === 1 ? (
+            <div className='space-y-4'>
+              <input
+                placeholder='Kitchen / display name'
+                value={form.displayName}
+                onChange={(e) => setForm({ ...form, displayName: e.target.value })}
+                className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+                required
+              />
+              <input
+                placeholder='What you cook (cuisine)'
+                value={form.cuisineSpecialty}
+                onChange={(e) => setForm({ ...form, cuisineSpecialty: e.target.value })}
+                className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+              />
+              <input
+                type='number'
+                placeholder='Delivery radius (km)'
+                value={form.serviceRadiusKm}
+                onChange={(e) => setForm({ ...form, serviceRadiusKm: e.target.value })}
+                className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+              />
+              <input
+                placeholder='Profile photo URL'
+                value={form.profilePhoto}
+                onChange={(e) => setForm({ ...form, profilePhoto: e.target.value })}
+                className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+              />
+              <input
+                placeholder='Categories (comma separated)'
+                value={form.categories}
+                onChange={(e) => setForm({ ...form, categories: e.target.value })}
+                className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+              />
+              <input
+                placeholder='Signature dishes (comma separated)'
+                value={form.signatureDishes}
+                onChange={(e) => setForm({ ...form, signatureDishes: e.target.value })}
+                className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+              />
+              <input
+                placeholder='Capacity (e.g. 20 meals/day)'
+                value={form.capacity}
+                onChange={(e) => setForm({ ...form, capacity: e.target.value })}
+                className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+              />
+              <input
+                placeholder='Average prep time'
+                value={form.prepTime}
+                onChange={(e) => setForm({ ...form, prepTime: e.target.value })}
+                className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+              />
+              <textarea
+                placeholder='Tell customers about your kitchen'
+                value={form.bio}
+                onChange={(e) => setForm({ ...form, bio: e.target.value })}
+                className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+                rows={3}
+              />
+              <button
+                type='button'
+                onClick={() => setStep(2)}
+                className='w-full rounded-full bg-white/10 py-3 font-bold text-white transition hover:bg-white/20'
+              >
+                Continue
+              </button>
+            </div>
+          ) : (
+            <div className='space-y-4'>
+              <p className='text-sm text-white/60'>Packaging & safety</p>
+              <textarea
+                placeholder='Packaging photo URLs (one per line)'
+                value={form.packagingPhotos}
+                onChange={(e) => setForm({ ...form, packagingPhotos: e.target.value })}
+                className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+                rows={4}
+              />
+              {Object.entries(form.safety).map(([key, checked]) => (
+                <label key={key} className='flex items-center gap-2 text-sm text-white/80'>
+                  <input
+                    type='checkbox'
+                    checked={checked}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        safety: { ...form.safety, [key]: e.target.checked },
+                      })
+                    }
+                    className='h-4 w-4 rounded border-white/30'
+                  />
+                  {key === 'hygiene' && 'I follow good food hygiene practices'}
+                  {key === 'allergens' && 'I handle allergens safely and label them'}
+                  {key === 'temperature' && 'I keep hot and cold foods at safe temperatures'}
+                  {key === 'labeling' && 'I label packages with contents and date'}
+                </label>
+              ))}
+              <div className='flex gap-3'>
+                <button
+                  type='button'
+                  onClick={() => setStep(1)}
+                  className='flex-1 rounded-full bg-white/10 py-3 font-bold text-white transition hover:bg-white/20'
+                >
+                  Back
+                </button>
+                <button
+                  type='submit'
+                  disabled={loading}
+                  className='flex-1 rounded-full bg-emerald-500 py-3 font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50'
+                >
+                  {loading ? <Loader2 className='mx-auto h-5 w-5 animate-spin' /> : 'Submit application'}
+                </button>
+              </div>
+            </div>
+          )}
         </form>
       </motion.div>
     </div>

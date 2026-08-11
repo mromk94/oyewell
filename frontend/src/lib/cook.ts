@@ -90,6 +90,12 @@ export async function applyAsCook(body: {
   serviceRadiusKm?: number;
   cuisineSpecialty?: string;
   profilePhoto?: string;
+  packagingPhotos?: string[];
+  safetyAcknowledgements?: string[];
+  categories?: string[];
+  signatureDishes?: string[];
+  capacity?: string;
+  prepTime?: string;
 }) {
   const res = await fetch(`${API_BASE}/api/cooks/apply`, {
     method: 'POST',
