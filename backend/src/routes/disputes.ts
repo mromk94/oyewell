@@ -3,6 +3,7 @@ import { ApiError } from '../lib/errors.js';
 import { createDispute, getDisputes, getDispute, assignDispute, resolveDispute, addDisputeTimelineEvent } from '../lib/disputes.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { hasPermission, isWithinLimit } from '../lib/management.js';
+import { logAudit } from '../lib/audit.js';
 
 const router = Router();
 
@@ -44,6 +45,15 @@ router.post('/', async (req: AuthRequest, res, next) => {
       description,
       evidence,
     });
+    await logAudit({
+      actorId: req.user!.id,
+      action: 'DISPUTE_CREATED',
+      targetId: dispute.id,
+      targetType: 'DISPUTE',
+      reference: dispute.disputeNumber,
+      newState: { type, orderId, status: dispute.status },
+      ip: req.ip ?? undefined,
+    });
     res.status(201).json({ dispute });
   } catch (e) {
     next(e);
@@ -56,7 +66,18 @@ router.patch('/:id/assign', async (req: AuthRequest, res, next) => {
     if (!allowed) throw new ApiError(403, 'Forbidden');
     const { assignedTo } = req.body as Record<string, any>;
     if (!assignedTo) throw new ApiError(400, 'assignedTo is required');
+    const before = await getDispute(req.params.id);
     const dispute = await assignDispute(req.params.id, assignedTo);
+    await logAudit({
+      actorId: req.user!.id,
+      action: 'DISPUTE_ASSIGNED',
+      targetId: dispute.id,
+      targetType: 'DISPUTE',
+      reference: dispute.disputeNumber,
+      oldState: { assignedTo: before?.assignedTo },
+      newState: { assignedTo: dispute.assignedTo },
+      ip: req.ip ?? undefined,
+    });
     res.json({ dispute });
   } catch (e) {
     next(e);
@@ -71,7 +92,19 @@ router.patch('/:id/resolve', async (req: AuthRequest, res, next) => {
     if (!resolution) throw new ApiError(400, 'resolution is required');
     const withinLimit = refundKobo == null || await isWithinLimit(req.user!.id, 'REFUND_APPROVE', refundKobo);
     if (!withinLimit) throw new ApiError(403, 'Refund exceeds your authorization limit');
+    const before = await getDispute(req.params.id);
     const dispute = await resolveDispute(req.params.id, resolution, refundKobo);
+    await logAudit({
+      actorId: req.user!.id,
+      action: 'DISPUTE_RESOLVED',
+      targetId: dispute.id,
+      targetType: 'DISPUTE',
+      reference: dispute.disputeNumber,
+      oldState: { status: before?.status, refundKobo: before?.refundKobo },
+      newState: { status: dispute.status, resolution, refundKobo: dispute.refundKobo },
+      reason: resolution,
+      ip: req.ip ?? undefined,
+    });
     res.json({ dispute });
   } catch (e) {
     next(e);
