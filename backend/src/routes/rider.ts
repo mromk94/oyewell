@@ -403,7 +403,6 @@ router.post('/location', requireAuth, requireRider, async (req: AuthRequest, res
     });
     emitEvent('rider:location', {
       riderId: rider.id,
-      userId: req.user!.id,
       lat: point.lat,
       lng: point.lng,
       updatedAt: location.updatedAt,
