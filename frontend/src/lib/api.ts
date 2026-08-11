@@ -125,6 +125,29 @@ export async function createOrder(
       'Content-Type': 'application/json',
       ...(customerToken ? { Authorization: `Bearer ${customerToken}` } : {}),
     },
+    body: JSON.stringify({ ...payload, source: 'RESTAURANT' }),
+  });
+  const data = (await res.json()) as CreatedOrder & { error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Order creation failed');
+  return data;
+}
+
+export async function createCookOrder(
+  payload: {
+    cookListingId: string;
+    quantity: number;
+    address: string;
+    phone: string;
+    paymentProvider: string;
+  },
+  customerToken?: string | null
+): Promise<CreatedOrder> {
+  const res = await fetch(`${API_BASE}/api/orders`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(customerToken ? { Authorization: `Bearer ${customerToken}` } : {}),
+    },
     body: JSON.stringify(payload),
   });
   const data = (await res.json()) as CreatedOrder & { error?: string };

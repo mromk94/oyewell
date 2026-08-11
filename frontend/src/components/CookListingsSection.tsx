@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import CookListingCard from './CookListingCard';
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export default function CookListingsSection({ title, listings, loading, onSeeAll }: Props) {
+  const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -86,7 +88,7 @@ export default function CookListingsSection({ title, listings, loading, onSeeAll
       >
         {listings.map((l) => (
           <div key={l.id} className='w-72 shrink-0'>
-            <CookListingCard listing={l} onClick={() => {}} />
+            <CookListingCard listing={l} onClick={() => navigate(`/cook-listing/${l.id}`)} />
           </div>
         ))}
       </motion.div>

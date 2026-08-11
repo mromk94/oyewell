@@ -80,7 +80,7 @@ export default function Home() {
   return (
     <>
       <Logo />
-      <div className="fixed left-0 right-0 top-0 z-40 flex justify-center bg-gradient-to-b from-black/60 to-transparent pb-6 pt-4">
+      <div className="fixed left-0 right-0 top-20 z-30 flex justify-center bg-gradient-to-b from-black/70 via-black/40 to-transparent pb-6 pt-3">
         <DiscoveryNav current={view} onChange={setView} />
       </div>
       <main

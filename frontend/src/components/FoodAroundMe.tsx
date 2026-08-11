@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, Loader2, AlertCircle } from 'lucide-react';
 import CookListingCard from './CookListingCard';
 import { fetchCookListingsNearby, type CookListing } from '../lib/listings';
 
 export default function FoodAroundMe() {
+  const navigate = useNavigate();
   const [listings, setListings] = useState<CookListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,7 +96,7 @@ export default function FoodAroundMe() {
       >
         {listings.map((l) => (
           <div key={l.id} className='w-72 shrink-0'>
-            <CookListingCard listing={l} distance={l.distanceKm} onClick={() => {}} />
+            <CookListingCard listing={l} distance={l.distanceKm} onClick={() => navigate(`/cook-listing/${l.id}`)} />
           </div>
         ))}
       </motion.div>

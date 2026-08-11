@@ -63,3 +63,10 @@ export async function fetchCookPublic(cookId: string) {
   if (!res.ok) throw new Error('Failed to load cook');
   return res.json() as Promise<{ cook: any }>;
 }
+
+export async function fetchCookListing(id: string) {
+  const res = await fetch(`${API_BASE}/api/listings/${id}`);
+  if (!res.ok) throw new Error('Failed to load listing');
+  const data = (await res.json()) as { listing: CookListing };
+  return { ...data.listing, price: formatPrice(data.listing.priceKobo) };
+}
