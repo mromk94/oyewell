@@ -213,7 +213,7 @@ router.get('/me/orders', requireAuth, requireRole('COOK'), async (req: AuthReque
       orderBy: { createdAt: 'desc' },
       include: { items: true, sides: true, payment: true, statusHistory: true },
     });
-    res.json({ orders: orders.map(serializeOrder) });
+    res.json({ orders: orders.map((o) => serializeOrder(o)) });
   } catch (err) {
     next(err);
   }

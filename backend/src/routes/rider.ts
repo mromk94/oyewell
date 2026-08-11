@@ -237,7 +237,7 @@ router.get('/available', requireAuth, requireRider, async (req: AuthRequest, res
     const filtered = orders.filter((order) =>
       isRiderEligibleForType(rider, (order.deliveryType as any) ?? 'NEIGHBORHOOD'),
     );
-    res.json({ orders: filtered.map(serializeOrder) });
+    res.json({ orders: filtered.map((o) => serializeOrder(o, true)) });
   } catch (e) {
     next(e);
   }
@@ -252,7 +252,7 @@ router.get('/orders', requireAuth, requireRider, async (req: AuthRequest, res, n
       orderBy: { createdAt: 'desc' },
       include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
     });
-    res.json({ orders: orders.map(serializeOrder) });
+    res.json({ orders: orders.map((o) => serializeOrder(o, true)) });
   } catch (e) {
     next(e);
   }
@@ -302,7 +302,7 @@ router.post('/orders/:orderNumber/claim', requireAuth, requireRider, async (req:
       riderStatus: updated.riderStatus,
       riderId: updated.riderId,
     });
-    res.json({ order: serializeOrder(updated) });
+    res.json({ order: serializeOrder(updated, true) });
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError) {
       if (e.code === 'P2025') {
@@ -340,7 +340,7 @@ router.post('/orders/:orderNumber/pickup', requireAuth, requireRider, async (req
       status: updated.status,
       riderStatus: updated.riderStatus,
     });
-    res.json({ order: serializeOrder(updated) });
+    res.json({ order: serializeOrder(updated, true) });
   } catch (e) {
     next(e);
   }
@@ -376,7 +376,7 @@ router.post('/orders/:orderNumber/verify', requireAuth, requireRider, async (req
       riderStatus: updated.riderStatus,
       deliveredAt: updated.deliveredAt,
     });
-    res.json({ order: serializeOrder(updated) });
+    res.json({ order: serializeOrder(updated, true) });
   } catch (e) {
     next(e);
   }

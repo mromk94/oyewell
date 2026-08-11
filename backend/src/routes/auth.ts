@@ -112,7 +112,7 @@ router.get('/orders', requireAuth, async (req: AuthRequest, res, next) => {
         statusHistory: true,
       },
     });
-    res.json({ orders: orders.map(serializeOrder) });
+    res.json({ orders: orders.map((o) => serializeOrder(o)) });
   } catch (err) {
     next(err);
   }

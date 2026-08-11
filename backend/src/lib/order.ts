@@ -331,7 +331,8 @@ export async function createOrder(payload: OrderPayload) {
   };
 }
 
-export function serializeOrder(order: any) {
+export function serializeOrder(order: any, includeDeliveryCode = false) {
+  const showCode = includeDeliveryCode || order.status === 'DELIVERED' || order.status === 'CANCELLED';
   return {
     id: order.id,
     orderNumber: order.orderNumber,
@@ -343,7 +344,7 @@ export function serializeOrder(order: any) {
     total: formatKobo(order.totalKobo),
     address: order.address,
     phone: order.phone,
-    deliveryCode: order.deliveryCode,
+    deliveryCode: showCode ? order.deliveryCode : null,
     estimatedMinutes: order.estimatedMinutes,
     cookId: order.cookId,
     cookListingId: order.cookListingId,
