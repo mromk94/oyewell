@@ -1,4 +1,5 @@
 import { prisma } from '../prisma.js';
+import { isFeatureEnabled } from './features.js';
 import { DeliveryType, DeliveryZone, DeliveryZoneType } from '@prisma/client';
 import { getMapProvider } from './maps.js';
 
@@ -152,6 +153,12 @@ export async function findDeliveryZone(address: string, coords?: Coords | null) 
 }
 
 export async function resolveDelivery(address: string, subtotalKobo: number, type: DeliveryType = DeliveryType.NEIGHBORHOOD) {
+  const [neighborhoodEnabled, professionalEnabled] = await Promise.all([
+    isFeatureEnabled('neighborhood_delivery'),
+    isFeatureEnabled('professional_delivery'),
+  ]);
+  if (type === DeliveryType.PROFESSIONAL && !professionalEnabled) return null;
+  if (type === DeliveryType.NEIGHBORHOOD && !neighborhoodEnabled) return null;
   const coords = await geocodeAddress(address);
   const zone = await findDeliveryZone(address, coords);
   if (!zone) return null;

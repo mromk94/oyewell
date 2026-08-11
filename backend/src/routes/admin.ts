@@ -1071,4 +1071,28 @@ router.post('/payouts/:id/settle', async (req, res, next) => {
   }
 });
 
+router.get('/feature-flags', async (_req, res, next) => {
+  try {
+    const flags = await prisma.featureFlag.findMany({ orderBy: { key: 'asc' } });
+    res.json({ flags });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.put('/feature-flags/:key', async (req, res, next) => {
+  try {
+    const { key } = req.params;
+    const { enabled, rollout } = req.body as { enabled?: boolean; rollout?: number };
+    const flag = await prisma.featureFlag.upsert({
+      where: { key },
+      create: { key, enabled: enabled ?? false, rollout: rollout ?? 0 },
+      update: { enabled: enabled ?? false, rollout: rollout ?? 0 },
+    });
+    res.json({ flag });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;
