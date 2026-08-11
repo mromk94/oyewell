@@ -589,3 +589,32 @@ model FeatureFlag {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+enum TaskType {
+  FOOD
+  PACKAGE
+  ERRAND
+  SHOPPING
+}
+
+enum TaskStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model GenericTask {
+  id          String     @id @default(cuid())
+  customerId  String?
+  riderId     String?
+  type        TaskType
+  status      TaskStatus @default(PENDING)
+  pickup      Json?
+  dropoff     Json?
+  notes       String?
+  feeKobo     Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
