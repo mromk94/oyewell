@@ -346,16 +346,14 @@ router.post('/orders/:orderNumber/claim', requireAuth, requireRider, async (req:
       if (!order) throw new ApiError(404, 'Order not found');
       if (order.riderId) throw new ApiError(409, 'Order already assigned');
       if (order.paymentStatus !== 'PAID') throw new ApiError(400, 'Order not paid');
-      assertOrderTransition(order.status, 'OUT_FOR_DELIVERY');
       assertRiderTransition(order.riderStatus, 'ASSIGNED');
       const claimed = await tx.order.update({
         where: { id: order.id, riderId: null },
         data: {
           riderId: rider.id,
           riderStatus: 'ASSIGNED',
-          status: 'OUT_FOR_DELIVERY',
           statusHistory: {
-            create: { status: 'OUT_FOR_DELIVERY', note: `Assigned to rider ${rider.id}`, actor: req.user!.email },
+            create: { status: order.status, note: `Assigned to rider ${rider.id}`, actor: req.user!.email },
           },
         },
         include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
@@ -392,7 +390,7 @@ router.post('/orders/:orderNumber/pickup', requireAuth, requireRider, async (req
     const updated = await prisma.$transaction(async (tx) => {
       const order = await tx.order.findFirst({ where: { orderNumber, riderId: rider.id } });
       if (!order) throw new ApiError(404, 'Order not assigned to you');
-      if (order.status !== 'OUT_FOR_DELIVERY') throw new ApiError(400, 'Order is not ready for pickup');
+      assertOrderTransition(order.status, 'OUT_FOR_DELIVERY');
       if (!order.cookReadyAt) throw new ApiError(400, 'Cook has not marked the order ready yet');
       if (order.riderStatus === 'PICKED_UP' || order.riderStatus === 'IN_TRANSIT') {
         return await tx.order.findUniqueOrThrow({
@@ -409,16 +407,17 @@ router.post('/orders/:orderNumber/pickup', requireAuth, requireRider, async (req
       return await tx.order.update({
         where: { id: order.id },
         data: {
+          status: 'OUT_FOR_DELIVERY',
           riderStatus: 'PICKED_UP',
           pickupCodeVerifiedAt: new Date(),
           statusHistory: {
-            create: { status: 'PICKED_UP', note: `Pickup code verified by rider ${rider.id}`, actor: req.user!.email },
+            create: { status: 'OUT_FOR_DELIVERY', note: `Food collected by rider ${rider.id}`, actor: req.user!.email },
           },
         },
         include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
       });
     });
-    afterOrderTransition(updated, { actor: req.user!.email, note: 'Pickup verified' });
+    afterOrderTransition(updated, { actor: req.user!.email, note: 'Rider collected the food' });
     res.json({ order: serializeOrder(updated, 'RIDER') });
   } catch (e) {
     next(e);
