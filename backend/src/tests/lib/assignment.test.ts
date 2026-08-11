@@ -30,4 +30,13 @@ describe('isRiderEligibleForType', () => {
   it('rejects if unavailable', () => {
     assert.equal(isRiderEligibleForType({ ...base, available: false }, DeliveryType.NEIGHBORHOOD), false);
   });
+
+  it('rejects paused or suspended rider', () => {
+    assert.equal(isRiderEligibleForType({ ...base, isActive: false }, DeliveryType.NEIGHBORHOOD), false);
+    assert.equal(isRiderEligibleForType({ ...base, isApproved: false }, DeliveryType.NEIGHBORHOOD), false);
+  });
+
+  it('rejects wrong tier for professional', () => {
+    assert.equal(isRiderEligibleForType({ ...base, professionalApproval: 'REJECTED' }, DeliveryType.PROFESSIONAL), false);
+  });
 });
