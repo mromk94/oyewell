@@ -127,4 +127,49 @@ router.post('/employees', async (req: AuthRequest, res, next) => {
   }
 });
 
+router.get('/employees/:id/areas', async (req, res, next) => {
+  try {
+    const areas = await prisma.moderatorArea.findMany({
+      where: { employeeId: req.params.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ areas });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post('/employees/:id/areas', async (req: AuthRequest, res, next) => {
+  try {
+    const { scope, country, region, city, district, area, latitude, longitude, radiusMeters } = req.body as Record<string, any>;
+    if (!scope) throw new ApiError(400, 'scope is required');
+    const created = await prisma.moderatorArea.create({
+      data: {
+        employeeId: req.params.id,
+        scope,
+        country,
+        region,
+        city,
+        district,
+        area,
+        latitude,
+        longitude,
+        radiusMeters,
+      },
+    });
+    res.status(201).json({ area: created });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.delete('/areas/:id', async (req: AuthRequest, res, next) => {
+  try {
+    await prisma.moderatorArea.delete({ where: { id: req.params.id } });
+    res.json({ ok: true });
+  } catch (e) {
+    next(e);
+  }
+});
+
 export default router;

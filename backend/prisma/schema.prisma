@@ -640,6 +640,7 @@ model ManagementEmployee {
   department   String?
   status       ManagementEmployeeStatus @default(INVITED)
   limits       Json?                  @default("{}")
+  areas        ModeratorArea[]
   createdAt    DateTime               @default(now())
   updatedAt    DateTime               @updatedAt
 }
@@ -674,4 +675,33 @@ model AdminTierPermission {
   permissionId String
 
   @@unique([adminTierId, permissionId])
+}
+
+enum ModeratorAreaScope {
+  GLOBAL
+  COUNTRY
+  STATE
+  CITY
+  DISTRICT
+  SERVICE_AREA
+  COMMUNITY
+}
+
+model ModeratorArea {
+  id          String              @id @default(cuid())
+  employee    ManagementEmployee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId  String
+  scope       ModeratorAreaScope
+  country     String?
+  region      String?
+  city        String?
+  district    String?
+  area        String?
+  latitude    Float?
+  longitude   Float?
+  radiusMeters Int?
+  createdAt   DateTime            @default(now())
+
+  @@index([employeeId])
+  @@index([scope, country, region, city])
 }
