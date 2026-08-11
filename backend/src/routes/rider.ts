@@ -161,7 +161,8 @@ router.post('/login', async (req, res, next) => {
     const { email, password } = req.body as Record<string, string>;
     if (!email || !password) throw new ApiError(400, 'Email and password are required');
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || user.role !== 'RIDER' || !bcrypt.compareSync(password, user.password)) {
+    const hasRiderRole = user?.role === 'RIDER' || user?.roles.includes('RIDER');
+    if (!user || !hasRiderRole || !bcrypt.compareSync(password, user.password)) {
       throw new ApiError(401, 'Invalid credentials');
     }
     const rider = await prisma.rider.findUnique({ where: { userId: user.id } });
