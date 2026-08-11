@@ -16,8 +16,10 @@ import {
   ChefHat,
   ClipboardList,
   Banknote,
+  Map,
 } from 'lucide-react';
 import Logo from '../components/Logo';
+import { MapView } from '../components/MapView';
 import { formatPrice } from '../lib/api';
 import { MenuTab as MenuTabNew } from '../components/admin/MenuTab';
 import { SidesTab as SidesTabNew } from '../components/admin/SidesTab';
@@ -40,6 +42,7 @@ import {
   fetchCustomerOrders,
   updateCustomerRole,
   fetchRiders,
+  fetchRiderLocations,
   approveRider,
   pauseRider,
   suspendRider,
@@ -54,7 +57,7 @@ import {
   fetchAdminCookEarnings,
 } from '../lib/admin';
 
-type Tab = 'dashboard' | 'menu' | 'orders' | 'sides' | 'customers' | 'delivery' | 'payments' | 'settings' | 'email' | 'riders' | 'cooks' | 'cook-listings' | 'cook-earnings';
+type Tab = 'dashboard' | 'menu' | 'orders' | 'sides' | 'customers' | 'delivery' | 'payments' | 'settings' | 'email' | 'riders' | 'live-map' | 'cooks' | 'cook-listings' | 'cook-earnings';
 
 export default function Admin() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('admin_token'));
@@ -74,6 +77,7 @@ export default function Admin() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>({});
   const [pendingRiders, setPendingRiders] = useState<any[]>([]);
+  const [riderLocations, setRiderLocations] = useState<any[]>([]);
   const [cooks, setCooks] = useState<any[]>([]);
   const [cookListings, setCookListings] = useState<any[]>([]);
   const [cookEarnings, setCookEarnings] = useState<any>({});
@@ -115,6 +119,9 @@ export default function Admin() {
       } else if (tab === 'riders') {
         const { riders } = await fetchRiders();
         setPendingRiders(riders);
+      } else if (tab === 'live-map') {
+        const { riders } = await fetchRiderLocations();
+        setRiderLocations(riders);
       } else if (tab === 'cooks') {
         const { cooks } = await fetchAdminCooks();
         setCooks(cooks);
@@ -196,6 +203,7 @@ export default function Admin() {
             { id: 'delivery', label: 'Delivery', icon: Truck },
             { id: 'payments', label: 'Payments', icon: CreditCard },
             { id: 'riders', label: 'Riders', icon: Bike },
+            { id: 'live-map', label: 'Live Map', icon: Map },
             { id: 'cooks', label: 'Cooks', icon: ChefHat },
             { id: 'cook-listings', label: 'Cook Listings', icon: ClipboardList },
             { id: 'cook-earnings', label: 'Cook Earnings', icon: Banknote },
@@ -305,10 +313,46 @@ export default function Admin() {
         {tab === 'settings' && <SettingsTab settings={settings} onRefresh={loadTab} />}
         {tab === 'email' && <EmailTab />}
         {tab === 'riders' && <RidersTab riders={pendingRiders} onRefresh={loadTab} />}
+        {tab === 'live-map' && <LiveMapTab riders={riderLocations} />}
         {tab === 'cooks' && <CooksTab cooks={cooks} onRefresh={loadTab} />}
         {tab === 'cook-listings' && <CookListingsTab listings={cookListings} onRefresh={loadTab} />}
         {tab === 'cook-earnings' && <CookEarningsTab earnings={cookEarnings} />}
       </main>
+    </div>
+  );
+}
+
+function LiveMapTab({ riders }: { riders: any[] }) {
+  const center =
+    riders.length > 0
+      ? {
+          lat: riders.reduce((sum, r) => sum + r.lat, 0) / riders.length,
+          lng: riders.reduce((sum, r) => sum + r.lng, 0) / riders.length,
+        }
+      : { lat: 6.5244, lng: 3.3792 };
+  return (
+    <div>
+      <h2 className="text-2xl font-bold text-white">Live Map</h2>
+      <p className="mt-1 text-white/60">Online riders with fresh location.</p>
+      {riders.length === 0 ? (
+        <p className="mt-6 text-white/50">No active riders currently.</p>
+      ) : (
+        <div className="mt-6 rounded-2xl border border-white/10 bg-white/5 p-4">
+          <MapView
+            center={center}
+            markers={riders.map((r) => ({ id: r.id, point: { lat: r.lat, lng: r.lng }, label: r.name }))}
+            height={400}
+          />
+          <ul className="mt-4 space-y-2 text-sm text-white/80">
+            {riders.map((r) => (
+              <li key={r.id} className="flex justify-between">
+                <span>{r.name}</span>
+                <span className="text-white/50">Last update: {new Date(r.updatedAt).toLocaleTimeString()}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

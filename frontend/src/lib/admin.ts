@@ -76,6 +76,12 @@ export async function fetchRiders() {
   return res.json() as Promise<{ riders: any[] }>;
 }
 
+export async function fetchRiderLocations() {
+  const res = await fetch(`${API_BASE}/api/admin/riders/locations`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load rider locations');
+  return res.json() as Promise<{ riders: { id: string; name: string; lat: number; lng: number; updatedAt: string }[] }>;
+}
+
 export async function assignRider(orderNumber: string, riderId: string, riderFeeKobo: number) {
   const res = await fetch(`${API_BASE}/api/admin/orders/${orderNumber}/assign-rider`, {
     method: 'POST',

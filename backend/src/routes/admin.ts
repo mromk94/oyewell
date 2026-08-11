@@ -4,6 +4,7 @@ import { prisma } from '../prisma.js';
 import { requireAuth, requireAdmin, type AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../lib/errors.js';
 import { dispatchOrder } from '../lib/assignment.js';
+import { isLocationFresh } from '../lib/location.js';
 import { emitEvent } from '../lib/realtime.js';
 import { getEmailConfig, saveEmailConfig, sendEmail, sendOrderStatusEmail } from '../lib/email.js';
 
@@ -515,6 +516,28 @@ router.post('/email-config/test', async (req, res, next) => {
     if (!to || !subject || !text) throw new ApiError(400, 'to, subject and text are required');
     const result = await sendEmail({ to, subject, text });
     res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/riders/locations', async (_req, res, next) => {
+  try {
+    const riders = await prisma.rider.findMany({
+      where: { isApproved: true, isActive: true, available: true, operationalStatus: 'ONLINE' },
+      include: { user: { select: { id: true, firstName: true, lastName: true } }, location: true },
+    });
+    res.json({
+      riders: riders
+        .filter((r) => r.location && isLocationFresh(r.location.updatedAt))
+        .map((r) => ({
+          id: r.id,
+          name: `${r.user?.firstName || ''} ${r.user?.lastName || ''}`.trim(),
+          lat: r.location!.latitude,
+          lng: r.location!.longitude,
+          updatedAt: r.location!.updatedAt,
+        })),
+    });
   } catch (err) {
     next(err);
   }
