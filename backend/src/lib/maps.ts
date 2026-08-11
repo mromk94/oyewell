@@ -173,7 +173,7 @@ class MapboxProvider implements MapProvider {
   private accessToken?: string;
 
   constructor() {
-    this.accessToken = process.env.MAPBOX_ACCESS_TOKEN;
+    this.accessToken = process.env.MAPBOX_TOKEN ?? process.env.MAPBOX_ACCESS_TOKEN;
   }
 
   async geocode(address: string) {
@@ -230,7 +230,7 @@ class MapboxProvider implements MapProvider {
 }
 
 export function getMapProvider(): MapProvider {
-  const provider = process.env.GEO_PROVIDER ?? 'MOCK';
+  const provider = process.env.GEO_PROVIDER ?? process.env.MAP_PROVIDER ?? 'MOCK';
   switch (provider.toUpperCase()) {
     case 'GOOGLE':
       return new GoogleMapsProvider();

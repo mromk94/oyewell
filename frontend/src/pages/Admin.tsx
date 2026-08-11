@@ -32,6 +32,8 @@ import EmailTab from '../components/admin/EmailTab';
 import ManagementDashboard from '../components/admin/ManagementDashboard';
 import ModerationPanel from '../components/admin/ModerationPanel';
 import DeliveryTab from '../components/admin/DeliveryTab';
+import RidersTab from '../components/admin/RidersTab';
+import SettingsTab from '../components/admin/SettingsTab';
 import {
   adminLogin,
   fetchDashboard,
@@ -40,7 +42,6 @@ import {
   fetchDeliveryZones,
   fetchPaymentMethods,
   fetchSettings,
-  updateSettings,
   fetchSides,
   fetchCustomers,
   fetchCustomerOrders,
@@ -48,11 +49,6 @@ import {
   fetchRiders,
   fetchRiderLocations,
   fetchCookLocations,
-  approveRider,
-  pauseRider,
-  suspendRider,
-  banRider,
-  restoreRider,
   fetchAdminCooks,
   approveCook,
   rejectCook,
@@ -473,100 +469,6 @@ function LiveMapTab({ riders, cooks }: { riders: any[]; cooks: any[] }) {
 }
 
 
-function RidersTab({ riders, onRefresh }: { riders: any[]; onRefresh: () => void }) {
-  const [processing, setProcessing] = useState<string | null>(null);
-
-  async function action(id: string, fn: (id: string) => Promise<any>, label: string) {
-    if (!confirm(`${label} this rider?`)) return;
-    setProcessing(`${label}:${id}`);
-    try {
-      await fn(id);
-      onRefresh();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : `${label} failed`);
-    } finally {
-      setProcessing(null);
-    }
-  }
-
-  return (
-    <div>
-      <h2 className="text-2xl font-bold text-white">Riders</h2>
-      <p className="mt-1 text-white/60">Approve, pause, suspend, ban and restore riders.</p>
-      {riders.length === 0 ? (
-        <p className="mt-6 text-white/50">No riders registered.</p>
-      ) : (
-        <div className="mt-6 space-y-4">
-          {riders.map((rider) => (
-            <div key={rider.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <p className="font-bold text-white">{rider.user?.firstName} {rider.user?.lastName}</p>
-                  <p className="text-sm text-white/60">{rider.user?.email}</p>
-                  <p className="text-sm text-white/60">{rider.user?.phone}</p>
-                  <p className="mt-2 flex flex-wrap gap-2 text-sm">
-                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-white/70">{rider.isApproved ? 'Approved' : 'Pending'}</span>
-                    <span className={`rounded-full px-2 py-0.5 ${rider.isActive ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'}`}>{rider.isActive ? 'Active' : 'Inactive'}</span>
-                    <span className={`rounded-full px-2 py-0.5 ${rider.available ? 'bg-emerald-500/20 text-emerald-300' : 'bg-yellow-500/20 text-yellow-300'}`}>{rider.available ? 'Online' : 'Offline'}</span>
-                  </p>
-                  <p className="mt-1 text-sm text-white/60">Vehicle: {rider.vehicle || '—'}</p>
-                  <p className="text-sm text-white/60">Bank: {rider.bankName || '—'}</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {!rider.isApproved && (
-                    <button
-                      onClick={() => action(rider.id, approveRider, 'Approve')}
-                      disabled={processing === `Approve:${rider.id}`}
-                      className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50"
-                    >
-                      Approve
-                    </button>
-                  )}
-                  {rider.isApproved && rider.isActive && (
-                    <button
-                      onClick={() => action(rider.id, pauseRider, 'Pause')}
-                      disabled={processing === `Pause:${rider.id}`}
-                      className="rounded-full bg-yellow-500/20 px-4 py-2 text-sm font-bold text-yellow-300 transition hover:bg-yellow-500/30 disabled:opacity-50"
-                    >
-                      Pause
-                    </button>
-                  )}
-                  {rider.isApproved && rider.isActive && (
-                    <button
-                      onClick={() => action(rider.id, suspendRider, 'Suspend')}
-                      disabled={processing === `Suspend:${rider.id}`}
-                      className="rounded-full bg-orange-500/20 px-4 py-2 text-sm font-bold text-orange-300 transition hover:bg-orange-500/30 disabled:opacity-50"
-                    >
-                      Suspend
-                    </button>
-                  )}
-                  {!rider.isActive && rider.isApproved && (
-                    <button
-                      onClick={() => action(rider.id, restoreRider, 'Restore')}
-                      disabled={processing === `Restore:${rider.id}`}
-                      className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50"
-                    >
-                      Restore
-                    </button>
-                  )}
-                  {rider.isApproved && (
-                    <button
-                      onClick={() => action(rider.id, banRider, 'Ban')}
-                      disabled={processing === `Ban:${rider.id}`}
-                      className="rounded-full bg-red-500/20 px-4 py-2 text-sm font-bold text-red-300 transition hover:bg-red-500/30 disabled:opacity-50"
-                    >
-                      Ban
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function CustomersTab({ customers, onRefresh }: { customers: any[]; onRefresh: () => void }) {
   const [selected, setSelected] = useState<any | null>(null);
@@ -663,119 +565,6 @@ function CustomersTab({ customers, onRefresh }: { customers: any[]; onRefresh: (
   );
 }
 
-function MapSettings({ mapSettings, onChange }: { mapSettings: any; onChange: (s: any) => void }) {
-  const provider = mapSettings?.provider ?? 'MOCK';
-  const safeProvider = provider === 'GOOGLE' || provider === 'MAPBOX' || provider === 'MOCK' ? provider : 'MOCK';
-  const set = (key: string, value: string) => onChange({ ...mapSettings, [key]: value });
-  return (
-    <div className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-6">
-      <h3 className="text-lg font-semibold text-white">Map & Geocoding</h3>
-      <select
-        value={safeProvider}
-        onChange={(e) => set('provider', e.target.value)}
-        className="w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white"
-      >
-        <option value="MOCK" className="bg-brand-900">MOCK (default / no API key)</option>
-        <option value="GOOGLE" className="bg-brand-900">Google Maps</option>
-        <option value="MAPBOX" className="bg-brand-900">Mapbox</option>
-      </select>
-      {safeProvider === 'GOOGLE' && (
-        <input
-          type="password"
-          placeholder="Google Maps API key"
-          value={mapSettings?.googleMapsApiKey ?? ''}
-          onChange={(e) => set('googleMapsApiKey', e.target.value)}
-          className="w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white"
-        />
-      )}
-      {safeProvider === 'MAPBOX' && (
-        <>
-          <input
-            type="password"
-            placeholder="Mapbox server access token"
-            value={mapSettings?.mapboxToken ?? ''}
-            onChange={(e) => set('mapboxToken', e.target.value)}
-            className="w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white"
-          />
-          <input
-            type="password"
-            placeholder="Mapbox public access token (for frontend tiles)"
-            value={mapSettings?.publicMapToken ?? ''}
-            onChange={(e) => set('publicMapToken', e.target.value)}
-            className="w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white"
-          />
-        </>
-      )}
-      <p className="text-xs text-white/60">Mock provider returns synthetic coordinates for development. Real providers require billing-enabled API keys.</p>
-    </div>
-  );
-}
-
-function SettingsTab({ settings, onRefresh }: { settings: any; onRefresh: () => void }) {
-  const [name, setName] = useState(settings?.name ?? '');
-  const [phone, setPhone] = useState(settings?.contactPhone ?? '');
-  const [email, setEmail] = useState(settings?.contactEmail ?? '');
-  const [lat, setLat] = useState(settings?.latitude != null ? String(settings.latitude) : '');
-  const [lng, setLng] = useState(settings?.longitude != null ? String(settings.longitude) : '');
-  const [mapSettings, setMapSettings] = useState<any>(settings?.mapSettings ?? {});
-
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    await updateSettings({
-      name,
-      contactPhone: phone,
-      contactEmail: email,
-      latitude: lat,
-      longitude: lng,
-      mapSettings,
-    });
-    onRefresh();
-  }
-
-  return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-white">Settings</h2>
-      <form onSubmit={handleSave} className="space-y-4 rounded-2xl border border-white/10 bg-white/5 p-6">
-        <input
-          placeholder="Restaurant name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white"
-        />
-        <input
-          placeholder="Contact phone"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          className="w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white"
-        />
-        <input
-          placeholder="Contact email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white"
-        />
-        <div className="grid grid-cols-2 gap-4">
-          <input
-            placeholder="Default latitude"
-            value={lat}
-            onChange={(e) => setLat(e.target.value)}
-            className="w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white"
-          />
-          <input
-            placeholder="Default longitude"
-            value={lng}
-            onChange={(e) => setLng(e.target.value)}
-            className="w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white"
-          />
-        </div>
-        <MapSettings mapSettings={mapSettings} onChange={setMapSettings} />
-        <button type="submit" className="rounded-full bg-white px-6 py-2 font-bold text-black">
-          Save settings
-        </button>
-      </form>
-    </div>
-  );
-}
 
 function CooksTab({ cooks, onRefresh }: { cooks: any[]; onRefresh: () => void }) {
   const [processing, setProcessing] = useState<string | null>(null);
