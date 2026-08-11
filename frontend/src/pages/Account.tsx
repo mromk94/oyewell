@@ -191,7 +191,7 @@ export default function Account() {
             </button>
             <button
               onClick={() => {
-                if (cookProfile?.profileStatus === 'PENDING_APPROVAL' && !hasRole(customer, 'COOK')) {
+                if (cookProfile?.profileStatus === 'PENDING_APPROVAL') {
                   setShowPendingCook(true);
                 } else {
                   setShowCookPrompt(true);
@@ -199,7 +199,7 @@ export default function Account() {
               }}
               className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20'
             >
-              <ChefHat className='h-4 w-4' /> {hasRole(customer, 'COOK') || cookProfile?.profileStatus === 'PENDING_APPROVAL' ? 'Cook portal' : 'Become a cook'}
+              <ChefHat className='h-4 w-4' /> {cookProfile ? 'Cook portal' : 'Become a cook'}
             </button>
             {deliveryApp ? (
               <button
@@ -326,12 +326,19 @@ export default function Account() {
                   To keep quality and safety in check, every cook goes through a quick application before they can start posting.
                 </p>
                 <div className='mt-6 flex flex-col gap-3'>
-                  {hasRole(customer, 'COOK') ? (
+                  {cookProfile?.profileStatus === 'APPROVED' ? (
                     <button
                       onClick={() => { setShowCookPrompt(false); navigate('/cook?tab=add'); }}
                       className='inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 py-3 font-bold text-black transition hover:bg-emerald-400'
                     >
                       <Plus className='h-4 w-4' /> Post a new dish
+                    </button>
+                  ) : cookProfile?.profileStatus === 'PENDING_APPROVAL' ? (
+                    <button
+                      onClick={() => { setShowCookPrompt(false); setShowPendingCook(true); }}
+                      className='inline-flex items-center justify-center gap-2 rounded-full bg-emerald-500 px-6 py-3 font-bold text-black transition hover:bg-emerald-400'
+                    >
+                      <Clock className='h-4 w-4' /> Application under review
                     </button>
                   ) : (
                     <button
