@@ -427,6 +427,7 @@ export function serializeOrder(order: any, includeDeliveryCode = false, maskCust
           id: order.payment.id,
           provider: order.payment.provider,
           status: order.payment.status,
+          method: order.payment.method ?? null,
           attempts: (order.payment.attempts || []).map((a: any) => ({
             id: a.id,
             status: a.status,

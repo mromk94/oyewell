@@ -50,6 +50,14 @@ router.get('/:orderNumber', async (req, res, next) => {
       res.status(404).json({ error: 'Order not found' });
       return;
     }
+    if (order.payment) {
+      const method = await prisma.paymentMethodConfig.findFirst({
+        where: { provider: order.payment.provider, enabled: true },
+      });
+      if (method) {
+        (order.payment as any).method = method;
+      }
+    }
     res.json({ order: serializeOrder(order, false, true) });
   } catch (err) {
     next(err);

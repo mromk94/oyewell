@@ -272,6 +272,12 @@ export interface OrderSummary {
     id: string;
     provider: string;
     status: string;
+    method: {
+      name: string;
+      provider: string;
+      publicKey?: string;
+      config?: Record<string, any>;
+    } | null;
     attempts: { id: string; status: string; payload: any; createdAt: string }[];
   } | null;
   statusHistory: { status: string; note: string; createdAt: string }[];

@@ -262,10 +262,55 @@ export default function TrackOrder() {
                   </div>
                 ) : (
                   <>
-                    <p className='text-sm text-blue-100'>
-                      Send the payment and upload a screenshot or receipt. Your order will be confirmed once
-                      we verify the payment.
-                    </p>
+                    {order.payment.method ? (
+                      <div className='space-y-2'>
+                        <p className='text-sm font-bold text-white'>
+                          Pay to: {order.payment.method.name}
+                        </p>
+                        {order.payment.method.provider === 'BANK_TRANSFER' ? (
+                          <div className='rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80'>
+                            <p>
+                              <span className='text-white/50'>Bank name:</span>{' '}
+                              {order.payment.method.config?.bankName || '-'}
+                            </p>
+                            <p>
+                              <span className='text-white/50'>Account name:</span>{' '}
+                              {order.payment.method.config?.accountName || '-'}
+                            </p>
+                            <p>
+                              <span className='text-white/50'>Account number:</span>{' '}
+                              {order.payment.method.publicKey || '-'}
+                            </p>
+                            {order.payment.method.config?.instructions && (
+                              <p className='mt-2 text-blue-100'>{order.payment.method.config.instructions}</p>
+                            )}
+                          </div>
+                        ) : order.payment.method.provider === 'CRYPTO' ? (
+                          <div className='rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80'>
+                            <p>
+                              <span className='text-white/50'>Network:</span>{' '}
+                              {order.payment.method.config?.network || '-'}
+                            </p>
+                            <p className='break-all'>
+                              <span className='text-white/50'>Wallet address:</span>{' '}
+                              {order.payment.method.publicKey || '-'}
+                            </p>
+                            {order.payment.method.config?.instructions && (
+                              <p className='mt-2 text-blue-100'>{order.payment.method.config.instructions}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <p className='text-sm text-blue-100'>
+                            Use the selected payment method to complete your order.
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className='text-sm text-blue-100'>
+                        Send the payment and upload a screenshot or receipt. Your order will be confirmed once
+                        we verify the payment.
+                      </p>
+                    )}
                     <div className='mt-4'>
                       <input
                         type='file'
