@@ -4,6 +4,7 @@ import { fetchCookListingsPublic, type CookListing } from '../lib/listings';
 import FoodCard from '../components/FoodCard';
 import CookListingsSection from '../components/CookListingsSection';
 import FoodAroundMe from '../components/FoodAroundMe';
+import CookListingFeed from '../components/CookListingFeed';
 import Logo from '../components/Logo';
 import Preloader from '../components/Preloader';
 import ScrollHint from '../components/ScrollHint';
@@ -116,8 +117,8 @@ export default function Home() {
         )}
         {view === 'restaurants' && foods.map((food) => <FoodCard key={food.id} food={food} />)}
         {view === 'cooks' && (
-          <div className="min-h-screen pt-28">
-            <CookListingsSection title='OyeWell Cooks' listings={cookListings} loading={cooksLoading} />
+          <div className='h-screen w-full pt-28'>
+            <CookListingFeed listings={cookListings} loading={cooksLoading} />
           </div>
         )}
         {view === 'nearby' && (

@@ -138,6 +138,23 @@ export async function setKitchenStatus(status: string) {
   return data;
 }
 
+export interface CookMediaInput {
+  type: 'IMAGE' | 'VIDEO';
+  url: string;
+  thumbnailUrl?: string | null;
+}
+
+export async function uploadCookMedia(file: string, type: 'IMAGE' | 'VIDEO') {
+  const res = await fetch(`${API_BASE}/api/media/upload`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ file, type }),
+  });
+  const data = (await res.json()) as CookMediaInput & { error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Upload failed');
+  return data;
+}
+
 export async function createCookListing(body: any) {
   const res = await fetch(`${API_BASE}/api/cooks/me/listings`, {
     method: 'POST',

@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { Upload } from 'lucide-react';
 import { toast } from '../../lib/toast';
-import { createFood, updateFood, archiveFood } from '../../lib/admin';
+import { createFood, updateFood, archiveFood, uploadAdminMedia } from '../../lib/admin';
 import { formatPrice } from '../../lib/api';
 
 type OptionDraft = {
@@ -11,6 +12,11 @@ type OptionDraft = {
   isAvailable: boolean;
 };
 
+type MediaItem = {
+  type: 'IMAGE' | 'VIDEO';
+  url: string;
+};
+
 type FoodDraft = {
   id?: string;
   name: string;
@@ -18,6 +24,8 @@ type FoodDraft = {
   description: string;
   heroImage: string;
   imageName: string;
+  galleryImages: string[];
+  videos: string[];
   orderingMode: string;
   options: OptionDraft[];
 };
@@ -33,6 +41,8 @@ function emptyDraft(): FoodDraft {
     description: '',
     heroImage: '',
     imageName: '',
+    galleryImages: [],
+    videos: [],
     orderingMode: 'PLATE',
     options: [emptyOption()],
   };
@@ -46,6 +56,8 @@ function foodToDraft(food: any): FoodDraft {
     description: food.description ?? '',
     heroImage: food.heroImage ?? '',
     imageName: '',
+    galleryImages: food.galleryImages ?? [],
+    videos: food.videos ?? [],
     orderingMode: food.orderingMode ?? 'PLATE',
     options: (food.options ?? []).map((o: any) => ({
       label: o.label ?? '',
@@ -73,6 +85,34 @@ function readImageFile(file: File, onReady: (url: string, name: string) => void)
   const reader = new FileReader();
   reader.onload = (ev) => onReady((ev.target?.result as string) ?? '', file.name);
   reader.readAsDataURL(file);
+}
+
+function MediaSlider({ media }: { media: MediaItem[] }) {
+  const [index, setIndex] = useState(0);
+  if (!media.length) return null;
+  const active = media[index];
+  return (
+    <div className='relative aspect-video overflow-hidden rounded-2xl bg-black'>
+      {active.type === 'VIDEO' ? (
+        <video src={active.url} poster='' autoPlay muted loop playsInline className='h-full w-full object-cover' />
+      ) : (
+        <img src={active.url} alt='' loading='lazy' className='h-full w-full object-cover' />
+      )}
+      {media.length > 1 && (
+        <div className='absolute left-1/2 top-4 z-10 flex -translate-x-1/2 gap-2'>
+          {media.map((_, i) => (
+            <button
+              key={i}
+              type='button'
+              onClick={() => setIndex(i)}
+              className={`h-2 rounded-full transition-all ${i === index ? 'w-8 bg-emerald-400' : 'w-2 bg-white/40'}`}
+              aria-label={`Slide ${i + 1}`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function optionsToPayload(options: OptionDraft[]) {
@@ -152,6 +192,8 @@ export function MenuTab({ foods, onRefresh }: { foods: any[]; onRefresh: () => v
         slug,
         description: draft.description.trim() || null,
         heroImage: draft.heroImage || null,
+        galleryImages: draft.galleryImages.filter(Boolean),
+        videos: draft.videos.filter(Boolean),
         orderingMode: draft.orderingMode,
         options: payloadOptions,
       };
@@ -312,6 +354,84 @@ export function MenuTab({ foods, onRefresh }: { foods: any[]; onRefresh: () => v
             />
             {draft.imageName && <span className='mt-1 block text-xs text-white/60'>{draft.imageName}</span>}
           </label>
+
+          <div className='mt-5 space-y-4 rounded-2xl border border-white/10 bg-white/5 p-4'>
+            <h4 className='text-sm font-medium text-white/90'>Gallery & videos</h4>
+            <MediaSlider
+              media={[
+                ...(draft.heroImage ? [{ type: 'IMAGE' as const, url: draft.heroImage }] : []),
+                ...draft.galleryImages.map((url) => ({ type: 'IMAGE' as const, url })),
+                ...draft.videos.map((url) => ({ type: 'VIDEO' as const, url })),
+              ]}
+            />
+
+            <label className='block'>
+              <span className='text-sm font-medium text-white/90'>Gallery image URLs</span>
+              <textarea
+                value={draft.galleryImages.join('\n')}
+                onChange={(e) =>
+                  setField(
+                    'galleryImages',
+                    e.target.value.split('\n').map((s) => s.trim()).filter(Boolean)
+                  )
+                }
+                placeholder='https://example.com/photo1.jpg'
+                className='mt-1 w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white'
+                rows={3}
+              />
+            </label>
+
+            <label className='block'>
+              <span className='text-sm font-medium text-white/90'>Video URLs</span>
+              <textarea
+                value={draft.videos.join('\n')}
+                onChange={(e) =>
+                  setField(
+                    'videos',
+                    e.target.value.split('\n').map((s) => s.trim()).filter(Boolean)
+                  )
+                }
+                placeholder='https://example.com/video1.mp4'
+                className='mt-1 w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white'
+                rows={2}
+              />
+            </label>
+
+            <label className='flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-white/20 bg-white/5 p-4 text-white/70 hover:bg-white/10'>
+              <Upload className='h-5 w-5' />
+              <span className='mt-2 text-sm'>Upload images or videos</span>
+              <input
+                type='file'
+                accept='image/*,video/*'
+                multiple
+                onChange={async (e) => {
+                  const files = e.target.files;
+                  if (!files) return;
+                  const newImages: string[] = [];
+                  const newVideos: string[] = [];
+                  for (const file of Array.from(files)) {
+                    const dataUrl = await new Promise<string>((resolve, reject) => {
+                      const reader = new FileReader();
+                      reader.onload = () => resolve(reader.result as string);
+                      reader.onerror = reject;
+                      reader.readAsDataURL(file);
+                    });
+                    const type = file.type.startsWith('video/') ? 'VIDEO' : 'IMAGE';
+                    const res = await uploadAdminMedia(dataUrl, type);
+                    if (type === 'VIDEO') newVideos.push(res.url);
+                    else newImages.push(res.url);
+                  }
+                  setDraft((d) => ({
+                    ...d,
+                    galleryImages: [...d.galleryImages, ...newImages],
+                    videos: [...d.videos, ...newVideos],
+                  }));
+                  e.target.value = '';
+                }}
+                className='hidden'
+              />
+            </label>
+          </div>
 
           <div className='mt-6'>
             <div className='flex items-baseline justify-between'>

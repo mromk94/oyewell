@@ -79,7 +79,7 @@ router.get('/foods', async (_req, res, next) => {
 router.post('/foods', async (req: AuthRequest, res, next) => {
   try {
     const body = req.body as Record<string, unknown>;
-    const { name, slug, description, heroImage, orderingMode, options } = body;
+    const { name, slug, description, heroImage, galleryImages, videos, orderingMode, options } = body;
     if (!name || !slug) throw new ApiError(400, 'Name and slug required');
 
     const food = await prisma.food.create({
@@ -88,6 +88,8 @@ router.post('/foods', async (req: AuthRequest, res, next) => {
         slug: String(slug),
         description: description ? String(description) : undefined,
         heroImage: heroImage ? String(heroImage) : undefined,
+        galleryImages: Array.isArray(galleryImages) ? galleryImages.map(String) : [],
+        videos: Array.isArray(videos) ? videos.map(String) : [],
         orderingMode: String(orderingMode) as 'PLATE' | 'PORTION' | 'PIECE',
         status: 'DRAFT',
         options: {
@@ -118,6 +120,8 @@ router.patch('/foods/:id', async (req, res, next) => {
     if (body.slug !== undefined) data.slug = String(body.slug);
     if (body.description !== undefined) data.description = body.description ? String(body.description) : null;
     if (body.heroImage !== undefined) data.heroImage = body.heroImage ? String(body.heroImage) : null;
+    if (body.galleryImages !== undefined) data.galleryImages = Array.isArray(body.galleryImages) ? body.galleryImages.map(String) : [];
+    if (body.videos !== undefined) data.videos = Array.isArray(body.videos) ? body.videos.map(String) : [];
     if (body.orderingMode !== undefined) data.orderingMode = String(body.orderingMode) as any;
     if (body.isAvailable !== undefined) data.isAvailable = Boolean(body.isAvailable);
     if (body.featured !== undefined) data.featured = Boolean(body.featured);

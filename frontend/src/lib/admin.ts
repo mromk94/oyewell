@@ -32,6 +32,17 @@ export async function fetchAdminFoods() {
   return res.json() as Promise<{ foods: any[] }>;
 }
 
+export async function uploadAdminMedia(file: string, type: 'IMAGE' | 'VIDEO') {
+  const res = await fetch(`${API_BASE}/api/media/upload`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ file, type }),
+  });
+  const data = (await res.json()) as { url?: string; type?: 'IMAGE' | 'VIDEO'; thumbnailUrl?: string | null; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Upload failed');
+  return data as { url: string; type: 'IMAGE' | 'VIDEO'; thumbnailUrl?: string | null };
+}
+
 export async function createFood(body: any) {
   const res = await fetch(`${API_BASE}/api/admin/foods`, {
     method: 'POST',

@@ -11,6 +11,7 @@ import {
   Loader2,
   AlertCircle,
   Star,
+  Upload,
 } from 'lucide-react';
 import { useAuth, hasRole } from '../lib/auth';
 import { formatPrice } from '../lib/api';
@@ -19,12 +20,14 @@ import {
   type CookProfile,
   type CookListing,
   type CookOrder,
+  type CookMediaInput,
   applyAsCook,
   fetchCookMe,
   updateCookMe,
   updateCookListing,
   setKitchenStatus,
   createCookListing,
+  uploadCookMedia,
   fetchCookListings,
   fetchCookOrders,
   acceptCookOrder,
@@ -410,7 +413,48 @@ function AddFoodPanel({ onCreated, onError }: { onCreated: () => void; onError: 
     allergens: '',
     cuisine: '',
   });
+  const [media, setMedia] = useState<CookMediaInput[]>([]);
+  const [newMediaUrl, setNewMediaUrl] = useState('');
+  const [newMediaType, setNewMediaType] = useState<'IMAGE' | 'VIDEO'>('IMAGE');
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files) return;
+    setUploading(true);
+    try {
+      const uploaded: CookMediaInput[] = [];
+      for (const file of Array.from(files)) {
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        const type = file.type.startsWith('video/') ? 'VIDEO' : 'IMAGE';
+        const res = await uploadCookMedia(dataUrl, type);
+        uploaded.push(res);
+      }
+      setMedia((prev) => [...prev, ...uploaded]);
+    } catch (e) {
+      onError(e instanceof Error ? e.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  }
+
+  function addUrlMedia() {
+    const url = newMediaUrl.trim();
+    if (!url) return;
+    setMedia((prev) => [...prev, { type: newMediaType, url, thumbnailUrl: null }]);
+    setNewMediaUrl('');
+  }
+
+  function removeMedia(index: number) {
+    setMedia((prev) => prev.filter((_, i) => i !== index));
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -429,6 +473,7 @@ function AddFoodPanel({ onCreated, onError }: { onCreated: () => void; onError: 
         ingredients: form.ingredients,
         allergens: form.allergens,
         cuisine: form.cuisine,
+        media,
       });
       onCreated();
     } catch (e) {
@@ -503,6 +548,71 @@ function AddFoodPanel({ onCreated, onError }: { onCreated: () => void; onError: 
           className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
           rows={3}
         />
+
+        <div className='rounded-2xl border border-white/10 bg-white/5 p-4 space-y-4'>
+          <p className='text-sm text-white/60'>Food photos or videos</p>
+
+          {media.length > 0 && (
+            <div className='grid grid-cols-3 gap-2'>
+              {media.map((m, i) => (
+                <div key={i} className='relative aspect-square overflow-hidden rounded-xl'>
+                  {m.type === 'VIDEO' ? (
+                    <video src={m.url} className='h-full w-full object-cover' muted playsInline />
+                  ) : (
+                    <img src={m.url} alt='' className='h-full w-full object-cover' />
+                  )}
+                  <button
+                    type='button'
+                    onClick={() => removeMedia(i)}
+                    className='absolute right-1 top-1 rounded-full bg-black/60 p-1 text-xs text-white hover:bg-red-500/80'
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <label className='flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-white/20 bg-white/5 p-4 text-white/70 hover:bg-white/10'>
+            <Upload className='h-6 w-6' />
+            <span className='mt-2 text-sm'>Tap to upload photos or videos</span>
+            <input
+              type='file'
+              accept='image/*,video/*'
+              multiple
+              onChange={handleFileChange}
+              className='hidden'
+              disabled={uploading}
+            />
+          </label>
+
+          <div className='flex gap-2'>
+            <input
+              placeholder='Or paste a media URL'
+              value={newMediaUrl}
+              onChange={(e) => setNewMediaUrl(e.target.value)}
+              className='flex-1 rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none focus:border-white'
+            />
+            <select
+              value={newMediaType}
+              onChange={(e) => setNewMediaType(e.target.value as 'IMAGE' | 'VIDEO')}
+              className='rounded-2xl border border-white/10 bg-white/5 p-3 text-white'
+            >
+              <option value='IMAGE' className='bg-brand-900'>Photo</option>
+              <option value='VIDEO' className='bg-brand-900'>Video</option>
+            </select>
+            <button
+              type='button'
+              onClick={addUrlMedia}
+              className='rounded-full bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/20'
+            >
+              Add
+            </button>
+          </div>
+
+          {uploading && <p className='text-sm text-white/60'>Uploading…</p>}
+        </div>
+
         <button
           type='submit'
           disabled={loading}
