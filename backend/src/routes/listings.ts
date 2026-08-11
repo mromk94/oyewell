@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { ApiError } from '../lib/errors.js';
-import { distanceKm } from '../lib/maps.js';
+import { distanceMeters, geocode } from '../lib/location.js';
 
 const router = Router();
 
@@ -55,6 +55,50 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+router.get('/around-me', async (req, res, next) => {
+  try {
+    const radiusKm = Math.min(Math.max(Number(req.query.radiusKm) || 10, 0.5), 50);
+    const radiusMeters = radiusKm * 1000;
+
+    let lat = Number(req.query.lat);
+    let lng = Number(req.query.lng);
+    const address = req.query.address as string | undefined;
+
+    if ((!Number.isNaN(lat) && !Number.isNaN(lng)) === false) {
+      if (!address) throw new ApiError(400, 'lat/lng or address is required');
+      const geocoded = await geocode(address);
+      if (!geocoded) throw new ApiError(400, 'Could not geocode address');
+      lat = geocoded.lat;
+      lng = geocoded.lng;
+    }
+
+    const listings = await prisma.cookListing.findMany({
+      where: {
+        status: 'APPROVED',
+        isActive: true,
+        stock: { gt: 0 },
+        cook: { profileStatus: 'APPROVED', kitchenStatus: 'OPEN', isActive: true, latitude: { not: null }, longitude: { not: null } },
+      },
+      include: LISTING_INCLUDE,
+      take: 100,
+    });
+
+    const withDistance = listings
+      .map((l) => {
+        const cook = l.cook;
+        const distMeters = cook.latitude && cook.longitude ? distanceMeters({ lat, lng }, { lat: cook.latitude, lng: cook.longitude }) : Infinity;
+        return { ...l, distanceMeters: distMeters, distanceKm: distMeters / 1000 };
+      })
+      .filter((l) => l.distanceMeters <= radiusMeters)
+      .sort((a, b) => a.distanceMeters - b.distanceMeters);
+
+    res.json({ listings: withDistance, center: { lat, lng } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Keep old path for backward compatibility
 router.get('/nearby', async (req, res, next) => {
   try {
     const lat = Number(req.query.lat);
@@ -70,18 +114,17 @@ router.get('/nearby', async (req, res, next) => {
         cook: { profileStatus: 'APPROVED', kitchenStatus: 'OPEN', isActive: true, latitude: { not: null }, longitude: { not: null } },
       },
       include: LISTING_INCLUDE,
-      orderBy: { createdAt: 'desc' },
       take: 100,
     });
 
     const withDistance = listings
       .map((l) => {
         const cook = l.cook;
-        const dist = cook.latitude && cook.longitude ? distanceKm({ lat, lng }, { lat: cook.latitude, lng: cook.longitude }) : Infinity;
-        return { ...l, distanceKm: dist };
+        const distMeters = cook.latitude && cook.longitude ? distanceMeters({ lat, lng }, { lat: cook.latitude, lng: cook.longitude }) : Infinity;
+        return { ...l, distanceMeters: distMeters, distanceKm: distMeters / 1000 };
       })
-      .filter((l) => l.distanceKm <= radiusKm)
-      .sort((a, b) => a.distanceKm - b.distanceKm);
+      .filter((l) => l.distanceMeters <= radiusKm * 1000)
+      .sort((a, b) => a.distanceMeters - b.distanceMeters);
 
     res.json({ listings: withDistance });
   } catch (err) {
