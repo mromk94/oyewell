@@ -53,7 +53,9 @@ export interface CookListing {
     cuisineSpecialty?: string | null;
     kitchenStatus: string;
     rating: number;
+    neighborhood?: string | null;
   };
+  point?: { lat: number; lng: number };
 }
 
 export async function fetchCookListingsPublic(params?: { cuisine?: string; skip?: number; take?: number; cookId?: string }) {
@@ -81,7 +83,7 @@ export async function fetchCookListingsNearby(lat: number, lng: number, radiusKm
 }
 
 export async function fetchCookListingsAroundMe(
-  center: { lat: number; lng: number } | { address: string },
+  center: { lat: number; lng: number } | { address: string } | { neighborhood: string },
   minResults = 5,
   radiusKm = 10
 ) {
@@ -90,13 +92,18 @@ export async function fetchCookListingsAroundMe(
   qs.set('radiusKm', String(radiusKm));
   if ('address' in center) {
     qs.set('address', center.address);
+  } else if ('neighborhood' in center) {
+    qs.set('neighborhood', center.neighborhood);
   } else {
     qs.set('lat', String(center.lat));
     qs.set('lng', String(center.lng));
   }
   const res = await fetch(`${API_BASE}/api/listings/around-me?${qs.toString()}`);
   if (!res.ok) throw new Error('Failed to load nearby listings');
-  const data = (await res.json()) as { sections: { listings: (CookListing & { distanceKm: number })[] }[] };
+  const data = (await res.json()) as {
+    sections: { listings: (CookListing & { distanceKm: number })[] }[];
+    center: { lat: number; lng: number } | null;
+  };
   const seen = new Set<string>();
   const listings: (CookListing & { distanceKm: number })[] = [];
   for (const section of data.sections) {
@@ -107,7 +114,7 @@ export async function fetchCookListingsAroundMe(
       }
     }
   }
-  return { listings: listings.map((l) => ({ ...l, price: formatPrice(l.priceKobo) })) };
+  return { listings: listings.map((l) => ({ ...l, price: formatPrice(l.priceKobo) })), center: data.center };
 }
 
 export async function fetchCookPublic(cookId: string) {

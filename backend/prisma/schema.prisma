@@ -140,6 +140,7 @@ model Rider {
   kycStatus                  KycStatus         @default(NOT_STARTED)
   operationalStatus          OperationalStatus @default(OFFLINE)
   onboardingData             Json              @default("{}")
+  neighborhood               String?
   location                   RiderLocation?
   inspections                RiderInspection[]
   payoutRequests             RiderPayoutRequest[]
@@ -151,6 +152,7 @@ model Rider {
   @@index([neighborhoodApproval, isActive, available])
   @@index([professionalApproval, isActive, available])
   @@index([operationalStatus])
+  @@index([neighborhood])
 }
 
 model RiderOnboardingField {
@@ -482,6 +484,7 @@ model CookProfile {
   isActive             Boolean           @default(true)
   banned               Boolean           @default(false)
   banReason            String?
+  neighborhood         String?
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
   listings             CookListing[]
@@ -489,6 +492,8 @@ model CookProfile {
   orders               Order[]
   earnings             CookEarning[]
   reviews              Review[]
+
+  @@index([neighborhood])
 }
 
 model CookListing {
@@ -573,15 +578,17 @@ model UserAddress {
   id        String   @id @default(cuid())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
-  label     String?
-  address   String
-  latitude  Float?
-  longitude Float?
-  isDefault Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  label       String?
+  address     String
+  latitude    Float?
+  longitude   Float?
+  neighborhood String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([userId])
+  @@index([neighborhood])
 }
 
 model Conversation {

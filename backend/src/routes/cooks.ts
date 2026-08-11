@@ -5,12 +5,13 @@ import { ApiError } from '../lib/errors.js';
 import { serializeOrder } from '../lib/order.js';
 import { dispatchOrder } from '../lib/assignment.js';
 import { emitEvent } from '../lib/realtime.js';
+import { resolveNeighborhood, normalizeNeighborhood } from '../lib/neighborhood.js';
 
 const router = Router();
 
 router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {
   try {
-    const { displayName, bio, latitude, longitude, serviceRadiusKm, cuisineSpecialty, profilePhoto, categories, signatureDishes, capacity, prepTime, availability, packagingPhotos, safetyAcknowledgements } = req.body as Record<string, any>;
+    const { displayName, bio, latitude, longitude, neighborhood: neighborhoodInput, serviceRadiusKm, cuisineSpecialty, profilePhoto, categories, signatureDishes, capacity, prepTime, availability, packagingPhotos, safetyAcknowledgements } = req.body as Record<string, any>;
     if (!displayName) throw new ApiError(400, 'Display name is required');
     const user = await prisma.user.findUnique({ where: { id: req.user!.id }, include: { cookProfile: true } });
     if (!user) throw new ApiError(404, 'User not found');
@@ -19,14 +20,22 @@ router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {
     const existing = await prisma.cookProfile.findFirst({ where: { displayName: { equals: displayName, mode: 'insensitive' } } });
     if (existing) throw new ApiError(409, 'Display name already in use');
 
+    const latNum = latitude != null ? Number(latitude) : null;
+    const lngNum = longitude != null ? Number(longitude) : null;
+    let neighborhood = normalizeNeighborhood(neighborhoodInput) ?? null;
+    if (!neighborhood && latNum != null && lngNum != null) {
+      neighborhood = normalizeNeighborhood(await resolveNeighborhood({ lat: latNum, lng: lngNum })) ?? null;
+    }
+
     const cook = await prisma.$transaction(async (tx) => {
       const profile = await tx.cookProfile.create({
         data: {
           userId: user.id,
           displayName,
           bio,
-          latitude: latitude != null ? Number(latitude) : null,
-          longitude: longitude != null ? Number(longitude) : null,
+          latitude: latNum,
+          longitude: lngNum,
+          neighborhood,
           serviceRadiusKm: serviceRadiusKm ? Number(serviceRadiusKm) : 5,
           cuisineSpecialty,
           profilePhoto,
@@ -67,14 +76,24 @@ router.get('/me', requireAuth, requireRole('COOK'), async (req: AuthRequest, res
 
 router.put('/me', requireAuth, requireRole('COOK'), async (req: AuthRequest, res, next) => {
   try {
-    const { displayName, bio, latitude, longitude, serviceRadiusKm, cuisineSpecialty, profilePhoto, categories, signatureDishes, capacity, prepTime, availability, packagingPhotos, safetyAcknowledgements, onboardingStep } = req.body as Record<string, any>;
+    const { displayName, bio, latitude, longitude, neighborhood: neighborhoodInput, serviceRadiusKm, cuisineSpecialty, profilePhoto, categories, signatureDishes, capacity, prepTime, availability, packagingPhotos, safetyAcknowledgements, onboardingStep } = req.body as Record<string, any>;
+
+    const latNum = latitude != null ? Number(latitude) : undefined;
+    const lngNum = longitude != null ? Number(longitude) : undefined;
+    let neighborhood = normalizeNeighborhood(neighborhoodInput) ?? undefined;
+    if (!neighborhood && latNum != null && lngNum != null) {
+      neighborhood = (await resolveNeighborhood({ lat: latNum, lng: lngNum })) ?? undefined;
+      if (neighborhood) neighborhood = normalizeNeighborhood(neighborhood) ?? undefined;
+    }
+
     const cook = await prisma.cookProfile.update({
       where: { userId: req.user!.id },
       data: {
         displayName,
         bio,
-        latitude: latitude != null ? Number(latitude) : undefined,
-        longitude: longitude != null ? Number(longitude) : undefined,
+        latitude: latNum,
+        longitude: lngNum,
+        neighborhood,
         serviceRadiusKm: serviceRadiusKm != null ? Number(serviceRadiusKm) : undefined,
         cuisineSpecialty,
         profilePhoto,

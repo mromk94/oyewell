@@ -19,7 +19,8 @@ import reviewsRouter from './routes/reviews.js';
 import chatRouter from './routes/chat.js';
 import eventsRouter from './routes/events.js';
 import moderationRouter from './routes/moderation.js';
-import locationRouter from './routes/location.js';
+import locationsRouter from './routes/location.js';
+import neighborhoodsRouter from './routes/neighborhoods.js';
 import managementRouter from './routes/management.js';
 import approvalsRouter from './routes/approvals.js';
 import auditRouter from './routes/audit.js';
@@ -73,7 +74,7 @@ app.use('/api/reviews', reviewsRouter);
 app.use('/api/chat', chatRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/moderation', moderationRouter);
-app.use('/api/location', locationRouter);
+app.use('/api/location', locationsRouter);
 app.use('/api/management', managementRouter);
 app.use('/api/approvals', approvalsRouter);
 app.use('/api/audit', auditRouter);
@@ -82,6 +83,7 @@ app.use('/api/tickets', ticketsRouter);
 app.use('/api/disputes', disputesRouter);
 app.use('/api/evidence', evidenceRouter);
 app.use('/api/legal', legalRouter);
+app.use('/api/neighborhoods', neighborhoodsRouter);
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof ApiError) {

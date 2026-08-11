@@ -227,6 +227,9 @@ function CookApply({ onApply }: { onApply: (c: CookProfile) => void }) {
     capacity: '',
     prepTime: '',
     packagingPhotos: '',
+    neighborhood: '',
+    latitude: '',
+    longitude: '',
     safety: {
       hygiene: false,
       allergens: false,
@@ -256,6 +259,9 @@ function CookApply({ onApply }: { onApply: (c: CookProfile) => void }) {
         signatureDishes: form.signatureDishes.split(',').map((c) => c.trim()).filter(Boolean),
         capacity: form.capacity,
         prepTime: form.prepTime,
+        neighborhood: form.neighborhood || undefined,
+        latitude: form.latitude ? Number(form.latitude) : undefined,
+        longitude: form.longitude ? Number(form.longitude) : undefined,
         packagingPhotos,
         safetyAcknowledgements,
       });
@@ -331,6 +337,44 @@ function CookApply({ onApply }: { onApply: (c: CookProfile) => void }) {
                 onChange={(e) => setForm({ ...form, prepTime: e.target.value })}
                 className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
               />
+              <input
+                placeholder='Neighborhood (e.g. Yaba, Ikeja GRA)'
+                value={form.neighborhood}
+                onChange={(e) => setForm({ ...form, neighborhood: e.target.value })}
+                className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+                required
+              />
+              <div className='flex gap-2'>
+                <input
+                  type='number'
+                  step='any'
+                  placeholder='Latitude'
+                  value={form.latitude}
+                  onChange={(e) => setForm({ ...form, latitude: e.target.value })}
+                  className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+                />
+                <input
+                  type='number'
+                  step='any'
+                  placeholder='Longitude'
+                  value={form.longitude}
+                  onChange={(e) => setForm({ ...form, longitude: e.target.value })}
+                  className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+                />
+              </div>
+              <button
+                type='button'
+                onClick={() => {
+                  if (!navigator.geolocation) return;
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => setForm({ ...form, latitude: String(pos.coords.latitude), longitude: String(pos.coords.longitude) }),
+                    () => setError('Could not get location')
+                  );
+                }}
+                className='w-full rounded-full border border-white/20 bg-white/5 py-3 font-bold text-white transition hover:bg-white/10'
+              >
+                Use my location
+              </button>
               <textarea
                 placeholder='Tell customers about your kitchen'
                 value={form.bio}

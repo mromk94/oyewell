@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, Loader2, AlertCircle, Search } from 'lucide-react';
 import CookListingCard from './CookListingCard';
+import { MapView } from './MapView';
 import { fetchCookListingsAroundMe, type CookListing } from '../lib/listings';
 import { type DiscoveryFiltersState } from './DiscoveryFilters';
 
@@ -17,13 +18,15 @@ export default function FoodAroundMe({ filters }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [address, setAddress] = useState('');
   const [usingAddress, setUsingAddress] = useState(false);
+  const [center, setCenter] = useState<{ lat: number; lng: number } | null>(null);
 
-  async function load(center: { lat: number; lng: number } | { address: string }) {
+  async function load(search: { lat: number; lng: number } | { address: string }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetchCookListingsAroundMe(center, 8, 10);
+      const res = await fetchCookListingsAroundMe(search, 8, 10);
       setListings(res.listings);
+      setCenter(res.center);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load nearby food');
     } finally {
@@ -147,6 +150,14 @@ export default function FoodAroundMe({ filters }: Props) {
     );
   }
 
+  const markers = useMemo(
+    () =>
+      filteredListings
+        .filter((l) => l.point)
+        .map((l) => ({ id: l.id, point: l.point!, label: l.cook.displayName })),
+    [filteredListings]
+  );
+
   return (
     <section className='py-6'>
       <div className='mb-4 flex items-center justify-between px-4'>
@@ -155,8 +166,15 @@ export default function FoodAroundMe({ filters }: Props) {
           <h2 className='text-lg font-black text-white'>Food Around Me</h2>
         </div>
       </div>
+      <div className='px-4'>{addressForm}</div>
+      {usingAddress && address && <p className='px-4 text-xs text-white/40'>Showing results for &quot;{address}&quot;</p>}
+      {center && (
+        <div className='mt-4 px-4'>
+          <MapView center={center} markers={markers} height={240} />
+        </div>
+      )}
       <motion.div
-        className='hide-scrollbar flex gap-4 overflow-x-auto px-4 pb-2'
+        className='hide-scrollbar mt-4 flex gap-4 overflow-x-auto px-4 pb-2'
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}

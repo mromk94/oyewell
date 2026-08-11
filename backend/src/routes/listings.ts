@@ -24,10 +24,18 @@ const COOK_SELECT = {
   longitude: true,
 } as const;
 
+function roundCoord(coord: number, decimals = 2) {
+  return Math.round(coord * 10 ** decimals) / 10 ** decimals;
+}
+
 function stripCookLocation(listing: any) {
   if (!listing.cook) return listing;
   const { latitude, longitude, ...publicCook } = listing.cook;
-  return { ...listing, cook: publicCook };
+  const point =
+    latitude != null && longitude != null
+      ? { lat: roundCoord(latitude), lng: roundCoord(longitude) }
+      : undefined;
+  return { ...listing, cook: publicCook, point };
 }
 
 const LISTING_INCLUDE = {
@@ -102,16 +110,24 @@ router.get('/around-me', async (req, res, next) => {
     }
 
     const bucket = geoBucket(lat, lng, 2);
-    const cacheKey = `listings:around-me:${bucket}:${minResults}:${customRadiusKm ?? 'default'}`;
+    const cacheKey = `listings:around-me:${bucket}:${minResults}:${customRadiusKm ?? 'default'}:${req.query.neighborhood ?? 'all'}`;
     const data = await cache.getOrSet(
       cacheKey,
       async () => {
+        const neighborhood = typeof req.query.neighborhood === 'string' ? req.query.neighborhood.trim() : undefined;
         const listings = await prisma.cookListing.findMany({
           where: {
             status: 'APPROVED',
             isActive: true,
             stock: { gt: 0 },
-            cook: { profileStatus: 'APPROVED', kitchenStatus: 'OPEN', isActive: true, latitude: { not: null }, longitude: { not: null } },
+            cook: {
+              profileStatus: 'APPROVED',
+              kitchenStatus: 'OPEN',
+              isActive: true,
+              latitude: { not: null },
+              longitude: { not: null },
+              ...(neighborhood ? { neighborhood } : {}),
+            },
           },
           include: LISTING_INCLUDE,
           take: 100,

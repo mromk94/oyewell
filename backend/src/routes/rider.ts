@@ -7,6 +7,7 @@ import { requireAuth, requireRider, type AuthRequest } from '../middleware/auth.
 import { serializeOrder } from '../lib/order.js';
 import { isRiderEligibleForType } from '../lib/assignment.js';
 import { validateLocation, haversineMeters } from '../lib/location.js';
+import { normalizeNeighborhood, resolveNeighborhood } from '../lib/neighborhood.js';
 import { ApiError } from '../lib/errors.js';
 import { formatKobo } from '../lib/money.js';
 import { emitEvent } from '../lib/realtime.js';
@@ -37,6 +38,7 @@ router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {
     }
     dataRecord = { ...preservedMeta, ...dataRecord };
 
+    const neighborhood = normalizeNeighborhood(operatingArea) ?? null;
     const rider = await prisma.rider.upsert({
       where: { userId },
       create: {
@@ -44,6 +46,7 @@ router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {
         vehicle: vehicle ? String(vehicle) : undefined,
         deliveryMode: String(deliveryMode) as any,
         operatingArea: operatingArea ? String(operatingArea) : undefined,
+        neighborhood,
         serviceRadiusMeters: radius,
         kycStatus: dataRecord.idDocumentUrl || dataRecord.facePhotoUrl ? 'SUBMITTED' : 'NOT_STARTED',
         neighborhoodApproval: 'PENDING',
@@ -56,6 +59,7 @@ router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {
         vehicle: vehicle ? String(vehicle) : undefined,
         deliveryMode: String(deliveryMode) as any,
         operatingArea: operatingArea ? String(operatingArea) : undefined,
+        neighborhood,
         serviceRadiusMeters: radius,
         kycStatus: dataRecord.idDocumentUrl || dataRecord.facePhotoUrl ? 'SUBMITTED' : 'NOT_STARTED',
         neighborhoodApproval: 'PENDING',
@@ -259,10 +263,11 @@ router.put('/me/availability', requireAuth, requireRider, async (req: AuthReques
 
 router.put('/me', requireAuth, requireRider, async (req: AuthRequest, res, next) => {
   try {
-    const { vehicle, bankName, bankAccountName, bankAccountNumber } = (req.body || {}) as Record<string, string>;
+    const { vehicle, bankName, bankAccountName, bankAccountNumber, operatingArea } = (req.body || {}) as Record<string, string>;
+    const neighborhood = normalizeNeighborhood(operatingArea) ?? null;
     const rider = await prisma.rider.update({
       where: { userId: req.user!.id },
-      data: { vehicle, bankName, bankAccountName, bankAccountNumber },
+      data: { vehicle, bankName, bankAccountName, bankAccountNumber, operatingArea, neighborhood },
       include: {
         user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } },
       },
@@ -461,6 +466,16 @@ router.post('/location', requireAuth, requireRider, async (req: AuthRequest, res
         if (speedMps > 50) {
           throw new ApiError(400, 'Location update rejected: unrealistic movement');
         }
+      }
+    }
+
+    if (!rider.neighborhood) {
+      const fromLoc = await resolveNeighborhood({ lat: point.lat, lng: point.lng });
+      if (fromLoc) {
+        await prisma.rider.update({
+          where: { id: rider.id },
+          data: { neighborhood: normalizeNeighborhood(fromLoc) },
+        });
       }
     }
 

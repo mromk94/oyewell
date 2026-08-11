@@ -87,6 +87,7 @@ export async function applyAsCook(body: {
   bio?: string;
   latitude?: number;
   longitude?: number;
+  neighborhood?: string;
   serviceRadiusKm?: number;
   cuisineSpecialty?: string;
   profilePhoto?: string;
