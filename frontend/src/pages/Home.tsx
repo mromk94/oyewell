@@ -20,7 +20,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [canScrollUp, setCanScrollUp] = useState(false);
   const [canScrollDown, setCanScrollDown] = useState(false);
-  const [view, setView] = useState<'home' | 'nearby' | 'cooks' | 'restaurants'>('home');
+  const [view, setView] = useState<'home' | 'cooks' | 'restaurants' | 'nearby'>('home');
   const mainRef = useRef<HTMLElement>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
@@ -49,7 +49,7 @@ export default function Home() {
     if (!el) return;
     setCanScrollUp(el.scrollTop > 10);
     setCanScrollDown(el.scrollTop < el.scrollHeight - el.clientHeight - 10);
-  }, [foods]);
+  }, [view, foods, cookListings]);
 
   function handleScroll() {
     const el = mainRef.current;
@@ -100,7 +100,7 @@ export default function Home() {
           const dy = t.clientY - touchStart.current.y;
           touchStart.current = null;
           if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx)) return;
-          const tabs = ['home', 'restaurants', 'cooks', 'nearby'] as const;
+          const tabs = ['home', 'cooks', 'restaurants', 'nearby'] as const;
           const idx = tabs.indexOf(view);
           if (dx < 0 && idx < tabs.length - 1) setView(tabs[idx + 1]);
           if (dx > 0 && idx > 0) setView(tabs[idx - 1]);
@@ -118,7 +118,7 @@ export default function Home() {
         )}
         {view === 'restaurants' && foods.map((food) => <FoodCard key={food.id} food={food} />)}
         {view === 'cooks' && (
-          <div className='relative h-screen w-full pt-28'>
+          <>
             <CookListingFeed listings={cookListings} loading={cooksLoading} />
             <Link
               to='/cook?tab=add'
@@ -127,7 +127,7 @@ export default function Home() {
             >
               <Plus className='h-6 w-6' />
             </Link>
-          </div>
+          </>
         )}
         {view === 'nearby' && (
           <div className="min-h-screen pt-28">
@@ -148,14 +148,14 @@ function DiscoveryNav({
   current,
   onChange,
 }: {
-  current: 'home' | 'nearby' | 'cooks' | 'restaurants';
-  onChange: (v: 'home' | 'nearby' | 'cooks' | 'restaurants') => void;
+  current: 'home' | 'cooks' | 'restaurants' | 'nearby';
+  onChange: (v: 'home' | 'cooks' | 'restaurants' | 'nearby') => void;
 }) {
   const tabs = [
     { id: 'home', label: 'Home', icon: HomeIcon },
+    { id: 'cooks', label: 'Food', icon: ChefHat },
     { id: 'restaurants', label: 'Restaurants', icon: Utensils },
-    { id: 'cooks', label: 'Cooks', icon: ChefHat },
-    { id: 'nearby', label: 'Food Around Me', icon: MapPin },
+    { id: 'nearby', label: 'Around Me', icon: MapPin },
   ] as const;
 
   return (

@@ -25,10 +25,10 @@ export default function CookListingFeed({ listings, loading }: Props) {
   }
 
   return (
-    <main className='h-screen snap-y snap-mandatory overflow-y-scroll scroll-smooth'>
+    <div className='w-full'>
       {listings.map((listing) => (
         <CookListingHero key={listing.id} listing={listing} />
       ))}
-    </main>
+    </div>
   );
 }

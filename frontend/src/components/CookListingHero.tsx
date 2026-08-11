@@ -122,7 +122,7 @@ export default function CookListingHero({ listing }: Props) {
           )}
         </div>
 
-        <div className='mt-8 flex items-center gap-6'>
+        <div className='mt-8 flex flex-wrap items-center gap-4 sm:gap-6'>
           <p className='text-2xl font-semibold text-white md:text-3xl'>{formatPrice(listing.priceKobo)}</p>
           <Link to={`/cook-listing/${listing.id}`}>
             <OrderButton label='Order' />
