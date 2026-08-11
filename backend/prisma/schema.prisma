@@ -138,6 +138,11 @@ model Rider {
   createdAt                  DateTime          @default(now())
   updatedAt                  DateTime          @updatedAt
   orders                     Order[]
+
+  @@index([isApproved, isActive, available])
+  @@index([neighborhoodApproval, isActive, available])
+  @@index([professionalApproval, isActive, available])
+  @@index([operationalStatus])
 }
 
 enum OrderSource {
