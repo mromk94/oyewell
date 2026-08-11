@@ -27,7 +27,7 @@ export function MapView({ center, markers, height = 240 }: MapViewProps) {
   return (
     <div
       style={{ height }}
-      className='relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 text-white'
+      className='relative overflow-hidden rounded-2xl border border-white/10 bg-[#0d1b12] text-white'
     >
       <div className='absolute inset-0 flex flex-col items-center justify-center p-4 text-center'>
         <p className='text-sm font-medium'>Map view</p>
