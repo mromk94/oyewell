@@ -801,6 +801,35 @@ router.get('/cook-listings', async (_req, res, next) => {
   }
 });
 
+router.patch('/cooks/:id/request-more-info', async (req, res, next) => {
+  try {
+    const { reason, fields } = req.body as Record<string, any>;
+    const cook = await prisma.cookProfile.update({
+      where: { id: req.params.id },
+      data: { profileStatus: 'PENDING_APPROVAL' },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    });
+    res.json({ cook, request: { reason, fields } });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/cooks/:id/approve-packaging', async (req, res, next) => {
+  try {
+    const { approved, note } = req.body as Record<string, any>;
+    const status = approved === false ? 'PENDING_APPROVAL' : 'APPROVED';
+    const cook = await prisma.cookProfile.update({
+      where: { id: req.params.id },
+      data: { profileStatus: status },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    });
+    res.json({ cook, packaging: { approved, note } });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.patch('/cook-listings/:id/approve', async (req, res, next) => {
   try {
     const listing = await prisma.cookListing.update({
