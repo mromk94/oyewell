@@ -705,3 +705,43 @@ model ModeratorArea {
   @@index([employeeId])
   @@index([scope, country, region, city])
 }
+
+enum ApprovalStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  MORE_INFORMATION_REQUIRED
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum ApprovalType {
+  COOK
+  RIDER
+  RIDER_PROFESSIONAL
+  PACKAGING
+  MENU
+  SPECIAL
+  REFUND
+}
+
+model Approval {
+  id            String         @id @default(cuid())
+  type          ApprovalType
+  targetId      String
+  targetType    String
+  status        ApprovalStatus @default(DRAFT)
+  submittedBy   String?
+  submittedAt   DateTime?
+  reviewedBy    String?
+  reviewedAt    DateTime?
+  note          String?
+  moreInfo      String?
+  data          Json?          @default("{}")
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([type, status])
+  @@index([targetId, targetType])
+}
