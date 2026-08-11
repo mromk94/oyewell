@@ -17,7 +17,7 @@ import {
   ShieldCheck,
   Shield,
 } from 'lucide-react';
-import { riderLogin, riderRegister, riderLogout, fetchRiderMe, updateRiderMe, updateRiderAvailability, fetchRiderOrders, fetchAvailableOrders, claimOrder, pickupOrder, verifyDeliveryCode, fetchRiderEarnings, fetchRiderPayouts, withdrawRiderEarnings, type RiderOrder, type Rider } from '../lib/rider';
+import { riderLogin, riderRegister, riderLogout, fetchRiderMe, updateRiderMe, updateRiderAvailability, fetchRiderOrders, fetchAvailableOrders, claimOrder, pickupOrder, startTrip, verifyDeliveryCode, fetchRiderEarnings, fetchRiderPayouts, withdrawRiderEarnings, type RiderOrder, type Rider } from '../lib/rider';
 import ProfessionalUpgradeModal from '../components/ProfessionalUpgradeModal';
 
 export default function Rider() {
@@ -326,6 +326,15 @@ function MyOrdersPanel({ onError }: { onError: (m: string) => void }) {
     }
   }
 
+  async function handleStart(orderNumber: string) {
+    try {
+      await startTrip(orderNumber);
+      load();
+    } catch (e: any) {
+      onError(e.message);
+    }
+  }
+
   if (loading) return <PanelLoader />;
   if (!orders.length) return <Empty message='No assigned orders yet.' />;
 
@@ -334,7 +343,11 @@ function MyOrdersPanel({ onError }: { onError: (m: string) => void }) {
       {orders.map((order) => (
         <OrderCard key={order.id} order={order} actions={[
           ...(order.status === 'OUT_FOR_DELIVERY' ? [{ label: 'Picked up', icon: CheckCircle, onClick: () => handlePickup(order.orderNumber) }] : []),
-          ...(order.riderStatus === 'PICKED_UP' ? [{ label: 'Verify delivery', icon: ShieldCheck, onClick: () => { /* handled by verify tab */ } }] : []),
+          ...(order.riderStatus === 'PICKED_UP' ? [
+            { label: 'Start trip', icon: Navigation, onClick: () => handleStart(order.orderNumber) },
+            { label: 'Verify delivery', icon: ShieldCheck, onClick: () => { /* handled by verify tab */ } },
+          ] : []),
+          ...(order.riderStatus === 'IN_TRANSIT' ? [{ label: 'Verify delivery', icon: ShieldCheck, onClick: () => { /* handled by verify tab */ } }] : []),
         ]} />
       ))}
     </div>

@@ -23,12 +23,13 @@ export interface RiderOrder {
   riderFee?: string;
   address: string;
   phone: string;
-  deliveryCode?: string;
+  deliveryCode?: string | null;
   estimatedMinutes?: number;
   approximateArea?: string;
   cookName?: string;
   pickupArea?: string;
   pickupLocation?: { lat: number; lng: number; address: string } | null;
+  tripStartedAt?: string | null;
   createdAt: string;
   items: { id: string; foodName: string; optionLabel: string; quantity: number; totalKobo: number }[];
   sides: { id: string; name: string; quantity: number; priceKobo: number }[];
@@ -143,6 +144,16 @@ export async function pickupOrder(orderNumber: string, code: string) {
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error || 'Failed to mark picked up');
+  return json as { order: RiderOrder };
+}
+
+export async function startTrip(orderNumber: string) {
+  const res = await fetch(R(`/orders/${orderNumber}/start-trip`), {
+    method: 'POST',
+    headers: headers(),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || 'Failed to start trip');
   return json as { order: RiderOrder };
 }
 

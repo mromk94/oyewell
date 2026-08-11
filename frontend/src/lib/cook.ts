@@ -67,12 +67,15 @@ export interface CookOrder {
   orderNumber: string;
   status: string;
   paymentStatus: string;
+  riderStatus?: string;
   subtotal: string;
   deliveryFee: string;
   total: string;
   address: string;
   phone: string;
   riderFee?: string;
+  pickupCode?: string | null;
+  pickupCodeVerifiedAt?: string | null;
   createdAt: string;
   items: { foodName: string; quantity: number; totalKobo: number }[];
 }

@@ -925,7 +925,7 @@ function OrdersPanel({ onError }: { onError: (msg: string) => void }) {
           <p className='text-sm text-white/70'>{o.items.map((i) => `${i.foodName} x${i.quantity}`).join(', ')}</p>
           <p className='text-sm text-emerald-300'>{o.total}</p>
           <div className='mt-3 flex flex-wrap gap-2'>
-            {o.status === 'PENDING_PAYMENT' && (
+            {o.paymentStatus === 'PAID' && o.status === 'CONFIRMED' && (
               <button
                 onClick={() => action(o.orderNumber, 'accept')}
                 className='rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-bold text-black hover:bg-emerald-400'
@@ -934,12 +934,20 @@ function OrdersPanel({ onError }: { onError: (msg: string) => void }) {
               </button>
             )}
             {o.status === 'COOK_ACCEPTED' && (
-              <button
-                onClick={() => action(o.orderNumber, 'preparing')}
-                className='rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-bold text-black hover:bg-emerald-400'
-              >
-                Start cooking
-              </button>
+              <>
+                {o.pickupCode && (
+                  <div className='w-full rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-3 text-center'>
+                    <p className='text-xs text-yellow-200'>Give this pickup code to the rider</p>
+                    <p className='text-2xl font-black tracking-widest text-yellow-300'>{o.pickupCode}</p>
+                  </div>
+                )}
+                <button
+                  onClick={() => action(o.orderNumber, 'preparing')}
+                  className='rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-bold text-black hover:bg-emerald-400'
+                >
+                  Start cooking
+                </button>
+              </>
             )}
             {o.status === 'PREPARING' && (
               <button

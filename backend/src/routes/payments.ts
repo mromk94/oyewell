@@ -4,6 +4,7 @@ import { verifyPayment } from '../lib/payment.js';
 import { paymentVerifySchema } from '../lib/validation.js';
 import { ApiError } from '../lib/errors.js';
 import { cache } from '../lib/cache.js';
+import { emitEvent } from '../lib/realtime.js';
 
 const router = Router();
 
@@ -72,12 +73,14 @@ router.post('/:paymentId/proof', async (req, res, next) => {
       include: { order: true },
     });
     if (!payment) throw new ApiError(404, 'Payment not found');
+    if (payment.status === 'SUCCESS') throw new ApiError(400, 'Payment already confirmed');
     await prisma.$transaction(async (tx) => {
-      await tx.payment.update({ where: { id: paymentId }, data: { status: 'PENDING' } });
+      await tx.payment.update({ where: { id: paymentId }, data: { status: 'PROCESSING' } });
+      await tx.order.update({ where: { id: payment.orderId }, data: { paymentStatus: 'UNDER_REVIEW' } });
       await tx.paymentAttempt.create({
         data: {
           paymentId,
-          status: 'PENDING',
+          status: 'PROCESSING',
           payload: { image, note: note ?? '', uploadedAt: new Date().toISOString() },
         },
       });
@@ -86,9 +89,14 @@ router.post('/:paymentId/proof', async (req, res, next) => {
           orderId: payment.orderId,
           status: 'PENDING_PAYMENT',
           actor: 'customer',
-          note: 'Payment proof uploaded',
+          note: 'Payment proof uploaded — under review',
         },
       });
+    });
+    emitEvent('payment:proof', {
+      orderId: payment.orderId,
+      orderNumber: payment.order.orderNumber,
+      paymentId,
     });
     res.json({ ok: true });
   } catch (err) {

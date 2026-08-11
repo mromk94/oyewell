@@ -5,6 +5,7 @@ import { prisma } from '../prisma.js';
 import { createOrderSchema } from '../lib/validation.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../lib/errors.js';
+import { afterOrderTransition } from '../lib/order-state.js';
 import jwt from 'jsonwebtoken';
 import { JWT_SECRET } from '../lib/config.js';
 
@@ -58,7 +59,7 @@ router.get('/:orderNumber', async (req, res, next) => {
         (order.payment as any).method = method;
       }
     }
-    res.json({ order: serializeOrder(order, false, true) });
+    res.json({ order: serializeOrder(order, 'CUSTOMER', true) });
   } catch (err) {
     next(err);
   }
@@ -88,7 +89,7 @@ router.post('/:orderNumber/switch-delivery-type', requireAuth, async (req: AuthR
       },
       include: { items: true, sides: true, payment: true, statusHistory: true, deliveryZone: true },
     });
-    res.json({ order: serializeOrder(updated, false, true) });
+    res.json({ order: serializeOrder(updated, 'CUSTOMER', true) });
   } catch (err) {
     next(err);
   }
@@ -123,13 +124,14 @@ router.post('/:orderNumber/cancel', requireAuth, async (req: AuthRequest, res, n
       where: { id: order.id },
       data: {
         status: 'CANCELLED',
-        paymentStatus: order.paymentStatus === 'SUCCESS' ? 'REFUNDED' : 'CANCELLED',
+        paymentStatus: order.paymentStatus === 'PAID' ? 'REFUNDED' : 'CANCELLED',
         riderFeeKobo: 0,
         statusHistory: { create: { status: 'CANCELLED', note: `Cancelled by ${isAdmin ? 'admin' : isCook ? 'cook' : isRider ? 'rider' : 'customer'}`, actor: user.email } },
       },
       include: { items: true, sides: true, payment: true, statusHistory: true },
     });
-    res.json({ order: serializeOrder(updated, false, true) });
+    afterOrderTransition(updated, { actor: user.email, previousStatus: order.status, note: 'Order cancelled' });
+    res.json({ order: serializeOrder(updated, 'CUSTOMER', true) });
   } catch (err) {
     next(err);
   }

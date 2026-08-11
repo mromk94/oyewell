@@ -12,6 +12,13 @@ import { ApiError } from '../lib/errors.js';
 import { formatKobo } from '../lib/money.js';
 import { emitEvent } from '../lib/realtime.js';
 import { JWT_SECRET, JWT_EXPIRES_IN } from '../lib/config.js';
+import {
+  assertOrderTransition,
+  assertRiderTransition,
+  afterOrderTransition,
+  assertCodeAttemptAllowed,
+  clearCodeAttempts,
+} from '../lib/order-state.js';
 
 const router = Router();
 
@@ -288,8 +295,8 @@ router.get('/available', requireAuth, requireRider, async (req: AuthRequest, res
     const orders = await prisma.order.findMany({
       where: {
         riderId: null,
-        paymentStatus: 'SUCCESS',
-        status: { in: ['PAID', 'CONFIRMED', 'PREPARING', 'READY_FOR_PICKUP', 'READY_FOR_DISPATCH'] },
+        paymentStatus: 'PAID',
+        status: { in: ['READY_FOR_PICKUP', 'READY_FOR_DISPATCH'] },
       },
       orderBy: { createdAt: 'desc' },
       include: { items: true, sides: true, deliveryZone: true, statusHistory: true, cookListing: { include: { cook: true } } },
@@ -297,7 +304,7 @@ router.get('/available', requireAuth, requireRider, async (req: AuthRequest, res
     const filtered = orders.filter((order) =>
       isRiderEligibleForType(rider, (order.deliveryType as any) ?? 'NEIGHBORHOOD'),
     );
-    res.json({ orders: filtered.map((o) => serializeOrder(o, true)) });
+    res.json({ orders: filtered.map((o) => serializeOrder(o, 'RIDER')) });
   } catch (e) {
     next(e);
   }
@@ -312,7 +319,7 @@ router.get('/orders', requireAuth, requireRider, async (req: AuthRequest, res, n
       orderBy: { createdAt: 'desc' },
       include: { items: true, sides: true, deliveryZone: true, statusHistory: true, cookListing: { include: { cook: true } } },
     });
-    res.json({ orders: orders.map((o) => serializeOrder(o, true)) });
+    res.json({ orders: orders.map((o) => serializeOrder(o, 'RIDER')) });
   } catch (e) {
     next(e);
   }
@@ -329,6 +336,7 @@ router.post('/orders/:orderNumber/claim', requireAuth, requireRider, async (req:
       throw new ApiError(403, 'You are not eligible for this delivery tier');
     }
 
+    const previousStatus = order.status;
     const updated = await prisma.$transaction(async (tx) => {
       const order = await tx.order.findUnique({
         where: { orderNumber },
@@ -336,10 +344,9 @@ router.post('/orders/:orderNumber/claim', requireAuth, requireRider, async (req:
       });
       if (!order) throw new ApiError(404, 'Order not found');
       if (order.riderId) throw new ApiError(409, 'Order already assigned');
-      if (order.paymentStatus !== 'SUCCESS') throw new ApiError(400, 'Order not paid');
-      if (order.status === 'DELIVERED' || order.status === 'CANCELLED') {
-        throw new ApiError(400, 'Order already delivered or cancelled');
-      }
+      if (order.paymentStatus !== 'PAID') throw new ApiError(400, 'Order not paid');
+      assertOrderTransition(order.status, 'OUT_FOR_DELIVERY');
+      assertRiderTransition(order.riderStatus, 'ASSIGNED');
       const claimed = await tx.order.update({
         where: { id: order.id, riderId: null },
         data: {
@@ -355,14 +362,14 @@ router.post('/orders/:orderNumber/claim', requireAuth, requireRider, async (req:
       return claimed;
     }, { isolationLevel: 'Serializable' });
 
-    emitEvent('order:status', {
+    afterOrderTransition(updated, { actor: req.user!.email, previousStatus, note: 'Rider claimed delivery' });
+    // Remove this delivery from every other rider's open feed.
+    emitEvent('delivery:assigned', {
       orderId: updated.id,
       orderNumber: updated.orderNumber,
-      status: updated.status,
-      riderStatus: updated.riderStatus,
       riderId: updated.riderId,
     });
-    res.json({ order: serializeOrder(updated, true) });
+    res.json({ order: serializeOrder(updated, 'RIDER') });
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError) {
       if (e.code === 'P2025') {
@@ -386,25 +393,64 @@ router.post('/orders/:orderNumber/pickup', requireAuth, requireRider, async (req
       if (!order) throw new ApiError(404, 'Order not assigned to you');
       if (order.status !== 'OUT_FOR_DELIVERY') throw new ApiError(400, 'Order is not ready for pickup');
       if (!order.cookReadyAt) throw new ApiError(400, 'Cook has not marked the order ready yet');
-      if (order.deliveryCode !== String(code)) throw new ApiError(400, 'Invalid pickup code');
+      if (order.riderStatus === 'PICKED_UP' || order.riderStatus === 'IN_TRANSIT') {
+        return await tx.order.findUniqueOrThrow({
+          where: { id: order.id },
+          include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
+        }); // idempotent: already picked up
+      }
+      assertRiderTransition(order.riderStatus, 'PICKED_UP');
+      // Verify against the cook's pickup code; legacy in-flight orders fall back to deliveryCode.
+      assertCodeAttemptAllowed(`pickup:${order.id}`);
+      const expected = order.pickupCode ?? order.deliveryCode;
+      if (expected !== String(code)) throw new ApiError(400, 'Invalid pickup code');
+      clearCodeAttempts(`pickup:${order.id}`);
       return await tx.order.update({
         where: { id: order.id },
         data: {
           riderStatus: 'PICKED_UP',
+          pickupCodeVerifiedAt: new Date(),
           statusHistory: {
-            create: { status: 'PICKED_UP', note: `Picked up by ${rider.id}`, actor: req.user!.email },
+            create: { status: 'PICKED_UP', note: `Pickup code verified by rider ${rider.id}`, actor: req.user!.email },
           },
         },
         include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
       });
     });
-    emitEvent('order:status', {
-      orderId: updated.id,
-      orderNumber: updated.orderNumber,
-      status: updated.status,
-      riderStatus: updated.riderStatus,
+    afterOrderTransition(updated, { actor: req.user!.email, note: 'Pickup verified' });
+    res.json({ order: serializeOrder(updated, 'RIDER') });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.post('/orders/:orderNumber/start-trip', requireAuth, requireRider, async (req: AuthRequest, res, next) => {
+  try {
+    const { orderNumber } = req.params;
+    const rider = await prisma.rider.findUnique({ where: { userId: req.user!.id } });
+    if (!rider) throw new ApiError(404, 'Rider not found');
+    const order = await prisma.order.findFirst({ where: { orderNumber, riderId: rider.id } });
+    if (!order) throw new ApiError(404, 'Order not found or not assigned to you');
+    if (!order.pickupCodeVerifiedAt && order.riderStatus !== 'PICKED_UP') {
+      throw new ApiError(400, 'Pickup must be verified before starting the trip');
+    }
+    if (order.riderStatus === 'IN_TRANSIT') {
+      return res.json({ order: serializeOrder(order, 'RIDER') }); // idempotent
+    }
+    assertRiderTransition(order.riderStatus, 'IN_TRANSIT');
+    const updated = await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        riderStatus: 'IN_TRANSIT',
+        tripStartedAt: order.tripStartedAt ?? new Date(),
+        statusHistory: {
+          create: { status: 'IN_TRANSIT', note: 'Rider started the trip', actor: req.user!.email },
+        },
+      },
+      include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
     });
-    res.json({ order: serializeOrder(updated, true) });
+    afterOrderTransition(updated, { actor: req.user!.email, note: 'Trip started' });
+    res.json({ order: serializeOrder(updated, 'RIDER') });
   } catch (e) {
     next(e);
   }
@@ -419,28 +465,48 @@ router.post('/orders/:orderNumber/verify', requireAuth, requireRider, async (req
     if (!rider) throw new ApiError(404, 'Rider not found');
     const order = await prisma.order.findFirst({ where: { orderNumber, riderId: rider.id } });
     if (!order) throw new ApiError(404, 'Order not found or not assigned to you');
+    if (order.status === 'DELIVERED') {
+      return res.json({ order: serializeOrder(order, 'RIDER') }); // idempotent
+    }
+    if (!['PICKED_UP', 'IN_TRANSIT'].includes(order.riderStatus)) {
+      throw new ApiError(400, 'Pickup must be verified before delivery can be confirmed');
+    }
+    assertOrderTransition(order.status, 'DELIVERED');
+    assertCodeAttemptAllowed(`delivery:${order.id}`);
     if (order.deliveryCode !== String(code)) throw new ApiError(400, 'Invalid delivery code');
-    const updated = await prisma.order.update({
-      where: { id: order.id },
-      data: {
-        status: 'DELIVERED',
-        riderStatus: 'DELIVERED',
-        deliveredAt: new Date(),
-        deliveredCodeVerifiedAt: new Date(),
-        statusHistory: {
-          create: { status: 'DELIVERED', note: 'Delivery code verified', actor: req.user!.email },
+    clearCodeAttempts(`delivery:${order.id}`);
+    const updated = await prisma.$transaction(async (tx) => {
+      const done = await tx.order.update({
+        where: { id: order.id },
+        data: {
+          status: 'DELIVERED',
+          riderStatus: 'DELIVERED',
+          deliveredAt: new Date(),
+          deliveredCodeVerifiedAt: new Date(),
+          statusHistory: {
+            create: { status: 'DELIVERED', note: 'Delivery code verified', actor: req.user!.email },
+          },
         },
-      },
-      include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
+        include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
+      });
+      // Financial settlement: cook earning settles on completed delivery, not on payment.
+      if (done.source === 'COOK') {
+        await tx.cookEarning.updateMany({
+          where: { orderId: done.id, status: 'PENDING' },
+          data: { status: 'SETTLED' },
+        });
+      }
+      return done;
     });
-    emitEvent('order:status', {
+    afterOrderTransition(updated, { actor: req.user!.email, previousStatus: order.status, note: 'Delivery verified' });
+    emitEvent('delivery:completed', {
       orderId: updated.id,
       orderNumber: updated.orderNumber,
-      status: updated.status,
-      riderStatus: updated.riderStatus,
-      deliveredAt: updated.deliveredAt,
+      riderId: updated.riderId,
+      cookId: updated.cookId,
+      customerId: updated.customerId ?? undefined,
     });
-    res.json({ order: serializeOrder(updated, true) });
+    res.json({ order: serializeOrder(updated, 'RIDER') });
   } catch (e) {
     next(e);
   }

@@ -5,6 +5,7 @@ import { ApiError } from '../lib/errors.js';
 import { serializeOrder } from '../lib/order.js';
 import { dispatchOrder } from '../lib/assignment.js';
 import { emitEvent } from '../lib/realtime.js';
+import { assertOrderTransition, afterOrderTransition, generateVerificationCode } from '../lib/order-state.js';
 import { resolveNeighborhood, normalizeNeighborhood } from '../lib/neighborhood.js';
 
 const router = Router();
@@ -300,7 +301,7 @@ router.get('/me/orders', requireAuth, requireRole('COOK'), async (req: AuthReque
       orderBy: { createdAt: 'desc' },
       include: { items: true, sides: true, payment: true, statusHistory: true },
     });
-    res.json({ orders: orders.map((o) => serializeOrder(o)) });
+    res.json({ orders: orders.map((o) => serializeOrder(o, 'COOK')) });
   } catch (err) {
     next(err);
   }
@@ -313,27 +314,24 @@ router.post('/me/orders/:orderNumber/accept', requireAuth, requireRole('COOK'), 
     if (!cook) throw new ApiError(404, 'Cook profile not found');
     const order = await prisma.order.findFirst({ where: { orderNumber, cookId: cook.id } });
     if (!order) throw new ApiError(404, 'Order not found');
-    if (order.status !== 'PENDING_PAYMENT' && order.status !== 'PAID' && order.status !== 'CONFIRMED') {
-      throw new ApiError(400, 'Order cannot be accepted');
+    if (order.paymentStatus !== 'PAID') {
+      throw new ApiError(400, 'Order payment has not been confirmed yet');
     }
+    assertOrderTransition(order.status, 'COOK_ACCEPTED');
+    // Pickup verification code is generated exactly once: payment confirmed + vendor accepts.
+    const pickupCode = order.pickupCode ?? generateVerificationCode();
     const updated = await prisma.order.update({
       where: { id: order.id },
       data: {
         status: 'COOK_ACCEPTED',
-        cookAcceptedAt: new Date(),
+        cookAcceptedAt: order.cookAcceptedAt ?? new Date(),
+        pickupCode,
         statusHistory: { create: { status: 'COOK_ACCEPTED', note: 'Cook accepted', actor: req.user!.email } },
       },
       include: { items: true, sides: true, payment: true, statusHistory: true },
     });
-    emitEvent('order:status', {
-      orderId: updated.id,
-      orderNumber: updated.orderNumber,
-      status: updated.status,
-      cookId: updated.cookId,
-      cookAcceptedAt: updated.cookAcceptedAt,
-      cookReadyAt: updated.cookReadyAt,
-    });
-    res.json({ order: serializeOrder(updated) });
+    afterOrderTransition(updated, { actor: req.user!.email, previousStatus: order.status, note: 'Cook accepted' });
+    res.json({ order: serializeOrder(updated, 'COOK') });
   } catch (err) {
     next(err);
   }
@@ -346,7 +344,7 @@ router.post('/me/orders/:orderNumber/preparing', requireAuth, requireRole('COOK'
     if (!cook) throw new ApiError(404, 'Cook profile not found');
     const order = await prisma.order.findFirst({ where: { orderNumber, cookId: cook.id } });
     if (!order) throw new ApiError(404, 'Order not found');
-    if (order.status !== 'COOK_ACCEPTED') throw new ApiError(400, 'Order must be accepted first');
+    assertOrderTransition(order.status, 'PREPARING');
     const updated = await prisma.order.update({
       where: { id: order.id },
       data: {
@@ -355,15 +353,8 @@ router.post('/me/orders/:orderNumber/preparing', requireAuth, requireRole('COOK'
       },
       include: { items: true, sides: true, payment: true, statusHistory: true },
     });
-    emitEvent('order:status', {
-      orderId: updated.id,
-      orderNumber: updated.orderNumber,
-      status: updated.status,
-      cookId: updated.cookId,
-      cookAcceptedAt: updated.cookAcceptedAt,
-      cookReadyAt: updated.cookReadyAt,
-    });
-    res.json({ order: serializeOrder(updated) });
+    afterOrderTransition(updated, { actor: req.user!.email, previousStatus: order.status, note: 'Cook started preparing' });
+    res.json({ order: serializeOrder(updated, 'COOK') });
   } catch (err) {
     next(err);
   }
@@ -376,28 +367,28 @@ router.post('/me/orders/:orderNumber/ready', requireAuth, requireRole('COOK'), a
     if (!cook) throw new ApiError(404, 'Cook profile not found');
     const order = await prisma.order.findFirst({ where: { orderNumber, cookId: cook.id } });
     if (!order) throw new ApiError(404, 'Order not found');
-    if (order.status !== 'PREPARING') throw new ApiError(400, 'Order must be preparing first');
+    assertOrderTransition(order.status, 'READY_FOR_PICKUP');
     const updated = await prisma.order.update({
       where: { id: order.id },
       data: {
         status: 'READY_FOR_PICKUP',
-        cookReadyAt: new Date(),
+        cookReadyAt: order.cookReadyAt ?? new Date(),
         statusHistory: { create: { status: 'READY_FOR_PICKUP', note: 'Food is ready', actor: req.user!.email } },
       },
       include: { items: true, sides: true, payment: true, statusHistory: true },
     });
-    emitEvent('order:status', {
+    afterOrderTransition(updated, { actor: req.user!.email, previousStatus: order.status, note: 'Food is ready' });
+    // Delivery opens to eligible riders automatically — no admin involvement.
+    emitEvent('delivery:open', {
       orderId: updated.id,
       orderNumber: updated.orderNumber,
-      status: updated.status,
+      deliveryType: updated.deliveryType,
       cookId: updated.cookId,
-      cookAcceptedAt: updated.cookAcceptedAt,
-      cookReadyAt: updated.cookReadyAt,
     });
     dispatchOrder(updated.id, (riderId, ring) => {
       emitEvent('order:dispatch', { orderId: updated.id, orderNumber: updated.orderNumber, riderId, ring });
     }).catch(() => {});
-    res.json({ order: serializeOrder(updated, true) });
+    res.json({ order: serializeOrder(updated, 'COOK') });
   } catch (err) {
     next(err);
   }

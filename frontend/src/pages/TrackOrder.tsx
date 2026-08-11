@@ -23,8 +23,9 @@ const TRACK_STATUSES: StatusDef[] = [
   { key: 'PREPARING', label: 'Preparing', description: 'Your food is being cooked and packed right now.', Icon: Utensils },
   { key: 'READY_FOR_PICKUP', label: 'Ready for pickup', description: 'Your order is packed and waiting for a delivery rider.', Icon: Package },
   { key: 'READY_FOR_DISPATCH', label: 'Ready for dispatch', description: 'Your order is packed and waiting for the delivery rider.', Icon: Package },
-  { key: 'OUT_FOR_DELIVERY', label: 'Out for delivery', description: 'A rider is on the way with your order.', Icon: Truck },
+  { key: 'OUT_FOR_DELIVERY', label: 'Out for delivery', description: 'A rider is on the way to the kitchen.', Icon: Truck },
   { key: 'PICKED_UP', label: 'Picked up', description: 'The rider has collected your order and is heading to you.', Icon: Truck },
+  { key: 'IN_TRANSIT', label: 'On the way', description: 'The rider is on the way to your location.', Icon: Truck },
   { key: 'DELIVERED', label: 'Delivered', description: 'Your order has arrived. Enjoy your meal!', Icon: Home },
 ];
 
@@ -485,7 +486,7 @@ export default function TrackOrder() {
           <h2 className='text-xl font-bold text-white'>Delivery</h2>
           <p className='mt-2 text-white/80'>{order.status === 'DELIVERED' ? order.address : order.approximateArea}</p>
           <p className='text-white/80'>{order.status === 'DELIVERED' ? order.phone : order.phone.replace(/.(?=.{4})/g, '*')}</p>
-          {['OUT_FOR_DELIVERY', 'PICKED_UP', 'DELIVERED'].includes(order.status) && (
+          {['OUT_FOR_DELIVERY', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED'].includes(order.status) && (
             <div className='mt-4'>
               <DeliveryMap order={order} />
             </div>

@@ -11,6 +11,7 @@ import { emitEvent } from '../lib/realtime.js';
 import bcrypt from 'bcryptjs';
 import { createApproval } from '../lib/approval.js';
 import { getEmailConfig, saveEmailConfig, sendEmail, sendOrderStatusEmail } from '../lib/email.js';
+import { confirmPayment, failPayment } from '../lib/payment.js';
 
 const router = Router();
 
@@ -246,46 +247,24 @@ router.post('/orders/:id/verify-payment', async (req: AuthRequest, res, next) =>
     const { accepted, note } = req.body as { accepted?: boolean; note?: string };
     if (typeof accepted !== 'boolean') throw new ApiError(400, 'accepted boolean required');
 
-    const result = await prisma.$transaction(async (tx) => {
-      const order = await tx.order.findUnique({
-        where: { id },
-        include: { payment: true },
-      });
-      if (!order || !order.payment) throw new ApiError(404, 'Order or payment not found');
+    const order = await prisma.order.findUnique({ where: { id }, include: { payment: true } });
+    if (!order || !order.payment) throw new ApiError(404, 'Order or payment not found');
 
-      const paymentStatus = accepted ? 'SUCCESS' : 'FAILED';
-      await tx.payment.update({
-        where: { id: order.payment.id },
-        data: { status: paymentStatus },
-      });
-      await tx.paymentAttempt.create({
-        data: {
-          paymentId: order.payment.id,
-          status: paymentStatus,
-          providerRef: 'admin-verification',
-          payload: { note: note ?? '', actor: req.user!.email },
-        },
-      });
+    const actor = `admin:${req.user!.email}`;
+    const result = accepted
+      ? await confirmPayment(prisma, order.payment.id, {
+          actor,
+          providerRef: order.payment.providerRef ?? 'admin-verification',
+          note: `Payment accepted by admin. ${note ?? ''}`.trim(),
+        })
+      : await failPayment(prisma, order.payment.id, {
+          actor,
+          note: `Payment rejected by admin. ${note ?? ''}`.trim(),
+        });
 
-      const newOrderStatus = accepted ? 'CONFIRMED' : 'CANCELLED';
-      const newPaymentStatus = accepted ? 'PAID' : 'FAILED';
-      const updated = await tx.order.update({
-        where: { id },
-        data: { status: newOrderStatus, paymentStatus: newPaymentStatus },
-        include: { customer: true },
-      });
-      await tx.orderStatusHistory.create({
-        data: {
-          orderId: id,
-          status: newOrderStatus,
-          actor: `admin:${req.user!.email}`,
-          note: `Payment ${accepted ? 'accepted' : 'rejected'}. ${note ?? ''}`,
-        },
-      });
-      return updated;
-    });
-    sendOrderStatusEmail(result).catch(() => {});
-    res.json({ ok: true, order: result });
+    const updated = await prisma.order.findUnique({ where: { id }, include: { customer: true } });
+    sendOrderStatusEmail(updated).catch(() => {});
+    res.json({ ok: true, order: result.order });
   } catch (err) {
     next(err);
   }

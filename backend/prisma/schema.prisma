@@ -248,6 +248,9 @@ model Order {
   riderFeeKobo             Int                  @default(0)
   riderFeeBasis            DeliveryType?        @default(NEIGHBORHOOD)
   riderPaid                Boolean              @default(false)
+  pickupCode               String?              @unique
+  pickupCodeVerifiedAt     DateTime?
+  tripStartedAt            DateTime?
   cookAcceptedAt           DateTime?
   cookReadyAt              DateTime?
   deliveredAt              DateTime?
@@ -293,6 +296,7 @@ enum PaymentProvider {
   MOCK
   PAYSTACK
   FLUTTERWAVE
+  STRIPE
   CRYPTO
   BANK_TRANSFER
 }

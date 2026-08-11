@@ -29,6 +29,7 @@ import ticketsRouter from './routes/tickets.js';
 import disputesRouter from './routes/disputes.js';
 import evidenceRouter from './routes/evidence.js';
 import legalRouter from './routes/legal.js';
+import webhooksRouter from './routes/webhooks.js';
 import { rateLimit } from './middleware/rateLimit.js';
 import { ApiError } from './lib/errors.js';
 
@@ -39,6 +40,8 @@ app.disable('x-powered-by');
 const PORT = Number(process.env.PORT ?? 4000);
 
 app.use(cors({ origin: process.env.ALLOWED_ORIGINS?.split(',') ?? true }));
+// Webhooks need the raw request body for signature verification; mount before JSON parsing.
+app.use('/api/webhooks', webhooksRouter);
 app.use(express.json({ limit: '20mb' }));
 app.use(rateLimit({ windowMs: 60000, max: 120 }));
 app.use((req, res, next) => {

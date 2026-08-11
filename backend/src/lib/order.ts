@@ -363,10 +363,26 @@ function maskPhone(phone: string) {
   return phone.length > 4 ? `****${phone.slice(-4)}` : phone;
 }
 
-export function serializeOrder(order: any, includeDeliveryCode = false, maskCustomerInfo = false) {
-  const showCode = includeDeliveryCode || order.status === 'DELIVERED' || order.status === 'CANCELLED';
+export type OrderAudience = 'CUSTOMER' | 'COOK' | 'RIDER' | 'ADMIN';
+
+export function serializeOrder(
+  order: any,
+  audienceOrLegacy: OrderAudience | boolean = 'CUSTOMER',
+  maskCustomerInfo = false,
+) {
+  // Back-compat: boolean second arg used to mean includeDeliveryCode (true was rider/admin views).
+  const audience: OrderAudience =
+    typeof audienceOrLegacy === 'boolean' ? (audienceOrLegacy ? 'ADMIN' : 'CUSTOMER') : audienceOrLegacy;
   const delivered = order.status === 'DELIVERED';
-  const showCustomerInfo = !maskCustomerInfo || delivered;
+  const terminal = delivered || order.status === 'CANCELLED';
+  // Delivery code: customer sees it once paid (they hand it to the rider on arrival).
+  // The rider must NEVER see it before verification — it is the proof gate.
+  const showCode =
+    audience === 'ADMIN' || terminal || (audience === 'CUSTOMER' && order.paymentStatus === 'PAID');
+  // Pickup code: cook hands it to the rider at handover. Cook + admin only.
+  const showPickupCode = audience === 'ADMIN' || audience === 'COOK';
+  const showPickupLocation = audience === 'RIDER' || audience === 'ADMIN';
+  const showCustomerInfo = !maskCustomerInfo || delivered || audience === 'RIDER' || audience === 'ADMIN';
   return {
     id: order.id,
     orderNumber: order.orderNumber,
@@ -380,12 +396,15 @@ export function serializeOrder(order: any, includeDeliveryCode = false, maskCust
     phone: showCustomerInfo ? order.phone : maskPhone(order.phone),
     approximateArea: order.deliveryZone?.name || maskAddress(order.address),
     deliveryCode: showCode ? order.deliveryCode : null,
+    pickupCode: showPickupCode ? order.pickupCode ?? null : null,
+    pickupCodeVerifiedAt: order.pickupCodeVerifiedAt ?? null,
+    tripStartedAt: order.tripStartedAt ?? null,
     estimatedMinutes: order.estimatedMinutes,
     cookId: order.cookId,
     cookListingId: order.cookListingId,
     cookName: order.cookListing?.cook?.displayName || order.cook?.displayName || 'Kitchen',
     pickupLocation:
-      includeDeliveryCode && (order.cookListing?.cook?.latitude || order.cook?.latitude)
+      showPickupLocation && (order.cookListing?.cook?.latitude || order.cook?.latitude)
         ? {
             lat: order.cookListing?.cook?.latitude ?? order.cook?.latitude,
             lng: order.cookListing?.cook?.longitude ?? order.cook?.longitude,
