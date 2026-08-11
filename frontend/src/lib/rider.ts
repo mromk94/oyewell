@@ -1,4 +1,4 @@
-import { API_BASE } from './api';
+import { API_BASE, type User } from './api';
 
 const R = (path: string) => `${API_BASE}/api/rider${path}`;
 
@@ -67,7 +67,7 @@ export interface Rider {
   kycStatus: string;
   createdAt: string;
   updatedAt: string;
-  user?: { id: string; email: string; firstName?: string; lastName?: string; phone?: string };
+  user?: User;
 }
 
 export interface RiderLoginInput {

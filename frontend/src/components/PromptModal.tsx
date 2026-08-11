@@ -42,7 +42,7 @@ export default function PromptModal({
   if (!open) return null;
   return createPortal(
     <div
-      className='fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4'
+      className='fixed inset-0 z-50 flex items-start justify-center bg-black/70 p-0 pt-20 backdrop-blur-sm sm:items-center sm:pt-0 sm:p-4'
       onClick={onCancel}
     >
       <div

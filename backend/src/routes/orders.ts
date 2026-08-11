@@ -120,18 +120,24 @@ router.post('/:orderNumber/cancel', requireAuth, async (req: AuthRequest, res, n
       (isRider && cancellableByRider.includes(order.status)) ||
       isAdmin;
     if (!canCancel) throw new ApiError(400, 'This order cannot be cancelled at its current stage');
-    const updated = await prisma.order.update({
-      where: { id: order.id },
-      data: {
-        status: 'CANCELLED',
-        paymentStatus: order.paymentStatus === 'PAID' ? 'REFUNDED' : 'CANCELLED',
-        riderFeeKobo: 0,
-        statusHistory: { create: { status: 'CANCELLED', note: `Cancelled by ${isAdmin ? 'admin' : isCook ? 'cook' : isRider ? 'rider' : 'customer'}`, actor: user.email } },
-      },
-      include: { items: true, sides: true, payment: true, statusHistory: true },
-    });
-    afterOrderTransition(updated, { actor: user.email, previousStatus: order.status, note: 'Order cancelled' });
-    res.json({ order: serializeOrder(updated, 'CUSTOMER', true) });
+    const refundKobo = order.paymentStatus === 'PAID' && order.payment ? order.payment.amountKobo : 0;
+    const [updated] = await prisma.$transaction([
+      prisma.order.update({
+        where: { id: order.id },
+        data: {
+          status: 'CANCELLED',
+          paymentStatus: order.paymentStatus === 'PAID' ? 'REFUNDED' : 'CANCELLED',
+          riderFeeKobo: 0,
+          statusHistory: { create: { status: 'CANCELLED', note: `Cancelled by ${isAdmin ? 'admin' : isCook ? 'cook' : isRider ? 'rider' : 'customer'}`, actor: user.email } },
+        },
+        include: { items: true, sides: true, payment: true, statusHistory: true },
+      }),
+      ...(order.customerId && refundKobo > 0
+        ? [prisma.user.update({ where: { id: order.customerId }, data: { balanceKobo: { increment: refundKobo } } })]
+        : []),
+    ]);
+    afterOrderTransition(updated as any, { actor: user.email, previousStatus: order.status, note: 'Order cancelled' });
+    res.json({ order: serializeOrder(updated as any, 'CUSTOMER', true) });
   } catch (err) {
     next(err);
   }

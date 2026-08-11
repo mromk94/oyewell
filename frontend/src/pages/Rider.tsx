@@ -16,8 +16,10 @@ import {
   LogOut,
   ShieldCheck,
   Shield,
+  Wallet,
 } from 'lucide-react';
 import { riderLogin, riderRegister, riderLogout, fetchRiderMe, updateRiderMe, updateRiderAvailability, fetchRiderOrders, fetchAvailableOrders, claimOrder, pickupOrder, startTrip, verifyDeliveryCode, fetchRiderEarnings, fetchRiderPayouts, withdrawRiderEarnings, type RiderOrder, type Rider } from '../lib/rider';
+import { formatPrice } from '../lib/api';
 import PromptModal from '../components/PromptModal';
 import ProfessionalUpgradeModal from '../components/ProfessionalUpgradeModal';
 
@@ -83,7 +85,10 @@ export default function Rider() {
                 <p className='text-sm text-white/60'>Welcome back</p>
                 <p className='text-xl font-black'>{rider.user?.firstName || 'Rider'} {rider.user?.lastName}</p>
                 <p className='text-xs text-white/40'>{rider.user?.email}</p>
-                <div className='mt-2 flex flex-wrap gap-2'>
+                <div className='mt-2 flex flex-wrap items-center gap-2'>
+                  <span className='inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-300'>
+                    <Wallet className='h-3 w-3' /> {formatPrice(rider.user?.balanceKobo ?? 0)}
+                  </span>
                   <span className='rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-bold text-emerald-300'>
                     {rider.professionalApproval === 'APPROVED' ? 'Professional' : 'Neighborhood'}
                   </span>

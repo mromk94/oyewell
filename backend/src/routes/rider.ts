@@ -246,6 +246,7 @@ router.get('/me', requireAuth, requireRider, async (req: AuthRequest, res, next)
         firstName: user.firstName,
         lastName: user.lastName,
         phone: user.phone,
+        balanceKobo: user.balanceKobo,
       },
     });
   } catch (e) {

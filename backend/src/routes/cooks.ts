@@ -66,7 +66,7 @@ router.get('/me', requireAuth, requireRole('COOK'), async (req: AuthRequest, res
   try {
     const cook = await prisma.cookProfile.findUnique({
       where: { userId: req.user!.id },
-      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true, roles: true } } },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true, roles: true, balanceKobo: true } } },
     });
     if (!cook) throw new ApiError(404, 'Cook profile not found');
     res.json({ cook });
@@ -107,7 +107,7 @@ router.put('/me', requireAuth, requireRole('COOK'), async (req: AuthRequest, res
         safetyAcknowledgements,
         onboardingStep,
       },
-      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true, roles: true } } },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true, roles: true, balanceKobo: true } } },
     });
     res.json({ cook });
   } catch (err) {

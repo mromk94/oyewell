@@ -2,16 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import {
-  fetchMe,
-  fetchMyOrders,
-  changePassword,
-  updateProfile,
-  fetchDeliveryApplication,
-  type User,
-  type OrderSummary,
-  type DeliveryApplication,
-} from '../lib/api';
+import { fetchMe, fetchMyOrders, changePassword, updateProfile, fetchDeliveryApplication, type User, type OrderSummary, type DeliveryApplication, formatPrice } from '../lib/api';
 import { fetchCookMe, type CookProfile } from '../lib/cook';
 import { useAuth, hasRole } from '../lib/auth';
 import DeliveryApplicationModal from '../components/DeliveryApplicationModal';
@@ -34,6 +25,7 @@ import {
   Shield,
   Plus,
   X,
+  Wallet,
 } from 'lucide-react';
 import Logo from '../components/Logo';
 
@@ -53,8 +45,82 @@ const PAYMENT_COLORS: Record<string, string> = {
   FAILED: 'bg-red-500/20 text-red-300',
 };
 
+function QuickActions({
+  cookProfile,
+  deliveryApp,
+  setShowApply,
+  setShowCookPrompt,
+  setShowPendingCook,
+}: {
+  cookProfile: CookProfile | null;
+  deliveryApp: DeliveryApplication | null;
+  setShowApply: (v: boolean) => void;
+  setShowCookPrompt: (v: boolean) => void;
+  setShowPendingCook: (v: boolean) => void;
+}) {
+  const { customer } = useAuth();
+  return (
+    <div className='rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8'>
+      <div className='flex items-center gap-2'>
+        <Package className='h-5 w-5' />
+        <h2 className='text-xl font-bold text-white'>Quick actions</h2>
+      </div>
+      <p className='mt-1 text-sm text-white/60'>Install the app, become a cook or start delivering.</p>
+      <div className='mt-4 flex flex-wrap gap-3'>
+        <button
+          onClick={() => (window as unknown as { __openPwaInstallPrompt?: (force?: boolean) => boolean }).__openPwaInstallPrompt?.(true)}
+          className='inline-flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-400'
+        >
+          <Download className='h-4 w-4' /> Install app
+        </button>
+        <button
+          onClick={() => {
+            if (cookProfile?.profileStatus === 'PENDING_APPROVAL') {
+              setShowPendingCook(true);
+            } else {
+              setShowCookPrompt(true);
+            }
+          }}
+          className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20'
+        >
+          <ChefHat className='h-4 w-4' /> {cookProfile ? 'Cook portal' : 'Become a cook'}
+        </button>
+        {deliveryApp ? (
+          <button
+            onClick={() => setShowApply(true)}
+            disabled={deliveryApp.isApproved}
+            className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20 disabled:opacity-50'
+          >
+            <Bike className='h-4 w-4' />
+            {deliveryApp.isApproved
+              ? 'Delivery partner'
+              : deliveryApp.neighborhoodApproval === 'REJECTED'
+                ? 'Reapply to deliver'
+                : 'Application: ' + deliveryApp.neighborhoodApproval.toLowerCase()}
+          </button>
+        ) : (
+          <button
+            onClick={() => setShowApply(true)}
+            className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20'
+          >
+            <Bike className='h-4 w-4' /> {hasRole(customer, 'RIDER') ? 'Delivery portal' : 'Make money on OyeWell'}
+          </button>
+        )}
+        {hasRole(customer, 'ADMIN') && (
+          <Link
+            to='/admin'
+            className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20'
+          >
+            <Shield className='h-4 w-4' /> Admin
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Account() {
-  const { isAuthenticated, openAuth, logout, customer, loading: authLoading } = useAuth();
+  const { isAuthenticated, openAuth, logout, loading: authLoading } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [deliveryApp, setDeliveryApp] = useState<DeliveryApplication | null>(null);
@@ -182,59 +248,10 @@ export default function Account() {
             </div>
           )}
 
-          <div className='mt-4 flex flex-wrap gap-3'>
-            <button
-              onClick={() => (window as unknown as { __openPwaInstallPrompt?: (force?: boolean) => boolean }).__openPwaInstallPrompt?.(true)}
-              className='inline-flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-400'
-            >
-              <Download className='h-4 w-4' /> Install app
-            </button>
-            <button
-              onClick={() => {
-                if (cookProfile?.profileStatus === 'PENDING_APPROVAL') {
-                  setShowPendingCook(true);
-                } else {
-                  setShowCookPrompt(true);
-                }
-              }}
-              className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20'
-            >
-              <ChefHat className='h-4 w-4' /> {cookProfile ? 'Cook portal' : 'Become a cook'}
-            </button>
-            {deliveryApp ? (
-              <button
-                onClick={() => setShowApply(true)}
-                disabled={deliveryApp.isApproved}
-                className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20 disabled:opacity-50'
-              >
-                <Bike className='h-4 w-4' />
-                {deliveryApp.isApproved
-                  ? 'Delivery partner'
-                  : deliveryApp.neighborhoodApproval === 'REJECTED'
-                    ? 'Reapply to deliver'
-                    : 'Application: ' + deliveryApp.neighborhoodApproval.toLowerCase()}
-              </button>
-            ) : (
-              <button
-                onClick={() => setShowApply(true)}
-                className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20'
-              >
-                <Bike className='h-4 w-4' /> {hasRole(customer, 'RIDER') ? 'Delivery portal' : 'Make money on OyeWell'}
-              </button>
-            )}
-            {hasRole(customer, 'ADMIN') && (
-              <Link
-                to='/admin'
-                className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20'
-              >
-                <Shield className='h-4 w-4' /> Admin
-              </Link>
-            )}
-          </div>
-
-          <div className='mt-6 grid gap-4 sm:grid-cols-3'>
+          <div className='mt-6 grid gap-4 sm:grid-cols-2 md:grid-cols-4'>
             <ProfileRow icon={<Mail className='h-4 w-4' />} label='Email' value={user.email} />
             <ProfileRow icon={<Phone className='h-4 w-4' />} label='Phone' value={user.phone ?? 'Not set'} />
+            <ProfileRow icon={<Wallet className='h-4 w-4' />} label='Balance' value={formatPrice(user.balanceKobo ?? 0)} />
             <ProfileRow
               icon={<Package className='h-4 w-4' />}
               label='Total orders'
@@ -243,9 +260,19 @@ export default function Account() {
           </div>
         </div>
 
+        <div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+          <OrderSection title='Active orders' explanation='Orders that are being prepared or on their way to you.' icon={<Clock className='h-5 w-5' />} orders={currentOrders} />
+          <QuickActions
+            cookProfile={cookProfile}
+            deliveryApp={deliveryApp}
+            setShowApply={setShowApply}
+            setShowCookPrompt={setShowCookPrompt}
+            setShowPendingCook={setShowPendingCook}
+          />
+        </div>
+
         <StatsRow current={currentOrders.length} previous={previousOrders.length} />
 
-        <OrderSection title='Active orders' explanation='Orders that are being prepared or on their way to you.' icon={<Clock className='h-5 w-5' />} orders={currentOrders} />
         <OrderSection title='Order history' explanation='Completed and delivered orders you can look back on.' icon={<CheckCircle className='h-5 w-5' />} orders={previousOrders} />
 
         <ChangePassword />

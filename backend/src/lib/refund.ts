@@ -17,6 +17,12 @@ export async function createRefund(input: {
     throw new Error('Refund amount exceeds available balance');
   }
 
+  const order = await prisma.order.findUnique({
+    where: { id: input.orderId },
+    select: { customerId: true },
+  });
+  if (!order?.customerId) throw new Error('Order customer not found');
+
   const refund = await prisma.$transaction(async (tx) => {
     const created = await tx.refund.create({
       data: {
@@ -33,6 +39,10 @@ export async function createRefund(input: {
     await tx.payment.update({
       where: { id: payment.id },
       data: { refundKobo: { increment: input.amountKobo } },
+    });
+    await tx.user.update({
+      where: { id: order.customerId! },
+      data: { balanceKobo: { increment: input.amountKobo } },
     });
     return created;
   });

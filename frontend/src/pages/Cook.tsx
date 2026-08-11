@@ -16,6 +16,7 @@ import {
   X,
   CheckCircle,
   ArrowLeft,
+  Wallet,
 } from 'lucide-react';
 import { useAuth, hasRole } from '../lib/auth';
 import { formatPrice } from '../lib/api';
@@ -139,12 +140,18 @@ export default function Cook() {
           <p className='text-sm text-white/60'>Your kitchen</p>
           <p className='text-xl font-black'>{cook.displayName}</p>
           <div className='mt-2 flex flex-wrap items-center gap-2'>
+            <span className='inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-300'>
+              <Wallet className='h-3 w-3' /> {formatPrice(cook.user?.balanceKobo ?? 0)}
+            </span>
+            <span className='inline-flex items-center gap-1.5 rounded-full bg-yellow-500/10 px-3 py-1 text-xs font-bold text-yellow-300'>
+              <Star className='h-3 w-3' /> {cook.rating.toFixed(1)}
+            </span>
             <span
               className={`rounded-full px-3 py-1 text-xs font-bold ${
-                cook.kitchenStatus === 'OPEN' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'
+                cook.kitchenStatus === 'OPEN' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-yellow-500/20 text-yellow-300'
               }`}
             >
-              {cook.kitchenStatus.replace(/_/g, ' ')}
+              {cook.kitchenStatus === 'OPEN' ? 'Open' : 'Paused'}
             </span>
             {cook.profileStatus !== 'APPROVED' && (
               <span className='rounded-full bg-yellow-500/20 px-3 py-1 text-xs font-bold text-yellow-300'>
@@ -907,6 +914,7 @@ function StatusBadge({ status }: { status: string }) {
 function OrdersPanel({ onError }: { onError: (msg: string) => void }) {
   const [orders, setOrders] = useState<CookOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pending, setPending] = useState<{ orderNumber: string; type: 'accept' | 'preparing' | 'ready' } | null>(null);
 
   useEffect(() => {
     fetchCookOrders()
@@ -916,6 +924,7 @@ function OrdersPanel({ onError }: { onError: (msg: string) => void }) {
   }, []);
 
   async function action(orderNumber: string, type: 'accept' | 'preparing' | 'ready') {
+    setPending({ orderNumber, type });
     try {
       if (type === 'accept') await acceptCookOrder(orderNumber);
       if (type === 'preparing') await preparingCookOrder(orderNumber);
@@ -924,6 +933,8 @@ function OrdersPanel({ onError }: { onError: (msg: string) => void }) {
       setOrders(res.orders);
     } catch (e) {
       onError(e instanceof Error ? e.message : 'Action failed');
+    } finally {
+      setPending(null);
     }
   }
 
@@ -942,12 +953,15 @@ function OrdersPanel({ onError }: { onError: (msg: string) => void }) {
           <p className='text-sm text-emerald-300'>{o.total}</p>
           <div className='mt-3 flex flex-wrap gap-2'>
             {o.paymentStatus === 'PAID' && o.status === 'CONFIRMED' && (
-              <button
+              <motion.button
+                whileTap={{ scale: 0.95 }}
                 onClick={() => action(o.orderNumber, 'accept')}
-                className='rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-bold text-black hover:bg-emerald-400'
+                disabled={pending?.orderNumber === o.orderNumber}
+                className='inline-flex items-center gap-1.5 rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50'
               >
+                {pending?.orderNumber === o.orderNumber && pending?.type === 'accept' && <Loader2 className='h-3 w-3 animate-spin' />}
                 Accept
-              </button>
+              </motion.button>
             )}
             {!['OUT_FOR_DELIVERY', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED', 'CANCELLED'].includes(o.status) && o.pickupCode && (
               <div className='w-full rounded-2xl border border-yellow-500/30 bg-yellow-500/10 p-3 text-center'>
@@ -956,20 +970,26 @@ function OrdersPanel({ onError }: { onError: (msg: string) => void }) {
               </div>
             )}
             {o.status === 'COOK_ACCEPTED' && (
-              <button
+              <motion.button
+                whileTap={{ scale: 0.95 }}
                 onClick={() => action(o.orderNumber, 'preparing')}
-                className='rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-bold text-black hover:bg-emerald-400'
+                disabled={pending?.orderNumber === o.orderNumber}
+                className='inline-flex items-center gap-1.5 rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50'
               >
+                {pending?.orderNumber === o.orderNumber && pending?.type === 'preparing' && <Loader2 className='h-3 w-3 animate-spin' />}
                 Start cooking
-              </button>
+              </motion.button>
             )}
             {o.status === 'PREPARING' && (
-              <button
+              <motion.button
+                whileTap={{ scale: 0.95 }}
                 onClick={() => action(o.orderNumber, 'ready')}
-                className='rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-bold text-black hover:bg-emerald-400'
+                disabled={pending?.orderNumber === o.orderNumber}
+                className='inline-flex items-center gap-1.5 rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50'
               >
+                {pending?.orderNumber === o.orderNumber && pending?.type === 'ready' && <Loader2 className='h-3 w-3 animate-spin' />}
                 Food is ready
-              </button>
+              </motion.button>
             )}
           </div>
         </div>

@@ -338,6 +338,7 @@ export interface User {
   phone: string | null;
   role: string;
   roles?: string[];
+  balanceKobo: number;
 }
 
 export interface DeliveryApplication {
