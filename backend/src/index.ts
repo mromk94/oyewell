@@ -22,6 +22,7 @@ import managementRouter from './routes/management.js';
 import approvalsRouter from './routes/approvals.js';
 import auditRouter from './routes/audit.js';
 import ticketsRouter from './routes/tickets.js';
+import disputesRouter from './routes/disputes.js';
 import { rateLimit } from './middleware/rateLimit.js';
 import { ApiError } from './lib/errors.js';
 
@@ -69,6 +70,7 @@ app.use('/api/management', managementRouter);
 app.use('/api/approvals', approvalsRouter);
 app.use('/api/audit', auditRouter);
 app.use('/api/tickets', ticketsRouter);
+app.use('/api/disputes', disputesRouter);
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof ApiError) {

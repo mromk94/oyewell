@@ -860,3 +860,50 @@ model Ticket {
   @@index([status, createdAt])
   @@index([assignedTo, status])
 }
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  WAITING_FOR_CUSTOMER
+  WAITING_FOR_PROVIDER
+  ESCALATED
+  RESOLVED
+  CLOSED
+  APPEALED
+}
+
+enum DisputeType {
+  FOOD_NOT_RECEIVED
+  WRONG_FOOD
+  MISSING_ITEM
+  FOOD_QUALITY
+  DELIVERY_ISSUE
+  PAYMENT_PROBLEM
+  UNAUTHORIZED_ACTION
+  RIDER_COMPLAINT
+  COOK_COMPLAINT
+  OTHER
+}
+
+model Dispute {
+  id            String        @id @default(cuid())
+  disputeNumber String        @unique
+  customerId    String
+  type          DisputeType
+  orderId       String?
+  cookId        String?
+  riderId       String?
+  status        DisputeStatus @default(OPEN)
+  assignedTo    String?
+  description   String?
+  evidence      String[]
+  timeline      Json?         @default("[]")
+  resolution    String?
+  refundKobo    Int?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([customerId, createdAt])
+  @@index([status, createdAt])
+  @@index([assignedTo, status])
+}
