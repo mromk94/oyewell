@@ -97,6 +97,12 @@ export function serviceRadius(point: GeoPoint, target: GeoPoint, radiusMeters: n
   return haversineMeters(point, target) <= radiusMeters;
 }
 
+export const LOCAL_SEARCH_RINGS_METERS = (() => {
+  const env = process.env.LOCAL_SEARCH_RINGS;
+  if (env) return env.split(',').map((v) => Number(v.trim())).filter((v) => !Number.isNaN(v));
+  return [2000, 5000, 10000];
+})();
+
 export function validateLocation(input: unknown): Location | null {
   if (!input || typeof input !== 'object') return null;
   const { lat, lng } = input as Record<string, unknown>;

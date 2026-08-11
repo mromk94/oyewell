@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../prisma.js';
 import { ApiError } from '../lib/errors.js';
-import { distanceMeters, geocode } from '../lib/location.js';
+import { distanceMeters, geocode, LOCAL_SEARCH_RINGS_METERS } from '../lib/location.js';
 
 const router = Router();
 
@@ -57,14 +57,14 @@ router.get('/', async (req, res, next) => {
 
 router.get('/around-me', async (req, res, next) => {
   try {
-    const radiusKm = Math.min(Math.max(Number(req.query.radiusKm) || 10, 0.5), 50);
-    const radiusMeters = radiusKm * 1000;
+    const minResults = Math.max(Number(req.query.minResults) || 3, 1);
+    const customRadiusKm = req.query.radiusKm ? Number(req.query.radiusKm) : null;
 
     let lat = Number(req.query.lat);
     let lng = Number(req.query.lng);
     const address = req.query.address as string | undefined;
 
-    if ((!Number.isNaN(lat) && !Number.isNaN(lng)) === false) {
+    if (Number.isNaN(lat) || Number.isNaN(lng)) {
       if (!address) throw new ApiError(400, 'lat/lng or address is required');
       const geocoded = await geocode(address);
       if (!geocoded) throw new ApiError(400, 'Could not geocode address');
@@ -89,10 +89,24 @@ router.get('/around-me', async (req, res, next) => {
         const distMeters = cook.latitude && cook.longitude ? distanceMeters({ lat, lng }, { lat: cook.latitude, lng: cook.longitude }) : Infinity;
         return { ...l, distanceMeters: distMeters, distanceKm: distMeters / 1000 };
       })
-      .filter((l) => l.distanceMeters <= radiusMeters)
       .sort((a, b) => a.distanceMeters - b.distanceMeters);
 
-    res.json({ listings: withDistance, center: { lat, lng } });
+    // Local-first discovery rings
+    const rings = customRadiusKm ? [customRadiusKm * 1000] : LOCAL_SEARCH_RINGS_METERS;
+    let selected = withDistance;
+    let matchedRadius = rings[rings.length - 1];
+    for (const r of rings) {
+      const within = withDistance.filter((l) => l.distanceMeters <= r);
+      if (within.length >= minResults) {
+        selected = within;
+        matchedRadius = r;
+        break;
+      }
+      selected = within;
+      matchedRadius = r;
+    }
+
+    res.json({ listings: selected, center: { lat, lng }, radiusMeters: matchedRadius });
   } catch (err) {
     next(err);
   }
