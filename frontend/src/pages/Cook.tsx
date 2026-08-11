@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useAuth, hasRole } from '../lib/auth';
 import { formatPrice } from '../lib/api';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   type CookProfile,
   type CookListing,
@@ -27,7 +27,6 @@ import {
   updateCookListing,
   setKitchenStatus,
   createCookListing,
-  uploadCookMedia,
   fetchCookListings,
   fetchCookOrders,
   acceptCookOrder,
@@ -36,13 +35,18 @@ import {
   fetchCookEarnings,
 } from '../lib/cook';
 
+const TABS = ['dashboard', 'add', 'menu', 'orders', 'earnings', 'profile'] as const;
+
 export default function Cook() {
   const { customer, logout } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const initialTab = TABS.includes(searchParams.get('tab') as any) ? (searchParams.get('tab') as typeof TABS[number]) : 'dashboard';
   const [cook, setCook] = useState<CookProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<'dashboard' | 'add' | 'menu' | 'orders' | 'earnings' | 'profile'>('dashboard');
+  const [tab, setTab] = useState<typeof TABS[number]>(initialTab);
+  const [editing, setEditing] = useState<CookListing | null>(null);
 
   useEffect(() => {
     if (!customer || !hasRole(customer, 'COOK')) {
@@ -180,8 +184,16 @@ export default function Cook() {
 
         <AnimatePresence mode='wait'>
           {tab === 'dashboard' && <DashboardPanel key='dashboard' cook={cook} />}
-          {tab === 'add' && <AddFoodPanel key='add' onCreated={() => setTab('menu')} onError={setError} />}
-          {tab === 'menu' && <MenuPanel key='menu' onError={setError} />}
+          {tab === 'add' && (
+            <AddFoodPanel
+              key={editing ? 'edit' : 'add'}
+              editing={editing}
+              onCreated={() => { setEditing(null); setTab('menu'); }}
+              onUpdated={() => { setEditing(null); setTab('menu'); }}
+              onError={setError}
+            />
+          )}
+          {tab === 'menu' && <MenuPanel key='menu' onError={setError} onEdit={(l) => { setEditing(l); setTab('add'); }} />}
           {tab === 'orders' && <OrdersPanel key='orders' onError={setError} />}
           {tab === 'earnings' && <EarningsPanel key='earnings' onError={setError} />}
           {tab === 'profile' && <ProfilePanel key='profile' cook={cook} onUpdate={setCook} onError={setError} />}
@@ -401,7 +413,17 @@ function DashboardPanel({ cook }: { cook: CookProfile }) {
   );
 }
 
-function AddFoodPanel({ onCreated, onError }: { onCreated: () => void; onError: (msg: string) => void }) {
+function AddFoodPanel({
+  editing,
+  onCreated,
+  onUpdated,
+  onError,
+}: {
+  editing?: CookListing | null;
+  onCreated?: () => void;
+  onUpdated?: () => void;
+  onError: (msg: string) => void;
+}) {
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -419,6 +441,36 @@ function AddFoodPanel({ onCreated, onError }: { onCreated: () => void; onError: 
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    if (!editing) {
+      setForm({
+        title: '',
+        description: '',
+        price: '',
+        portionDescription: '',
+        prepTime: '',
+        quantity: '',
+        ingredients: '',
+        allergens: '',
+        cuisine: '',
+      });
+      setMedia([]);
+      return;
+    }
+    setForm({
+      title: editing.title,
+      description: editing.description ?? '',
+      price: (editing.priceKobo / 100).toFixed(2),
+      portionDescription: editing.portionDescription ?? '',
+      prepTime: editing.prepTimeMinutesMax ? String(editing.prepTimeMinutesMax) : '',
+      quantity: String(editing.quantity ?? editing.stock ?? ''),
+      ingredients: editing.ingredients ?? '',
+      allergens: editing.allergens ?? '',
+      cuisine: editing.cuisine ?? '',
+    });
+    setMedia(editing.media.map((m) => ({ type: m.type, url: m.url, thumbnailUrl: m.thumbnailUrl ?? null })));
+  }, [editing]);
+
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
     if (!files) return;
@@ -426,6 +478,7 @@ function AddFoodPanel({ onCreated, onError }: { onCreated: () => void; onError: 
     try {
       const uploaded: CookMediaInput[] = [];
       for (const file of Array.from(files)) {
+        if (file.size > 2_500_000) throw new Error(`${file.name} is too large. Use a smaller file or a web URL.`);
         const dataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
@@ -433,8 +486,7 @@ function AddFoodPanel({ onCreated, onError }: { onCreated: () => void; onError: 
           reader.readAsDataURL(file);
         });
         const type = file.type.startsWith('video/') ? 'VIDEO' : 'IMAGE';
-        const res = await uploadCookMedia(dataUrl, type);
-        uploaded.push(res);
+        uploaded.push({ type, url: dataUrl, thumbnailUrl: null });
       }
       setMedia((prev) => [...prev, ...uploaded]);
     } catch (e) {
@@ -462,7 +514,7 @@ function AddFoodPanel({ onCreated, onError }: { onCreated: () => void; onError: 
     try {
       const priceKobo = Math.round(Number(form.price) * 100);
       if (Number.isNaN(priceKobo) || priceKobo <= 0) throw new Error('Price is required');
-      await createCookListing({
+      const payload = {
         title: form.title,
         description: form.description,
         priceKobo,
@@ -474,10 +526,16 @@ function AddFoodPanel({ onCreated, onError }: { onCreated: () => void; onError: 
         allergens: form.allergens,
         cuisine: form.cuisine,
         media,
-      });
-      onCreated();
+      };
+      if (editing) {
+        await updateCookListing(editing.id, { ...payload, resubmit: true });
+        onUpdated?.();
+      } else {
+        await createCookListing(payload);
+        onCreated?.();
+      }
     } catch (e) {
-      onError(e instanceof Error ? e.message : 'Failed to create listing');
+      onError(e instanceof Error ? e.message : 'Failed to save listing');
     } finally {
       setLoading(false);
     }
@@ -485,7 +543,7 @@ function AddFoodPanel({ onCreated, onError }: { onCreated: () => void; onError: 
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className='space-y-4'>
-      <h2 className='text-xl font-bold'>Add a new food</h2>
+      <h2 className='text-xl font-bold'>{editing ? 'Edit food' : 'Add a new food'}</h2>
       <form onSubmit={handleSubmit} className='space-y-4'>
         <input
           placeholder='Food name'
@@ -623,14 +681,14 @@ function AddFoodPanel({ onCreated, onError }: { onCreated: () => void; onError: 
           disabled={loading}
           className='w-full rounded-full bg-emerald-500 py-3 font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50'
         >
-          {loading ? <Loader2 className='mx-auto h-5 w-5 animate-spin' /> : 'Add food'}
+          {loading ? <Loader2 className='mx-auto h-5 w-5 animate-spin' /> : editing ? 'Save changes' : 'Add food'}
         </button>
       </form>
     </motion.div>
   );
 }
 
-function MenuPanel({ onError }: { onError: (msg: string) => void }) {
+function MenuPanel({ onError, onEdit }: { onError: (msg: string) => void; onEdit: (l: CookListing) => void }) {
   const [listings, setListings] = useState<CookListing[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -662,11 +720,18 @@ function MenuPanel({ onError }: { onError: (msg: string) => void }) {
             <div>
               <p className='font-bold'>{l.title}</p>
               <p className='text-sm text-white/60'>{formatPrice(l.priceKobo)}</p>
-              <p className='text-xs text-white/50'>
-                {l.status} · {l.stock} left
+              <p className='mt-1 flex items-center gap-2'>
+                <StatusBadge status={l.status} />
+                <span className='text-xs text-white/50'>{l.stock} left</span>
               </p>
             </div>
-            <div className='flex gap-2'>
+            <div className='flex flex-wrap justify-end gap-2'>
+              <button
+                onClick={() => onEdit(l)}
+                className='rounded-full border border-white/20 px-3 py-1.5 text-xs font-bold text-white hover:bg-white/10'
+              >
+                Edit
+              </button>
               {l.status === 'APPROVED' && (
                 <button
                   onClick={() => toggleStatus(l.id, 'PAUSED')}
@@ -688,6 +753,23 @@ function MenuPanel({ onError }: { onError: (msg: string) => void }) {
         </div>
       ))}
     </motion.div>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const styles: Record<string, string> = {
+    APPROVED: 'bg-emerald-500/20 text-emerald-300',
+    PENDING_REVIEW: 'bg-yellow-500/20 text-yellow-300',
+    DRAFT: 'bg-blue-500/20 text-blue-300',
+    PAUSED: 'bg-red-500/20 text-red-300',
+    REJECTED: 'bg-red-500/30 text-red-300',
+    SOLD_OUT: 'bg-orange-500/20 text-orange-300',
+    ARCHIVED: 'bg-white/10 text-white/50',
+  };
+  return (
+    <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${styles[status] ?? 'bg-white/10 text-white/70'}`}>
+      {status.replace(/_/g, ' ')}
+    </span>
   );
 }
 

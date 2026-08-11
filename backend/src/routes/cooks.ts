@@ -203,16 +203,59 @@ router.patch('/me/listings/:id', requireAuth, requireRole('COOK'), async (req: A
     if (body.ingredients !== undefined) data.ingredients = body.ingredients;
     if (body.allergens !== undefined) data.allergens = body.allergens;
     if (body.cuisine !== undefined) data.cuisine = body.cuisine;
+
+    const resubmitting =
+      body.resubmit === true ||
+      body.title !== undefined ||
+      body.description !== undefined ||
+      typeof body.priceKobo === 'number' ||
+      body.portionDescription !== undefined ||
+      body.prepTimeMinutesMin !== undefined ||
+      body.prepTimeMinutesMax !== undefined ||
+      typeof body.quantity === 'number' ||
+      typeof body.stock === 'number' ||
+      body.ingredients !== undefined ||
+      body.allergens !== undefined ||
+      body.cuisine !== undefined ||
+      body.media !== undefined;
+
     if (body.status !== undefined) {
       if (!allowed.includes(body.status)) throw new ApiError(400, 'Invalid status');
-      data.status = body.status;
-      data.isActive = body.status === 'APPROVED';
+      if (!resubmitting) {
+        data.status = body.status;
+        data.isActive = body.status === 'APPROVED';
+      }
     }
 
-    const updated = await prisma.cookListing.update({
-      where: { id },
-      data,
-      include: { media: true },
+    if (resubmitting) {
+      data.status = 'PENDING_REVIEW';
+      data.isActive = false;
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      if (Array.isArray(body.media)) {
+        await tx.cookListingMedia.deleteMany({ where: { listingId: id } });
+        if (body.media.length) {
+          await tx.cookListingMedia.createMany({
+            data: body.media.map((m: any, i: number) => ({
+              listingId: id,
+              type: m.type === 'VIDEO' ? 'VIDEO' : 'IMAGE',
+              url: String(m.url),
+              thumbnailUrl: m.thumbnailUrl ? String(m.thumbnailUrl) : null,
+              ordering: i,
+              width: m.width ? Number(m.width) : null,
+              height: m.height ? Number(m.height) : null,
+              duration: m.duration ? Number(m.duration) : null,
+              metadata: m.metadata ?? {},
+            })),
+          });
+        }
+      }
+      return tx.cookListing.update({
+        where: { id },
+        data,
+        include: { media: true },
+      });
     });
     res.json({ listing: updated });
   } catch (err) {

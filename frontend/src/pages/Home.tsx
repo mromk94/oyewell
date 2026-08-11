@@ -8,7 +8,8 @@ import CookListingFeed from '../components/CookListingFeed';
 import Logo from '../components/Logo';
 import Preloader from '../components/Preloader';
 import ScrollHint from '../components/ScrollHint';
-import { Home as HomeIcon, MapPin, ChefHat, Utensils } from 'lucide-react';
+import { Home as HomeIcon, MapPin, ChefHat, Utensils, Plus } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export default function Home() {
   const [foods, setFoods] = useState<FoodItem[]>([]);
@@ -117,8 +118,15 @@ export default function Home() {
         )}
         {view === 'restaurants' && foods.map((food) => <FoodCard key={food.id} food={food} />)}
         {view === 'cooks' && (
-          <div className='h-screen w-full pt-28'>
+          <div className='relative h-screen w-full pt-28'>
             <CookListingFeed listings={cookListings} loading={cooksLoading} />
+            <Link
+              to='/cook?tab=add'
+              className='fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-black shadow-lg transition hover:scale-105'
+              aria-label='Post food'
+            >
+              <Plus className='h-6 w-6' />
+            </Link>
           </div>
         )}
         {view === 'nearby' && (
