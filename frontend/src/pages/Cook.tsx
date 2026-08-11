@@ -553,9 +553,9 @@ function AddFoodPanel({ onCreated, onError }: { onCreated: () => void; onError: 
           <p className='text-sm text-white/60'>Food photos or videos</p>
 
           {media.length > 0 && (
-            <div className='grid grid-cols-3 gap-2'>
+            <div className='grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3'>
               {media.map((m, i) => (
-                <div key={i} className='relative aspect-square overflow-hidden rounded-xl'>
+                <div key={i} className='relative aspect-square min-w-0 overflow-hidden rounded-xl'>
                   {m.type === 'VIDEO' ? (
                     <video src={m.url} className='h-full w-full object-cover' muted playsInline />
                   ) : (
@@ -586,17 +586,17 @@ function AddFoodPanel({ onCreated, onError }: { onCreated: () => void; onError: 
             />
           </label>
 
-          <div className='flex gap-2'>
+          <div className='flex flex-col gap-2 sm:flex-row sm:items-center'>
             <input
               placeholder='Or paste a media URL'
               value={newMediaUrl}
               onChange={(e) => setNewMediaUrl(e.target.value)}
-              className='flex-1 rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none focus:border-white'
+              className='min-w-0 flex-1 rounded-2xl border border-white/10 bg-white/5 p-3 text-white outline-none focus:border-white'
             />
             <select
               value={newMediaType}
               onChange={(e) => setNewMediaType(e.target.value as 'IMAGE' | 'VIDEO')}
-              className='rounded-2xl border border-white/10 bg-white/5 p-3 text-white'
+              className='w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-white sm:w-auto'
             >
               <option value='IMAGE' className='bg-brand-900'>Photo</option>
               <option value='VIDEO' className='bg-brand-900'>Video</option>
@@ -604,13 +604,18 @@ function AddFoodPanel({ onCreated, onError }: { onCreated: () => void; onError: 
             <button
               type='button'
               onClick={addUrlMedia}
-              className='rounded-full bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/20'
+              className='w-full rounded-full bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/20 sm:w-auto'
             >
               Add
             </button>
           </div>
 
-          {uploading && <p className='text-sm text-white/60'>Uploading…</p>}
+          {uploading && (
+            <div className='flex items-center gap-2 text-emerald-300'>
+              <Loader2 className='h-4 w-4 animate-spin' />
+              <span className='animate-pulse text-sm font-semibold'>Uploading your media…</span>
+            </div>
+          )}
         </div>
 
         <button
