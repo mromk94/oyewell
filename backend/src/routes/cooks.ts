@@ -10,7 +10,7 @@ const router = Router();
 
 router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {
   try {
-    const { displayName, bio, latitude, longitude, serviceRadiusKm, cuisineSpecialty, profilePhoto, categories, signatureDishes, capacity, prepTime, availability } = req.body as Record<string, any>;
+    const { displayName, bio, latitude, longitude, serviceRadiusKm, cuisineSpecialty, profilePhoto, categories, signatureDishes, capacity, prepTime, availability, packagingPhotos, safetyAcknowledgements } = req.body as Record<string, any>;
     if (!displayName) throw new ApiError(400, 'Display name is required');
     const user = await prisma.user.findUnique({ where: { id: req.user!.id }, include: { cookProfile: true } });
     if (!user) throw new ApiError(404, 'User not found');
@@ -35,6 +35,8 @@ router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {
           capacity,
           prepTime,
           availability: availability ?? {},
+          packagingPhotos: packagingPhotos ?? [],
+          safetyAcknowledgements: safetyAcknowledgements ?? [],
           profileStatus: 'PENDING_APPROVAL',
           kitchenStatus: 'PENDING_APPROVAL',
         },
