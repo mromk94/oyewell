@@ -74,3 +74,36 @@ export async function isWithinLimit(userId: string, key: string, amount: number)
   if (limits[key] === undefined) return true;
   return amount <= (limits[key] ?? 0);
 }
+
+export async function findModerator(filters: { permission: string; country?: string; city?: string }) {
+  const employees = await prisma.managementEmployee.findMany({
+    where: { status: 'ACTIVE' },
+    include: {
+      tier: { include: { permissions: { include: { permission: { select: { key: true } } } } } },
+      areas: true,
+      user: { select: { id: true } },
+    },
+  });
+
+  const userIds = employees.map((e) => e.user.id);
+  const [openTickets, openDisputes, openReports] = await Promise.all([
+    prisma.ticket.groupBy({ by: ['assignedTo'], where: { assignedTo: { in: userIds }, status: { not: 'RESOLVED' } }, _count: { id: true } }),
+    prisma.dispute.groupBy({ by: ['assignedTo'], where: { assignedTo: { in: userIds }, status: { not: 'RESOLVED' } }, _count: { id: true } }),
+    prisma.report.groupBy({ by: ['assignedTo'], where: { assignedTo: { in: userIds }, status: { not: 'RESOLVED' } }, _count: { id: true } }),
+  ]);
+  const loadMap = new Map<string, number>();
+  for (const group of [...openTickets, ...openDisputes, ...openReports]) {
+    if (!group.assignedTo) continue;
+    loadMap.set(group.assignedTo, (loadMap.get(group.assignedTo) ?? 0) + group._count.id);
+  }
+
+  const eligible = employees.filter((e) =>
+    e.tier.permissions.some((p: { permission: { key: string } }) => p.permission.key === filters.permission) &&
+    (filters.country == null || e.areas.some((a) => a.country === filters.country || a.scope === 'GLOBAL')) &&
+    (filters.city == null || e.areas.some((a: any) => a.city === filters.city || a.scope === 'GLOBAL' || a.scope === 'COUNTRY' || a.scope === 'STATE'))
+  );
+
+  if (eligible.length === 0) return null;
+  eligible.sort((a, b) => (loadMap.get(a.user.id) ?? 0) - (loadMap.get(b.user.id) ?? 0));
+  return eligible[0].user.id;
+}
