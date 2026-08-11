@@ -76,10 +76,6 @@ export default function Home() {
     el.scrollBy({ top: distance, behavior: 'smooth' });
   }
 
-  if (loading || !minReady) {
-    return <Preloader />;
-  }
-
   const filteredFoods = useMemo(() => {
     let list = foods;
     if (filters.q.trim()) {
@@ -125,6 +121,10 @@ export default function Home() {
     cookListings.forEach((l) => l.cuisine && set.add(l.cuisine));
     return Array.from(set).sort();
   }, [cookListings]);
+
+  if (loading || !minReady) {
+    return <Preloader />;
+  }
 
   if (error || !foods.length) {
     return (
