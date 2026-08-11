@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   LayoutDashboard,
   Utensils,
@@ -18,6 +19,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Menu,
 } from 'lucide-react';
 import Logo from '../components/Logo';
 import { MapView } from '../components/MapView';
@@ -69,10 +71,37 @@ import {
 
 type Tab = 'dashboard' | 'menu' | 'orders' | 'sides' | 'customers' | 'delivery' | 'payments' | 'settings' | 'email' | 'riders' | 'live-map' | 'cooks' | 'cook-listings' | 'cook-earnings' | 'management' | 'moderation';
 
+const TABS: Tab[] = [
+  'dashboard',
+  'menu',
+  'orders',
+  'sides',
+  'customers',
+  'delivery',
+  'payments',
+  'riders',
+  'live-map',
+  'cooks',
+  'cook-listings',
+  'cook-earnings',
+  'management',
+  'moderation',
+  'settings',
+  'email',
+];
+
 export default function Admin() {
   const [token, setToken] = useState<string | null>(localStorage.getItem('admin_token'));
-  const [tab, setTab] = useState<Tab>('dashboard');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const current = searchParams.get('tab') ?? 'dashboard';
+  const tab = TABS.includes(current as Tab) ? (current as Tab) : 'dashboard';
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  function setTab(next: Tab) {
+    setSearchParams({ tab: next }, { replace: true });
+    setMobileNavOpen(false);
+  }
   const [error, setError] = useState<string | null>(null);
 
   const [email, setEmail] = useState('');
@@ -198,54 +227,101 @@ export default function Admin() {
     );
   }
 
+  const activeLabel = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'menu', label: 'Menu', icon: Utensils },
+    { id: 'orders', label: 'Orders', icon: Package },
+    { id: 'sides', label: 'Sides', icon: Salad },
+    { id: 'customers', label: 'Customers', icon: Users },
+    { id: 'delivery', label: 'Delivery', icon: Truck },
+    { id: 'payments', label: 'Payments', icon: CreditCard },
+    { id: 'riders', label: 'Riders', icon: Bike },
+    { id: 'live-map', label: 'Live Map', icon: Map },
+    { id: 'cooks', label: 'Cooks', icon: ChefHat },
+    { id: 'cook-listings', label: 'Cook Listings', icon: Utensils },
+    { id: 'cook-earnings', label: 'Cook Earnings', icon: TrendingUp },
+    { id: 'management', label: 'Management', icon: LayoutDashboard },
+    { id: 'moderation', label: 'Moderation', icon: AlertTriangle },
+    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'email', label: 'Email', icon: Mail },
+  ].find((t) => t.id === tab);
+
+  const navItems = (
+    <>
+      <h1 className="hidden px-4 text-2xl font-black text-white md:block">OYE Admin</h1>
+      <nav className="mt-4 flex flex-col gap-1 md:mt-6">
+        {[
+          { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+          { id: 'menu', label: 'Menu', icon: Utensils },
+          { id: 'orders', label: 'Orders', icon: Package },
+          { id: 'sides', label: 'Sides', icon: Salad },
+          { id: 'customers', label: 'Customers', icon: Users },
+          { id: 'delivery', label: 'Delivery', icon: Truck },
+          { id: 'payments', label: 'Payments', icon: CreditCard },
+          { id: 'riders', label: 'Riders', icon: Bike },
+          { id: 'live-map', label: 'Live Map', icon: Map },
+          { id: 'cooks', label: 'Cooks', icon: ChefHat },
+          { id: 'cook-listings', label: 'Cook Listings', icon: Utensils },
+          { id: 'cook-earnings', label: 'Cook Earnings', icon: TrendingUp },
+          { id: 'management', label: 'Management', icon: LayoutDashboard },
+          { id: 'moderation', label: 'Moderation', icon: AlertTriangle },
+          { id: 'settings', label: 'Settings', icon: Settings },
+          { id: 'email', label: 'Email', icon: Mail },
+        ].map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => setTab(id as unknown as Tab)}
+            className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-medium transition ${
+              tab === id ? 'bg-white text-black' : 'text-white/70 hover:bg-white/5'
+            }`}
+          >
+            <Icon className="h-5 w-5" />
+            {label}
+          </button>
+        ))}
+      </nav>
+      <button
+        onClick={() => {
+          localStorage.removeItem('admin_token');
+          setToken(null);
+        }}
+        className="mt-8 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-medium text-white/70 transition hover:bg-white/5"
+      >
+        <LogOut className="h-5 w-5" /> Sign out
+      </button>
+    </>
+  );
+
   return (
     <div className="flex min-h-screen flex-col bg-brand-900 md:flex-row">
       <Logo />
-      <aside className="shrink-0 border-b border-white/10 bg-brand-800 p-4 md:w-64 md:border-b-0 md:border-r">
-        <h1 className="px-4 text-2xl font-black text-white">OYE Admin</h1>
-        <nav className="mt-4 flex gap-2 overflow-x-auto pb-2 md:mt-6 md:flex-col md:gap-0 md:space-y-1 md:overflow-visible">
-          {[
-            { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-            { id: 'menu', label: 'Menu', icon: Utensils },
-            { id: 'orders', label: 'Orders', icon: Package },
-            { id: 'sides', label: 'Sides', icon: Salad },
-            { id: 'customers', label: 'Customers', icon: Users },
-            { id: 'delivery', label: 'Delivery', icon: Truck },
-            { id: 'payments', label: 'Payments', icon: CreditCard },
-            { id: 'riders', label: 'Riders', icon: Bike },
-            { id: 'live-map', label: 'Live Map', icon: Map },
-            { id: 'cooks', label: 'Cooks', icon: ChefHat },
-            { id: 'cook-listings', label: 'Cook Listings', icon: Utensils },
-            { id: 'cook-earnings', label: 'Cook Earnings', icon: TrendingUp },
-            { id: 'management', label: 'Management', icon: LayoutDashboard },
-            { id: 'moderation', label: 'Moderation', icon: AlertTriangle },
-            { id: 'settings', label: 'Settings', icon: Settings },
-            { id: 'email', label: 'Email', icon: Mail },
-          ].map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              onClick={() => setTab(id as unknown as Tab)}
-              className={`flex shrink-0 items-center gap-2 rounded-2xl p-3 text-sm font-medium transition md:w-full md:gap-3 md:px-4 md:py-3 md:text-left ${
-                tab === id ? 'bg-white text-black' : 'text-white/70 hover:bg-white/5'
-              }`}
-              title={label}
-            >
-              <Icon className="h-5 w-5" />
-              <span className="hidden md:inline">{label}</span>
-            </button>
-          ))}
-        </nav>
-        <button
-          onClick={() => {
-            localStorage.removeItem('admin_token');
-            setToken(null);
-          }}
-          className="mt-4 flex w-full shrink-0 items-center gap-2 rounded-2xl p-3 text-sm font-medium text-white/70 transition hover:bg-white/5 md:mt-8 md:gap-3 md:px-4 md:py-3"
-          title="Sign out"
-        >
-          <LogOut className="h-5 w-5" /> <span className="hidden md:inline">Sign out</span>
-        </button>
+      <header className="flex items-center justify-between border-b border-white/10 bg-brand-800 p-4 md:hidden">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setMobileNavOpen(true)} className="rounded-2xl p-2 text-white hover:bg-white/10">
+            <Menu className="h-6 w-6" />
+          </button>
+          <span className="font-bold text-white">{activeLabel?.label ?? 'Admin'}</span>
+        </div>
+      </header>
+
+      <aside className="hidden shrink-0 border-r border-white/10 bg-brand-800 p-4 md:block md:w-64">
+        {navItems}
       </aside>
+
+      {mobileNavOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setMobileNavOpen(false)} />
+          <div className="absolute left-0 top-0 h-full w-64 bg-brand-800 p-4 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h1 className="px-4 text-2xl font-black text-white">OYE Admin</h1>
+              <button onClick={() => setMobileNavOpen(false)} className="rounded-2xl p-2 text-white hover:bg-white/10">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            {navItems}
+          </div>
+        </div>
+      )}
 
       <main className="flex-1 p-6 md:p-10">
         {loading && <p className="text-white/60">Loading...</p>}
