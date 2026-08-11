@@ -3,6 +3,7 @@ import { ApiError } from '../lib/errors.js';
 import { createTicket, getTickets, getTicket, updateTicketStatus, assignTicket, addTicketMessage } from '../lib/ticketing.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { hasPermission } from '../lib/management.js';
+import { logAudit } from '../lib/audit.js';
 
 const router = Router();
 
@@ -44,6 +45,15 @@ router.post('/', async (req: AuthRequest, res, next) => {
       priority,
       message,
     });
+    await logAudit({
+      actorId: req.user!.id,
+      action: 'TICKET_CREATED',
+      targetId: ticket.id,
+      targetType: 'TICKET',
+      reference: ticket.ticketNumber,
+      newState: { category, subject, status: ticket.status },
+      ip: req.ip ?? undefined,
+    });
     res.status(201).json({ ticket });
   } catch (e) {
     next(e);
@@ -54,7 +64,18 @@ router.patch('/:id/status', async (req: AuthRequest, res, next) => {
   try {
     const { status, resolution } = req.body as Record<string, any>;
     if (!status) throw new ApiError(400, 'status is required');
+    const before = await getTicket(req.params.id);
     const ticket = await updateTicketStatus(req.params.id, status, resolution);
+    await logAudit({
+      actorId: req.user!.id,
+      action: 'TICKET_STATUS_UPDATED',
+      targetId: ticket.id,
+      targetType: 'TICKET',
+      reference: ticket.ticketNumber,
+      oldState: { status: before?.status },
+      newState: { status: ticket.status, resolution },
+      ip: req.ip ?? undefined,
+    });
     res.json({ ticket });
   } catch (e) {
     next(e);
@@ -65,7 +86,19 @@ router.patch('/:id/assign', async (req: AuthRequest, res, next) => {
   try {
     const { assignedTo } = req.body as Record<string, any>;
     if (!assignedTo) throw new ApiError(400, 'assignedTo is required');
+    const before = await getTicket(req.params.id);
     const ticket = await assignTicket(req.params.id, assignedTo);
+    await logAudit({
+      actorId: req.user!.id,
+      action: 'TICKET_ASSIGNED',
+      targetId: ticket.id,
+      targetType: 'TICKET',
+      reference: ticket.ticketNumber,
+      oldState: { assignedTo: before?.assignedTo },
+      newState: { assignedTo: ticket.assignedTo },
+      reason: `Assigned to ${assignedTo}`,
+      ip: req.ip ?? undefined,
+    });
     res.json({ ticket });
   } catch (e) {
     next(e);
