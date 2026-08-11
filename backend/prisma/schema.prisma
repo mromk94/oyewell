@@ -934,3 +934,38 @@ model CaseEvidence {
   @@index([caseType, caseId])
   @@index([evidenceType, createdAt])
 }
+
+enum LegalDocumentType {
+  TERMS_OF_SERVICE
+  COMMUNITY_FOOD_PROVIDER_AGREEMENT
+  PRIVACY_POLICY
+  FOOD_SAFETY_RULES
+  DELIVERY_RULES
+  REFUND_DISPUTE_POLICY
+  COMMUNITY_GUIDELINES
+}
+
+model LegalDocument {
+  id          String            @id @default(cuid())
+  type        LegalDocumentType @unique
+  version     String
+  title       String
+  content     String
+  activeFrom  DateTime          @default(now())
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([type, activeFrom])
+}
+
+model TermsAcceptance {
+  id           String   @id @default(cuid())
+  userId       String
+  documentType String
+  version      String
+  acceptedAt   DateTime @default(now())
+  ip           String?
+
+  @@unique([userId, documentType, version])
+  @@index([userId])
+}
