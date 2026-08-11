@@ -272,15 +272,24 @@ router.post('/:id/view', optionalAuth, async (req: AuthRequest, res, next) => {
 
 router.get('/cooks/:id', async (req, res, next) => {
   try {
-    const cook = await prisma.cookProfile.findUnique({
-      where: { id: req.params.id },
-      include: {
-        listings: { where: { status: 'APPROVED', isActive: true, stock: { gt: 0 } }, include: { media: { orderBy: { ordering: 'asc' as const } } } },
-        reviews: { take: 20, orderBy: { createdAt: 'desc' } },
+    const id = req.params.id;
+    const data = await cache.getOrSet(
+      `cooks:profile:${id}`,
+      async () => {
+        const cook = await prisma.cookProfile.findUnique({
+          where: { id },
+          include: {
+            listings: { where: { status: 'APPROVED', isActive: true, stock: { gt: 0 } }, include: { media: { orderBy: { ordering: 'asc' as const } } } },
+            reviews: { take: 20, orderBy: { createdAt: 'desc' } },
+          },
+        });
+        if (!cook || cook.profileStatus !== 'APPROVED' || !cook.isActive) throw new ApiError(404, 'Cook not found');
+        return { cook: { ...cook, latitude: undefined, longitude: undefined } };
       },
-    });
-    if (!cook || cook.profileStatus !== 'APPROVED' || !cook.isActive) throw new ApiError(404, 'Cook not found');
-    res.json({ cook: { ...cook, latitude: undefined, longitude: undefined } });
+      { ttlSeconds: LISTINGS_TTL, jitter: true },
+    );
+    res.setHeader('Cache-Control', `public, max-age=${LISTINGS_TTL}, stale-while-revalidate=${LISTINGS_TTL}`);
+    res.json(data);
   } catch (err) {
     next(err);
   }

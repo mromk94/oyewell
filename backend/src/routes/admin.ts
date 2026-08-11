@@ -117,6 +117,7 @@ router.post('/foods', async (req: AuthRequest, res, next) => {
       },
       include: { options: true },
     });
+    await Promise.all([cache.del('foods:public'), cache.delPattern('foods:slug:')]);
     res.status(201).json({ food });
   } catch (err) {
     next(err);
@@ -160,6 +161,7 @@ router.patch('/foods/:id', async (req, res, next) => {
       data,
       include: { options: { orderBy: { displayOrder: 'asc' } } },
     });
+    await Promise.all([cache.del('foods:public'), cache.del(`foods:slug:${food.slug}`), cache.delPattern('foods:slug:')]);
     res.json({ food });
   } catch (err) {
     next(err);
@@ -169,10 +171,11 @@ router.patch('/foods/:id', async (req, res, next) => {
 router.delete('/foods/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    await prisma.food.update({
+    const food = await prisma.food.update({
       where: { id },
       data: { status: 'ARCHIVED', isAvailable: false },
     });
+    await Promise.all([cache.del('foods:public'), cache.del(`foods:slug:${food.slug}`), cache.delPattern('foods:slug:')]);
     res.json({ ok: true });
   } catch (err) {
     next(err);
