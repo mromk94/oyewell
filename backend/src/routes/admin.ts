@@ -959,6 +959,42 @@ router.get('/delivery-control-center', async (_req, res, next) => {
   }
 });
 
+router.get('/delivery-safety-report', async (_req, res, next) => {
+  try {
+    const [recentFailed, recentCancelled, highCompletionRiders, repeatedCustomers] = await Promise.all([
+      prisma.orderStatusHistory.findMany({
+        where: { status: 'DELIVERY_CODE_FAILED' },
+        take: 50,
+        orderBy: { createdAt: 'desc' },
+        include: { order: { select: { orderNumber: true, riderId: true, customerId: true, address: true } } },
+      }),
+      prisma.order.count({ where: { status: 'CANCELLED' } }),
+      prisma.rider.findMany({
+        take: 20,
+        orderBy: { orders: { _count: 'desc' } },
+        include: { _count: { select: { orders: true } } },
+      }),
+      prisma.$queryRaw`
+        SELECT "customerId", "riderId", COUNT(*) as count
+        FROM "Order"
+        WHERE "riderId" IS NOT NULL AND "customerId" IS NOT NULL
+        GROUP BY "customerId", "riderId"
+        HAVING COUNT(*) > 2
+        ORDER BY count DESC
+        LIMIT 20
+      ` as any,
+    ]);
+    res.json({
+      recentFailedVerifications: recentFailed.length,
+      cancelledOrders: recentCancelled,
+      topRiders: highCompletionRiders.map((r) => ({ id: r.id, orders: r._count.orders })),
+      repeatedCustomerRiderPairs: repeatedCustomers,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/payout-requests', async (_req, res, next) => {
   try {
     const requests = await prisma.riderPayoutRequest.findMany({
