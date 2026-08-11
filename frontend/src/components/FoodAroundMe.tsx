@@ -1,15 +1,45 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MapPin, Loader2, AlertCircle } from 'lucide-react';
 import CookListingCard from './CookListingCard';
 import { fetchCookListingsAroundMe, type CookListing } from '../lib/listings';
+import { type DiscoveryFiltersState } from './DiscoveryFilters';
 
-export default function FoodAroundMe() {
+interface Props {
+  filters?: DiscoveryFiltersState;
+}
+
+export default function FoodAroundMe({ filters }: Props) {
   const navigate = useNavigate();
   const [listings, setListings] = useState<CookListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const filteredListings = useMemo(() => {
+    if (!filters) return listings;
+    let list = listings;
+    if (filters.q.trim()) {
+      const q = filters.q.toLowerCase();
+      list = list.filter(
+        (l) =>
+          l.title.toLowerCase().includes(q) ||
+          (l.description && l.description.toLowerCase().includes(q)) ||
+          l.cook.displayName.toLowerCase().includes(q)
+      );
+    }
+    if (filters.cuisine) {
+      list = list.filter((l) => l.cuisine && l.cuisine.toLowerCase() === filters.cuisine.toLowerCase());
+    }
+    if (filters.available) {
+      list = list.filter((l) => l.isActive && l.stock > 0);
+    }
+    if (filters.maxPrice) {
+      const max = Number(filters.maxPrice) * 100;
+      list = list.filter((l) => l.priceKobo <= max);
+    }
+    return list;
+  }, [listings, filters]);
 
   useEffect(() => {
     if (!navigator.geolocation) {
@@ -68,7 +98,7 @@ export default function FoodAroundMe() {
     );
   }
 
-  if (!listings.length) {
+  if (!filteredListings.length) {
     return (
       <section className='py-6'>
         <div className='mb-4 flex items-center gap-2 px-4'>
@@ -94,7 +124,7 @@ export default function FoodAroundMe() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true }}
       >
-        {listings.map((l) => (
+        {filteredListings.map((l) => (
           <div key={l.id} className='w-72 shrink-0'>
             <CookListingCard listing={l} distance={l.distanceKm} onClick={() => navigate(`/cook-listing/${l.id}`)} />
           </div>

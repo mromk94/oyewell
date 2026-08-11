@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { fetchFoods, type FoodItem } from '../lib/api';
 import { fetchCookListingsPublic, type CookListing } from '../lib/listings';
 import FoodCard from '../components/FoodCard';
 import FoodAroundMe from '../components/FoodAroundMe';
 import CookListingFeed from '../components/CookListingFeed';
+import DiscoveryFilters, { type DiscoveryFiltersState } from '../components/DiscoveryFilters';
 import Logo from '../components/Logo';
 import Preloader from '../components/Preloader';
 import ScrollHint from '../components/ScrollHint';
@@ -26,6 +27,7 @@ export default function Home() {
   const [canScrollDown, setCanScrollDown] = useState(false);
   const [view, setView] = useState<'home' | 'cooks' | 'restaurants' | 'nearby'>('home');
   const [postModal, setPostModal] = useState(false);
+  const [filters, setFilters] = useState<DiscoveryFiltersState>({ q: '', cuisine: '', maxPrice: '', available: false });
   const mainRef = useRef<HTMLElement>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
@@ -78,6 +80,52 @@ export default function Home() {
     return <Preloader />;
   }
 
+  const filteredFoods = useMemo(() => {
+    let list = foods;
+    if (filters.q.trim()) {
+      const q = filters.q.toLowerCase();
+      list = list.filter((f) => f.name.toLowerCase().includes(q) || (f.description && f.description.toLowerCase().includes(q)));
+    }
+    if (filters.available) {
+      list = list.filter((f) => f.isAvailable);
+    }
+    if (filters.maxPrice) {
+      const max = Number(filters.maxPrice) * 100;
+      list = list.filter((f) => !f.priceFromKobo || f.priceFromKobo <= max);
+    }
+    return list;
+  }, [foods, filters]);
+
+  const filteredCookListings = useMemo(() => {
+    let list = cookListings;
+    if (filters.q.trim()) {
+      const q = filters.q.toLowerCase();
+      list = list.filter(
+        (l) =>
+          l.title.toLowerCase().includes(q) ||
+          (l.description && l.description.toLowerCase().includes(q)) ||
+          l.cook.displayName.toLowerCase().includes(q)
+      );
+    }
+    if (filters.cuisine) {
+      list = list.filter((l) => l.cuisine && l.cuisine.toLowerCase() === filters.cuisine.toLowerCase());
+    }
+    if (filters.available) {
+      list = list.filter((l) => l.isActive && l.stock > 0);
+    }
+    if (filters.maxPrice) {
+      const max = Number(filters.maxPrice) * 100;
+      list = list.filter((l) => l.priceKobo <= max);
+    }
+    return list;
+  }, [cookListings, filters]);
+
+  const cuisines = useMemo(() => {
+    const set = new Set<string>();
+    cookListings.forEach((l) => l.cuisine && set.add(l.cuisine));
+    return Array.from(set).sort();
+  }, [cookListings]);
+
   if (error || !foods.length) {
     return (
       <div className="flex h-screen w-full flex-col items-center justify-center px-6 text-center">
@@ -95,6 +143,7 @@ export default function Home() {
       <div className="fixed left-0 right-0 top-20 z-30 flex justify-center bg-gradient-to-b from-black/70 via-black/40 to-transparent pb-6 pt-3">
         <DiscoveryNav current={view} onChange={setView} />
       </div>
+      <DiscoveryFilters view={view} filters={filters} onChange={setFilters} cuisines={cuisines} />
       <main
         ref={mainRef}
         onScroll={handleScroll}
@@ -118,15 +167,15 @@ export default function Home() {
       >
         {view === 'home' && (
           <>
-            {foods.map((food) => (
+            {filteredFoods.map((food) => (
               <FoodCard key={food.id} food={food} />
             ))}
           </>
         )}
-        {view === 'restaurants' && foods.map((food) => <FoodCard key={food.id} food={food} />)}
+        {view === 'restaurants' && filteredFoods.map((food) => <FoodCard key={food.id} food={food} />)}
         {view === 'cooks' && (
           <>
-            <CookListingFeed listings={cookListings} loading={cooksLoading} />
+            <CookListingFeed listings={filteredCookListings} loading={cooksLoading} />
             <button
               onClick={() => setPostModal(true)}
               className='fixed bottom-20 right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-black shadow-lg transition hover:scale-105'
@@ -138,7 +187,7 @@ export default function Home() {
         )}
         {view === 'nearby' && (
           <div className="min-h-screen pt-28">
-            <FoodAroundMe />
+            <FoodAroundMe filters={filters} />
           </div>
         )}
       </main>
