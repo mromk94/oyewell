@@ -15,6 +15,7 @@ import AccountButton from './components/AccountButton';
 import AuthModal from './components/AuthModal';
 import InstallPrompt from './components/InstallPrompt';
 import NotificationListener from './components/NotificationListener';
+import NotificationBell from './components/NotificationBell';
 
 function App() {
   const location = useLocation();
@@ -36,6 +37,7 @@ function App() {
       </Routes>
       {!isAdmin && <CartButton />}
       {!isAdmin && <CartModal />}
+      {!isAdmin && <NotificationBell />}
       {!isAdmin && <AccountButton />}
       {!isAdmin && <AuthModal />}
       <InstallPrompt />

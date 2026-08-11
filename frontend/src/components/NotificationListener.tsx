@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { API_BASE } from '../lib/api';
 import { toast } from '../lib/toast';
+import { addNotification } from '../lib/notifications';
 
 export default function NotificationListener() {
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -17,9 +18,12 @@ export default function NotificationListener() {
         const type = data.type || '';
 
         if (type === 'order:status') {
-          toast.info(`Order ${data.orderNumber || data.orderId} is now ${data.status?.replace(/_/g, ' ').toLowerCase()}`);
+          const message = `Order ${data.orderNumber || data.orderId} is now ${data.status?.replace(/_/g, ' ').toLowerCase()}`;
+          toast.info(message);
+          addNotification({ type, message });
         } else if (type === 'order:created') {
           toast.success(`New order created`);
+          addNotification({ type, message: `New order created` });
         }
       } catch {
         // ignore invalid messages
