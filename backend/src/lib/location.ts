@@ -47,20 +47,30 @@ export function haversineMeters(a: GeoPoint, b: GeoPoint): number {
 }
 
 export async function geocode(address: string): Promise<Location | null> {
-  const provider = getMapProvider();
-  const result = (await provider.geocode(address)) as (GeoPoint & { formattedAddress?: string }) | null;
-  if (!result) return null;
-  return { ...result, address: result.formattedAddress ?? address };
+  try {
+    const provider = getMapProvider();
+    const result = (await provider.geocode(address)) as (GeoPoint & { formattedAddress?: string }) | null;
+    if (!result) return null;
+    return { ...result, address: result.formattedAddress ?? address };
+  } catch (e) {
+    console.error('geocode failed', e);
+    return null;
+  }
 }
 
 export async function reverseGeocode(point: GeoPoint): Promise<Location | null> {
-  const provider = getMapProvider();
-  // Only real providers can reverse geocode; mock falls back to a synthetic address.
-  if (provider.name === 'MOCK') {
+  try {
+    const provider = getMapProvider();
+    // Only real providers can reverse geocode; mock falls back to a synthetic address.
+    if (provider.name === 'MOCK') {
+      return { ...point, address: `Lat ${point.lat.toFixed(4)}, Lng ${point.lng.toFixed(4)}` };
+    }
+    // Generic reverse geocode via provider if available; current interface only has geocode.
+    return { ...point, address: `Lat ${point.lat.toFixed(4)}, Lng ${point.lng.toFixed(4)}` };
+  } catch (e) {
+    console.error('reverseGeocode failed', e);
     return { ...point, address: `Lat ${point.lat.toFixed(4)}, Lng ${point.lng.toFixed(4)}` };
   }
-  // Generic reverse geocode via provider if available; current interface only has geocode.
-  return { ...point, address: `Lat ${point.lat.toFixed(4)}, Lng ${point.lng.toFixed(4)}` };
 }
 
 export function distanceMeters(a: GeoPoint, b: GeoPoint): number {
@@ -81,9 +91,13 @@ export function nearbyByDistance(
 }
 
 export async function route(origin: GeoPoint, destination: GeoPoint): Promise<Route> {
-  const provider = getMapProvider();
-  const r = await provider.route(origin, destination);
-  if (r) return { ...r, polyline: undefined };
+  try {
+    const provider = getMapProvider();
+    const r = await provider.route(origin, destination);
+    if (r) return { ...r, polyline: undefined };
+  } catch (e) {
+    console.error('route failed', e);
+  }
   const straight = haversineMeters(origin, destination);
   const durationSeconds = Math.round(straight / 6);
   return { distanceMeters: straight, durationSeconds, polyline: undefined };
@@ -91,7 +105,7 @@ export async function route(origin: GeoPoint, destination: GeoPoint): Promise<Ro
 
 export async function eta(origin: GeoPoint, destination: GeoPoint): Promise<number> {
   const r = await route(origin, destination);
-  return Math.ceil(r.durationSeconds / 60);
+  return Math.max(1, Math.ceil(r.durationSeconds / 60));
 }
 
 export function serviceRadius(point: GeoPoint, target: GeoPoint, radiusMeters: number): boolean {
