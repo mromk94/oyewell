@@ -20,6 +20,7 @@ export default function Home() {
   const [canScrollDown, setCanScrollDown] = useState(false);
   const [view, setView] = useState<'home' | 'nearby' | 'cooks' | 'restaurants'>('home');
   const mainRef = useRef<HTMLElement>(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const minTimer = setTimeout(() => setMinReady(true), 2500);
@@ -86,6 +87,22 @@ export default function Home() {
       <main
         ref={mainRef}
         onScroll={handleScroll}
+        onTouchStart={(e) => {
+          const t = e.touches[0];
+          touchStart.current = { x: t.clientX, y: t.clientY };
+        }}
+        onTouchEnd={(e) => {
+          if (!touchStart.current) return;
+          const t = e.changedTouches[0];
+          const dx = t.clientX - touchStart.current.x;
+          const dy = t.clientY - touchStart.current.y;
+          touchStart.current = null;
+          if (Math.abs(dx) < 50 || Math.abs(dy) > Math.abs(dx)) return;
+          const tabs = ['home', 'restaurants', 'cooks', 'nearby'] as const;
+          const idx = tabs.indexOf(view);
+          if (dx < 0 && idx < tabs.length - 1) setView(tabs[idx + 1]);
+          if (dx > 0 && idx > 0) setView(tabs[idx - 1]);
+        }}
         className="h-screen snap-y snap-mandatory overflow-y-scroll scroll-smooth"
       >
         {view === 'home' && (
@@ -98,8 +115,16 @@ export default function Home() {
           </>
         )}
         {view === 'restaurants' && foods.map((food) => <FoodCard key={food.id} food={food} />)}
-        {view === 'cooks' && <CookListingsSection title='OyeWell Cooks' listings={cookListings} loading={cooksLoading} />}
-        {view === 'nearby' && <FoodAroundMe />}
+        {view === 'cooks' && (
+          <div className="min-h-screen pt-28">
+            <CookListingsSection title='OyeWell Cooks' listings={cookListings} loading={cooksLoading} />
+          </div>
+        )}
+        {view === 'nearby' && (
+          <div className="min-h-screen pt-28">
+            <FoodAroundMe />
+          </div>
+        )}
       </main>
       <ScrollHint
         canScrollUp={canScrollUp}
