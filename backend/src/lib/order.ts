@@ -331,8 +331,20 @@ export async function createOrder(payload: OrderPayload) {
   };
 }
 
-export function serializeOrder(order: any, includeDeliveryCode = false) {
+function maskAddress(address: string) {
+  const parts = address.split(/[,\s]+/).filter(Boolean);
+  if (parts.length <= 2) return 'Approximate area';
+  return `${parts.slice(0, 2).join(' ')} ...`;
+}
+
+function maskPhone(phone: string) {
+  return phone.length > 4 ? `****${phone.slice(-4)}` : phone;
+}
+
+export function serializeOrder(order: any, includeDeliveryCode = false, maskCustomerInfo = false) {
   const showCode = includeDeliveryCode || order.status === 'DELIVERED' || order.status === 'CANCELLED';
+  const delivered = order.status === 'DELIVERED';
+  const showCustomerInfo = !maskCustomerInfo || delivered;
   return {
     id: order.id,
     orderNumber: order.orderNumber,
@@ -342,8 +354,9 @@ export function serializeOrder(order: any, includeDeliveryCode = false) {
     subtotal: formatKobo(order.subtotalKobo),
     deliveryFee: formatKobo(order.deliveryFeeKobo),
     total: formatKobo(order.totalKobo),
-    address: order.address,
-    phone: order.phone,
+    address: showCustomerInfo ? order.address : maskAddress(order.address),
+    phone: showCustomerInfo ? order.phone : maskPhone(order.phone),
+    approximateArea: order.deliveryZone?.name || maskAddress(order.address),
     deliveryCode: showCode ? order.deliveryCode : null,
     estimatedMinutes: order.estimatedMinutes,
     cookId: order.cookId,

@@ -46,7 +46,7 @@ router.get('/:orderNumber', async (req, res, next) => {
       res.status(404).json({ error: 'Order not found' });
       return;
     }
-    res.json({ order: serializeOrder(order) });
+    res.json({ order: serializeOrder(order, false, true) });
   } catch (err) {
     next(err);
   }

@@ -190,6 +190,7 @@ export interface OrderSummary {
   deliveryFee: string;
   total: string;
   address: string;
+  approximateArea: string;
   phone: string;
   deliveryCode?: string;
   cookId?: string;

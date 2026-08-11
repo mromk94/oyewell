@@ -410,8 +410,8 @@ export default function TrackOrder() {
 
         <div className='mt-8 rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8'>
           <h2 className='text-xl font-bold text-white'>Delivery</h2>
-          <p className='mt-2 text-white/80'>{order.address}</p>
-          <p className='text-white/80'>{order.phone}</p>
+          <p className='mt-2 text-white/80'>{order.status === 'DELIVERED' ? order.address : order.approximateArea}</p>
+          <p className='text-white/80'>{order.status === 'DELIVERED' ? order.phone : order.phone.replace(/.(?=.{4})/g, '*')}</p>
         </div>
 
         {order.status === 'DELIVERED' && order.cookId && getCustomerToken() && (
