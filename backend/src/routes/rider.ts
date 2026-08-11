@@ -232,7 +232,7 @@ router.get('/available', requireAuth, requireRider, async (req: AuthRequest, res
         status: { in: ['PAID', 'CONFIRMED', 'PREPARING', 'READY_FOR_PICKUP', 'READY_FOR_DISPATCH'] },
       },
       orderBy: { createdAt: 'desc' },
-      include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
+      include: { items: true, sides: true, deliveryZone: true, statusHistory: true, cookListing: { include: { cook: true } } },
     });
     const filtered = orders.filter((order) =>
       isRiderEligibleForType(rider, (order.deliveryType as any) ?? 'NEIGHBORHOOD'),
@@ -250,7 +250,7 @@ router.get('/orders', requireAuth, requireRider, async (req: AuthRequest, res, n
     const orders = await prisma.order.findMany({
       where: { riderId: rider.id },
       orderBy: { createdAt: 'desc' },
-      include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
+      include: { items: true, sides: true, deliveryZone: true, statusHistory: true, cookListing: { include: { cook: true } } },
     });
     res.json({ orders: orders.map((o) => serializeOrder(o, true)) });
   } catch (e) {

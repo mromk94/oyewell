@@ -11,6 +11,8 @@ import {
   MapPin,
   Phone,
   ArrowRight,
+  Navigation,
+  Utensils,
   LogOut,
   ShieldCheck,
   Shield,
@@ -577,7 +579,26 @@ function OrderCard({ order, actions }: { order: RiderOrder; actions?: { label: s
         </div>
       </div>
       <div className='mt-3 space-y-1 text-sm text-white/70'>
+        <p><Utensils className='mr-1 inline h-4 w-4' /> {order.cookName || 'Kitchen'} — {order.pickupArea || 'Pickup area'}</p>
+        {order.pickupLocation && (
+          <a
+            href={`https://www.google.com/maps/dir/?api=1&destination=${order.pickupLocation.lat},${order.pickupLocation.lng}`}
+            target='_blank'
+            rel='noreferrer'
+            className='inline-flex items-center gap-1 text-emerald-300 hover:underline'
+          >
+            <Navigation className='h-4 w-4' /> Navigate to pickup
+          </a>
+        )}
         <p><MapPin className='mr-1 inline h-4 w-4' /> {order.address}</p>
+        <a
+          href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(order.address)}`}
+          target='_blank'
+          rel='noreferrer'
+          className='inline-flex items-center gap-1 text-emerald-300 hover:underline'
+        >
+          <Navigation className='h-4 w-4' /> Navigate to dropoff
+        </a>
         <p><Phone className='mr-1 inline h-4 w-4' /> {order.phone}</p>
         <p className='font-bold'>Total: {order.total}</p>
         {order.riderFee && <p className='text-emerald-300'>Rider fee: {order.riderFee}</p>}

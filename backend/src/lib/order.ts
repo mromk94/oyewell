@@ -375,6 +375,17 @@ export function serializeOrder(order: any, includeDeliveryCode = false, maskCust
     estimatedMinutes: order.estimatedMinutes,
     cookId: order.cookId,
     cookListingId: order.cookListingId,
+    cookName: order.cookListing?.cook?.displayName || order.cook?.displayName || 'Kitchen',
+    pickupLocation:
+      includeDeliveryCode && (order.cookListing?.cook?.latitude || order.cook?.latitude)
+        ? {
+            lat: order.cookListing?.cook?.latitude ?? order.cook?.latitude,
+            lng: order.cookListing?.cook?.longitude ?? order.cook?.longitude,
+            address: order.cookListing?.cook?.operatingArea || order.cook?.operatingArea || 'Pickup',
+          }
+        : null,
+    pickupArea:
+      order.cookListing?.cook?.operatingArea || order.cook?.operatingArea || order.approximateArea,
     riderId: order.riderId,
     riderStatus: order.riderStatus,
     riderFee: formatKobo(order.riderFeeKobo),

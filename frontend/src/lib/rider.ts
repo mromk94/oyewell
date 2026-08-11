@@ -25,6 +25,10 @@ export interface RiderOrder {
   phone: string;
   deliveryCode?: string;
   estimatedMinutes?: number;
+  approximateArea?: string;
+  cookName?: string;
+  pickupArea?: string;
+  pickupLocation?: { lat: number; lng: number; address: string } | null;
   createdAt: string;
   items: { id: string; foodName: string; optionLabel: string; quantity: number; totalKobo: number }[];
   sides: { id: string; name: string; quantity: number; priceKobo: number }[];
