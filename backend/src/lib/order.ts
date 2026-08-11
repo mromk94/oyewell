@@ -337,6 +337,7 @@ export function serializeOrder(order: any) {
     orderNumber: order.orderNumber,
     status: order.status,
     paymentStatus: order.paymentStatus,
+    deliveryType: order.deliveryType,
     subtotal: formatKobo(order.subtotalKobo),
     deliveryFee: formatKobo(order.deliveryFeeKobo),
     total: formatKobo(order.totalKobo),

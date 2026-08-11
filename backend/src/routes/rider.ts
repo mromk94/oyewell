@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../prisma.js';
 import { requireAuth, requireRider, type AuthRequest } from '../middleware/auth.js';
 import { serializeOrder } from '../lib/order.js';
+import { isRiderEligibleForType } from '../lib/assignment.js';
 import { ApiError } from '../lib/errors.js';
 import { formatKobo } from '../lib/money.js';
 import { emitEvent } from '../lib/realtime.js';
@@ -232,7 +233,10 @@ router.get('/available', requireAuth, requireRider, async (req: AuthRequest, res
       orderBy: { createdAt: 'desc' },
       include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
     });
-    res.json({ orders: orders.map(serializeOrder) });
+    const filtered = orders.filter((order) =>
+      isRiderEligibleForType(rider, (order.deliveryType as any) ?? 'NEIGHBORHOOD'),
+    );
+    res.json({ orders: filtered.map(serializeOrder) });
   } catch (e) {
     next(e);
   }
@@ -258,8 +262,10 @@ router.post('/orders/:orderNumber/claim', requireAuth, requireRider, async (req:
     const { orderNumber } = req.params;
     const rider = await prisma.rider.findUnique({ where: { userId: req.user!.id } });
     if (!rider) throw new ApiError(404, 'Rider not found');
-    if (!rider.isApproved || !rider.isActive || !rider.available) {
-      throw new ApiError(403, 'You are not eligible to claim deliveries right now');
+    const order = await prisma.order.findUnique({ where: { orderNumber } });
+    if (!order) throw new ApiError(404, 'Order not found');
+    if (!isRiderEligibleForType(rider, (order.deliveryType as any) ?? 'NEIGHBORHOOD')) {
+      throw new ApiError(403, 'You are not eligible for this delivery tier');
     }
 
     const updated = await prisma.$transaction(async (tx) => {
