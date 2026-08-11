@@ -11,7 +11,7 @@ export function isRiderEligibleForType(
   return rider.neighborhoodApproval === 'APPROVED';
 }
 
-export async function findEligibleRiders(orderId: string) {
+export async function findEligibleRiders(orderId: string, maxRadiusMeters?: number) {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: { deliveryZone: true },
@@ -42,15 +42,15 @@ export async function findEligibleRiders(orderId: string) {
       }
       return { rider, distanceMeters };
     })
-    .filter(({ rider, distanceMeters }) => distanceMeters <= (rider.serviceRadiusMeters || 5000))
+    .filter(({ rider, distanceMeters }) => distanceMeters <= (maxRadiusMeters || rider.serviceRadiusMeters || 5000))
     .sort((a, b) => a.distanceMeters - b.distanceMeters)
     .map(({ rider, distanceMeters }) => ({ ...rider, distanceMeters }));
 }
 
 const RINGS = [1000, 3000, 5000, 10000];
 
-export async function dispatchOrder(orderId: string, emit: (riderId: string, ring: number) => void) {
-  const eligible = await findEligibleRiders(orderId);
+export async function dispatchOrder(orderId: string, emit: (riderId: string, ring: number) => void, maxRadiusMeters?: number) {
+  const eligible = await findEligibleRiders(orderId, maxRadiusMeters);
   const order = await prisma.order.findUnique({ where: { id: orderId } });
   if (!order || !order.deliveryType) return [];
 

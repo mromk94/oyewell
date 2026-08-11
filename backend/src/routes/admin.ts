@@ -876,6 +876,21 @@ router.post('/orders/:id/dispatch', async (req, res, next) => {
   }
 });
 
+router.post('/orders/:id/expand-dispatch', async (req, res, next) => {
+  try {
+    const order = await prisma.order.findUnique({ where: { id: req.params.id } });
+    if (!order) throw new ApiError(404, 'Order not found');
+    const { radiusMeters } = req.body as { radiusMeters?: number };
+    const maxRadius = Math.min(Number(radiusMeters || 20000), 50000);
+    const eligible = await dispatchOrder(order.id, (riderId, ring) => {
+      emitEvent('order:dispatch', { orderId: order.id, orderNumber: order.orderNumber, riderId, ring: ring + maxRadius });
+    }, maxRadius);
+    res.json({ expanded: true, maxRadiusMeters: maxRadius, eligible: eligible.map((r) => ({ id: r.id, distanceMeters: r.distanceMeters })) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/riders', async (_req, res, next) => {
   try {
     const riders = await prisma.rider.findMany({

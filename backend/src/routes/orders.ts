@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { createOrder, serializeOrder } from '../lib/order.js';
+import { resolveDelivery } from '../lib/delivery.js';
 import { prisma } from '../prisma.js';
 import { createOrderSchema } from '../lib/validation.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
@@ -49,6 +50,36 @@ router.get('/:orderNumber', async (req, res, next) => {
       return;
     }
     res.json({ order: serializeOrder(order, false, true) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/:orderNumber/switch-delivery-type', requireAuth, async (req: AuthRequest, res, next) => {
+  try {
+    const { orderNumber } = req.params;
+    const { deliveryType } = req.body as { deliveryType?: 'NEIGHBORHOOD' | 'PROFESSIONAL' };
+    if (!deliveryType) throw new ApiError(400, 'deliveryType is required');
+    const order = await prisma.order.findUnique({ where: { orderNumber }, include: { deliveryZone: true } });
+    if (!order) throw new ApiError(404, 'Order not found');
+    if (order.customerId !== req.user!.id && !req.user!.roles.includes('ADMIN')) throw new ApiError(403, 'Not authorized');
+    if (['OUT_FOR_DELIVERY', 'PICKED_UP', 'DELIVERED', 'CANCELLED'].includes(order.status)) {
+      throw new ApiError(400, 'Cannot switch delivery type at this stage');
+    }
+    const delivery = await resolveDelivery(order.address, order.subtotalKobo, deliveryType as any);
+    if (!delivery || !delivery.available) throw new ApiError(400, 'Delivery type not available for this address');
+    const updated = await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        deliveryType,
+        deliveryFeeKobo: delivery.feeKobo,
+        totalKobo: order.subtotalKobo + delivery.feeKobo,
+        deliveryZoneId: delivery.zone?.id ?? order.deliveryZoneId,
+        statusHistory: { create: { status: 'DELIVERY_TYPE_CHANGED', note: `Switched to ${deliveryType}`, actor: req.user!.email } },
+      },
+      include: { items: true, sides: true, payment: true, statusHistory: true, deliveryZone: true },
+    });
+    res.json({ order: serializeOrder(updated, false, true) });
   } catch (err) {
     next(err);
   }
