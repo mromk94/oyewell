@@ -36,6 +36,19 @@ A centralized, provider-abstracted location layer powers discovery, delivery, ri
 - Locations are validated and rejected if they exceed bounds or accuracy thresholds.
 - Velocity checks reject unrealistic rider jumps to prevent spoofing.
 
+## Implementation Order
+1. Central location service (`lib/location.ts`, `lib/maps.ts`).
+2. Address geocoding and delivery zone resolution.
+3. Customer discovery with fallback rings and distance.
+4. Cook location privacy and radius.
+5. Rider location capture, freshness and availability.
+6. Route-aware dispatch and ETA.
+7. Live rider movement and customer delivery map.
+8. Rider pickup/dropoff navigation and admin live map.
+9. Admin analytics, marketplace density and service area counts.
+10. Error handling, accuracy, security, anti-spoofing, caching and indexing.
+11. Frontend map performance, mobile/PWA, design and testing.
+
 ## Caching & Performance
 - Geocoding and routing results are cached in memory with TTL.
 - Feature flags are cached to avoid repeated DB hits.
