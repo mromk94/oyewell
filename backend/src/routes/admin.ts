@@ -949,6 +949,41 @@ router.patch('/riders/:id', async (req, res, next) => {
   }
 });
 
+router.get('/delivery-analytics', async (_req, res, next) => {
+  try {
+    const [total, delivered, cancelled, assigned, totalEarnings, riderFees, pendingPayouts, professional, neighborhood] = await Promise.all([
+      prisma.order.count(),
+      prisma.order.count({ where: { status: 'DELIVERED' } }),
+      prisma.order.count({ where: { status: 'CANCELLED' } }),
+      prisma.order.count({ where: { NOT: { riderId: null } } }),
+      prisma.cookEarning.aggregate({ _sum: { amountKobo: true } }),
+      prisma.order.aggregate({ where: { status: 'DELIVERED' }, _sum: { riderFeeKobo: true } }),
+      prisma.riderPayoutRequest.aggregate({ _sum: { amountKobo: true } }),
+      prisma.rider.count({ where: { professionalApproval: 'APPROVED', isActive: true } }),
+      prisma.rider.count({ where: { neighborhoodApproval: 'APPROVED', isActive: true } }),
+    ]);
+    const completionRate = total > 0 ? Math.round((delivered / total) * 1000) / 1000 : 0;
+    const cancellationRate = total > 0 ? Math.round((cancelled / total) * 1000) / 1000 : 0;
+    const acceptanceRate = total > 0 ? Math.round((assigned / total) * 1000) / 1000 : 0;
+    res.json({
+      total,
+      delivered,
+      cancelled,
+      assigned,
+      completionRate,
+      cancellationRate,
+      acceptanceRate,
+      cookEarningsKobo: totalEarnings._sum.amountKobo || 0,
+      riderFeesKobo: riderFees._sum.riderFeeKobo || 0,
+      pendingPayoutsKobo: pendingPayouts._sum.amountKobo || 0,
+      activeProfessionalRiders: professional,
+      activeNeighborhoodRiders: neighborhood,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/delivery-control-center', async (_req, res, next) => {
   try {
     const [liveOrders, riders, pendingApplications, pendingPayouts, recentApplications, activeProfessional, activeNeighborhood] = await Promise.all([
