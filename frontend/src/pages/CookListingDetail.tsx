@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Minus, MapPin, Phone, CreditCard, Loader2, CheckCircle, Upload } from 'lucide-react';
+import { ArrowLeft, Plus, Minus, MapPin, Phone, CreditCard, Loader2, CheckCircle, Upload, Star } from 'lucide-react';
 import { fetchCookListing, type CookListing } from '../lib/listings';
 import {
   formatPrice,
   fetchPaymentMethods,
+  fetchCookReviews,
   createCookOrder,
   verifyPayment,
   uploadPaymentProof,
@@ -49,6 +50,7 @@ export default function CookListingDetail() {
   const navigate = useNavigate();
   const { isAuthenticated, openAuth } = useAuth();
   const [listing, setListing] = useState<CookListing | null>(null);
+  const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
@@ -67,7 +69,12 @@ export default function CookListingDetail() {
   useEffect(() => {
     if (!id) return;
     fetchCookListing(id)
-      .then(setListing)
+      .then((l) => {
+        setListing(l);
+        if (l.cook?.id) {
+          fetchCookReviews(l.cook.id).then((r) => setReviews(r.reviews)).catch(() => setReviews([]));
+        }
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
     fetchPaymentMethods().then((data) => {
@@ -314,6 +321,34 @@ export default function CookListingDetail() {
                 >
                   {placing ? <span className="flex items-center justify-center gap-2"><Loader2 className="h-5 w-5 animate-spin" /> Placing order…</span> : `Place order · ${formatPrice(subtotal)}`}
                 </button>
+              </div>
+
+              <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-5">
+                <h3 className="text-xl font-bold text-white">Reviews</h3>
+                {reviews.length === 0 ? (
+                  <p className="mt-2 text-sm text-white/60">No reviews yet.</p>
+                ) : (
+                  <>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
+                      <span className="text-lg font-bold text-white">{listing.cook.rating.toFixed(1)}</span>
+                      <span className="text-sm text-white/60">({reviews.length})</span>
+                    </div>
+                    <div className="mt-4 space-y-3">
+                      {reviews.map((r) => (
+                        <div key={r.id} className="rounded-xl border border-white/10 bg-white/5 p-4">
+                          <div className="flex items-center gap-1 text-amber-400">
+                            {Array.from({ length: 5 }).map((_, i) => (
+                              <Star key={i} className={`h-4 w-4 ${i < r.rating ? 'fill-amber-400' : 'text-white/30'}`} />
+                            ))}
+                          </div>
+                          {r.comment && <p className="mt-2 text-sm text-white/80">{r.comment}</p>}
+                          <p className="mt-1 text-xs text-white/40">{new Date(r.createdAt).toLocaleDateString()}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             </>
           )}
