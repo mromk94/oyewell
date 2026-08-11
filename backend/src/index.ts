@@ -39,6 +39,7 @@ app.use((req, res, next) => {
 });
 app.use(morgan('dev'));
 
+app.get('/', (_req, res) => res.json({ ok: true, service: 'oye-well-backend' }));
 app.get('/health', (_req, res) => res.json({ ok: true, service: 'oye-well-backend' }));
 
 app.get('/api/ping', (_req, res) => res.json({ ok: true }));
