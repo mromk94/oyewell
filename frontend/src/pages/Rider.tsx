@@ -15,7 +15,7 @@ import {
   ShieldCheck,
   Shield,
 } from 'lucide-react';
-import { riderLogin, riderRegister, riderLogout, fetchRiderMe, updateRiderMe, updateRiderAvailability, fetchRiderOrders, fetchAvailableOrders, claimOrder, verifyDeliveryCode, fetchRiderEarnings, type RiderOrder, type Rider } from '../lib/rider';
+import { riderLogin, riderRegister, riderLogout, fetchRiderMe, updateRiderMe, updateRiderAvailability, fetchRiderOrders, fetchAvailableOrders, claimOrder, pickupOrder, verifyDeliveryCode, fetchRiderEarnings, type RiderOrder, type Rider } from '../lib/rider';
 import ProfessionalUpgradeModal from '../components/ProfessionalUpgradeModal';
 
 export default function Rider() {
@@ -299,12 +299,28 @@ function MyOrdersPanel({ onError }: { onError: (m: string) => void }) {
   const [orders, setOrders] = useState<RiderOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchRiderOrders()
-      .then(setOrders)
-      .catch((e) => onError(e.message))
-      .finally(() => setLoading(false));
-  }, [onError]);
+  async function load() {
+    setLoading(true);
+    try {
+      const data = await fetchRiderOrders();
+      setOrders(data);
+    } catch (e: any) {
+      onError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { load(); }, [onError]);
+
+  async function handlePickup(orderNumber: string) {
+    try {
+      await pickupOrder(orderNumber);
+      load();
+    } catch (e: any) {
+      onError(e.message);
+    }
+  }
 
   if (loading) return <PanelLoader />;
   if (!orders.length) return <Empty message='No assigned orders yet.' />;
@@ -312,7 +328,10 @@ function MyOrdersPanel({ onError }: { onError: (m: string) => void }) {
   return (
     <div className='space-y-4'>
       {orders.map((order) => (
-        <OrderCard key={order.id} order={order} />
+        <OrderCard key={order.id} order={order} actions={[
+          ...(order.status === 'OUT_FOR_DELIVERY' ? [{ label: 'Picked up', icon: CheckCircle, onClick: () => handlePickup(order.orderNumber) }] : []),
+          ...(order.riderStatus === 'PICKED_UP' ? [{ label: 'Verify delivery', icon: ShieldCheck, onClick: () => { /* handled by verify tab */ } }] : []),
+        ]} />
       ))}
     </div>
   );

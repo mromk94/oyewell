@@ -15,6 +15,7 @@ export interface RiderOrder {
   orderNumber: string;
   status: string;
   paymentStatus: string;
+  riderStatus: string;
   deliveryType: 'NEIGHBORHOOD' | 'PROFESSIONAL';
   subtotal: string;
   deliveryFee: string;
@@ -124,10 +125,17 @@ export async function fetchAvailableOrders() {
 }
 
 export async function claimOrder(orderNumber: string) {
-  const res = await fetch(R(`/orders/${orderNumber}/claim`), { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` } });
+  const res = await fetch(R(`/orders/${orderNumber}/claim`), { method: 'POST', headers: headers() });
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error || 'Claim failed');
-  return json.order as RiderOrder;
+  if (!res.ok) throw new Error(json.error || 'Failed to claim order');
+  return json as { order: RiderOrder };
+}
+
+export async function pickupOrder(orderNumber: string) {
+  const res = await fetch(R(`/orders/${orderNumber}/pickup`), { method: 'POST', headers: headers() });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(json.error || 'Failed to mark picked up');
+  return json as { order: RiderOrder };
 }
 
 export async function verifyDeliveryCode(orderNumber: string, code: string) {
