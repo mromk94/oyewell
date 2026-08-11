@@ -876,6 +876,31 @@ router.post('/orders/:id/dispatch', async (req, res, next) => {
   }
 });
 
+router.get('/delivery-control-center', async (_req, res, next) => {
+  try {
+    const [liveOrders, riders, pendingApplications, pendingPayouts, recentApplications, activeProfessional, activeNeighborhood] = await Promise.all([
+      prisma.order.count({ where: { status: { in: ['OUT_FOR_DELIVERY', 'PICKED_UP', 'READY_FOR_PICKUP', 'READY_FOR_DISPATCH'] } } }),
+      prisma.rider.count(),
+      prisma.rider.count({ where: { isApproved: false } }),
+      prisma.riderPayoutRequest.count({ where: { status: 'PENDING' } }),
+      prisma.rider.findMany({ where: { isApproved: false }, take: 20, orderBy: { createdAt: 'desc' }, include: { user: { select: { email: true, firstName: true, lastName: true, phone: true } } } }),
+      prisma.rider.count({ where: { isApproved: true, isActive: true, available: true, professionalApproval: 'APPROVED' } }),
+      prisma.rider.count({ where: { isApproved: true, isActive: true, available: true, neighborhoodApproval: 'APPROVED' } }),
+    ]);
+    res.json({
+      liveOrders,
+      totalPartners: riders,
+      pendingApplications,
+      pendingPayouts,
+      activeProfessional,
+      activeNeighborhood,
+      recentApplications,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/payout-requests', async (_req, res, next) => {
   try {
     const requests = await prisma.riderPayoutRequest.findMany({
