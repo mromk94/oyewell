@@ -233,6 +233,8 @@ model Order {
   @@index([cookId, status])
   @@index([customerId, createdAt])
   @@index([deliveryType, status, riderId])
+  @@index([deliveryZoneId, status])
+  @@index([riderId, status])
 }
 
 model OrderItem {
