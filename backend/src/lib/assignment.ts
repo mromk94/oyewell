@@ -1,7 +1,7 @@
 import { DeliveryType } from '@prisma/client';
 import { prisma } from '../prisma.js';
 import { geocodeAddress } from './delivery.js';
-import { distanceMeters, isLocationFresh } from './location.js';
+import { distanceMeters, isLocationFresh, eta } from './location.js';
 
 export function isRiderEligibleForType(
   rider: { neighborhoodApproval: string; professionalApproval: string; isApproved: boolean; isActive: boolean; available: boolean },
@@ -32,9 +32,8 @@ export async function findEligibleRiders(orderId: string, maxRadiusMeters?: numb
     include: { location: true, user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
   });
 
-  return riders
+  const candidates = riders
     .filter((rider) => {
-      // Online does not mean available: require an active rider with fresh location
       if (!rider.isActive || !rider.available) return false;
       if (rider.operationalStatus !== 'ONLINE') return false;
       if (!rider.location || !isLocationFresh(rider.location.updatedAt)) return false;
@@ -48,7 +47,21 @@ export async function findEligibleRiders(orderId: string, maxRadiusMeters?: numb
       return { ...rider, distanceMeters: dist };
     })
     .filter((rider) => rider.distanceMeters <= (maxRadiusMeters || rider.serviceRadiusMeters || 5000))
-    .sort((a, b) => a.distanceMeters - b.distanceMeters);
+    .sort((a, b) => a.distanceMeters - b.distanceMeters)
+    .slice(0, 20);
+
+  // Route-aware: compute ETA for the closest candidates, then re-sort by ETA
+  const withEta = await Promise.all(
+    candidates.map(async (rider) => {
+      let estimatedMinutes: number | null = null;
+      if (rider.location && orderCoords) {
+        estimatedMinutes = await eta({ lat: rider.location.latitude, lng: rider.location.longitude }, orderCoords);
+      }
+      return { ...rider, estimatedMinutes };
+    }),
+  );
+
+  return withEta.sort((a, b) => (a.estimatedMinutes ?? Infinity) - (b.estimatedMinutes ?? Infinity));
 }
 
 const RINGS = [1000, 3000, 5000, 10000];

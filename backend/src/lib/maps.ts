@@ -19,10 +19,16 @@ export interface ReverseGeocodeResult extends GeoPoint {
   postalCode?: string;
 }
 
+export interface Route {
+  distanceMeters: number;
+  durationSeconds: number;
+}
+
 export interface MapProvider {
   name: string;
   geocode(address: string): Promise<GeoPoint | null>;
   reverseGeocode(lat: number, lng: number): Promise<ReverseGeocodeResult | null>;
+  route(origin: GeoPoint, destination: GeoPoint): Promise<Route | null>;
   isPointInZone(point: GeoPoint, boundary: unknown): boolean;
 }
 
@@ -66,6 +72,11 @@ class MockMapProvider implements MapProvider {
 
   async reverseGeocode(lat: number, lng: number) {
     return { lat, lng, formattedAddress: `Lat ${lat.toFixed(4)}, Lng ${lng.toFixed(4)}` };
+  }
+
+  async route(origin: GeoPoint, destination: GeoPoint) {
+    const dist = distanceKm(origin, destination);
+    return { distanceMeters: dist * 1000, durationSeconds: Math.round(dist / 20 * 3600) };
   }
 
   isPointInZone(point: GeoPoint, boundary: unknown): boolean {
@@ -130,6 +141,20 @@ class GoogleMapsProvider implements MapProvider {
     };
   }
 
+  async route(origin: GeoPoint, destination: GeoPoint) {
+    if (!this.apiKey) throw new ApiError(500, 'GOOGLE_MAPS_API_KEY not configured');
+    const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}&key=${this.apiKey}`;
+    const res = await fetch(url);
+    const data = (await res.json()) as {
+      routes: {
+        legs: { distance: { value: number }; duration: { value: number } }[];
+      }[];
+    };
+    if (!data.routes.length) return null;
+    const leg = data.routes[0].legs[0];
+    return { distanceMeters: leg.distance.value, durationSeconds: leg.duration.value };
+  }
+
   isPointInZone(point: GeoPoint, boundary: unknown): boolean {
     return new MockMapProvider().isPointInZone(point, boundary);
   }
@@ -178,6 +203,17 @@ class MapboxProvider implements MapProvider {
       country: context.find((c) => c.id.startsWith('country'))?.text,
       postalCode: context.find((c) => c.id.startsWith('postcode'))?.text,
     };
+  }
+
+  async route(origin: GeoPoint, destination: GeoPoint) {
+    if (!this.accessToken) throw new ApiError(500, 'MAPBOX_ACCESS_TOKEN not configured');
+    const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?access_token=${this.accessToken}`;
+    const res = await fetch(url);
+    const data = (await res.json()) as {
+      routes: { distance: number; duration: number }[];
+    };
+    if (!data.routes.length) return null;
+    return { distanceMeters: data.routes[0].distance, durationSeconds: Math.round(data.routes[0].duration) };
   }
 
   isPointInZone(point: GeoPoint, boundary: unknown): boolean {

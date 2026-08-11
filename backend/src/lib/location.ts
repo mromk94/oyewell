@@ -81,9 +81,10 @@ export function nearbyByDistance(
 }
 
 export async function route(origin: GeoPoint, destination: GeoPoint): Promise<Route> {
-  // Provider routing not yet wired; fall back to straight-line estimate.
+  const provider = getMapProvider();
+  const r = await provider.route(origin, destination);
+  if (r) return { ...r, polyline: undefined };
   const straight = haversineMeters(origin, destination);
-  // Assume 6 m/s urban average for fallback ETA (≈ 22 km/h).
   const durationSeconds = Math.round(straight / 6);
   return { distanceMeters: straight, durationSeconds, polyline: undefined };
 }
