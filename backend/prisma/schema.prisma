@@ -492,16 +492,35 @@ model UserAddress {
   @@index([userId])
 }
 
+model Conversation {
+  id          String    @id @default(cuid())
+  context     String?   // ORDER, DELIVERY, SUPPORT, DISPUTE
+  contextId   String?
+  contextType String?
+  title       String?
+  isOpen      Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  messages    Message[]
+
+  @@index([context, contextId])
+}
+
 model Message {
-  id         String   @id @default(cuid())
-  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  orderId    String
-  senderId   String
-  recipientId String
-  content    String
-  createdAt  DateTime @default(now())
+  id             String         @id @default(cuid())
+  order          Order?         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId        String?
+  conversation   Conversation?  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversationId String?
+  senderId       String
+  recipientId    String
+  content        String
+  readAt         DateTime?
+  createdAt      DateTime       @default(now())
 
   @@index([orderId, createdAt])
+  @@index([conversationId, createdAt])
+  @@index([recipientId, readAt])
 }
 
 model Review {
