@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../prisma.js';
 import { requireAuth, requireAdmin, type AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../lib/errors.js';
+import { dispatchOrder } from '../lib/assignment.js';
 import { emitEvent } from '../lib/realtime.js';
 import { getEmailConfig, saveEmailConfig, sendEmail, sendOrderStatusEmail } from '../lib/email.js';
 
@@ -826,6 +827,19 @@ router.delete('/delivery-pricing-rules/:id', async (req, res, next) => {
   try {
     await prisma.deliveryPricingRule.delete({ where: { id: req.params.id } });
     res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/orders/:id/dispatch', async (req, res, next) => {
+  try {
+    const order = await prisma.order.findUnique({ where: { id: req.params.id } });
+    if (!order) throw new ApiError(404, 'Order not found');
+    const eligible = await dispatchOrder(order.id, (riderId, ring) => {
+      emitEvent('order:dispatch', { orderId: order.id, orderNumber: order.orderNumber, riderId, ring });
+    });
+    res.json({ eligible: eligible.map((r) => ({ id: r.id, distanceMeters: r.distanceMeters })) });
   } catch (err) {
     next(err);
   }

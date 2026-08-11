@@ -46,3 +46,22 @@ export async function findEligibleRiders(orderId: string) {
     .sort((a, b) => a.distanceMeters - b.distanceMeters)
     .map(({ rider, distanceMeters }) => ({ ...rider, distanceMeters }));
 }
+
+const RINGS = [1000, 3000, 5000, 10000];
+
+export async function dispatchOrder(orderId: string, emit: (riderId: string, ring: number) => void) {
+  const eligible = await findEligibleRiders(orderId);
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
+  if (!order || !order.deliveryType) return [];
+
+  for (const ring of RINGS) {
+    const ringRiders = eligible.filter((r) => r.distanceMeters <= ring);
+    if (ringRiders.length === 0) continue;
+    for (const rider of ringRiders) {
+      emit(rider.id, ring);
+    }
+    break;
+  }
+
+  return eligible;
+}
