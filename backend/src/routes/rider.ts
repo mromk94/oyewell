@@ -489,6 +489,16 @@ router.post('/orders/:orderNumber/verify', requireAuth, requireRider, async (req
         },
         include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
       });
+      // Credit delivery fee to the rider's on-site balance and mark the order as paid.
+      await tx.user.update({
+        where: { id: rider.userId },
+        data: { balanceKobo: { increment: done.riderFeeKobo } },
+      });
+      const settled = await tx.order.update({
+        where: { id: done.id },
+        data: { riderPaid: true },
+        include: { items: true, sides: true, deliveryZone: true, statusHistory: true },
+      });
       // Financial settlement: cook earning settles on completed delivery, not on payment.
       if (done.source === 'COOK') {
         await tx.cookEarning.updateMany({
@@ -496,7 +506,7 @@ router.post('/orders/:orderNumber/verify', requireAuth, requireRider, async (req
           data: { status: 'SETTLED' },
         });
       }
-      return done;
+      return settled;
     });
     afterOrderTransition(updated, { actor: req.user!.email, previousStatus: order.status, note: 'Delivery verified' });
     emitEvent('delivery:completed', {
