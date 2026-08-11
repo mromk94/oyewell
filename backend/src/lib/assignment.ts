@@ -18,7 +18,7 @@ export async function findEligibleRiders(orderId: string, maxRadiusMeters?: numb
   });
   if (!order || !order.deliveryType || !order.deliveryZoneId) return [];
 
-  const type = order.deliveryType;
+  const type = order.deliveryType || DeliveryType.NEIGHBORHOOD;
   const orderCoords = await geocodeAddress(order.address);
 
   const riders = await prisma.rider.findMany({
