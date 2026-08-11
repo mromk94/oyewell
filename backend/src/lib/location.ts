@@ -1,5 +1,14 @@
 import { getMapProvider, type GeoPoint } from './maps.js';
 
+const GEOCODE_CACHE_TTL_MS = Number(process.env.GEOCODE_CACHE_TTL_MS) || 5 * 60 * 1000;
+const ROUTE_CACHE_TTL_MS = Number(process.env.ROUTE_CACHE_TTL_MS) || 2 * 60 * 1000;
+const geocodeCache = new Map<string, { value: Location | null; expiresAt: number }>();
+const routeCache = new Map<string, { value: Route; expiresAt: number }>();
+
+function cacheKey(parts: (string | number)[]) {
+  return parts.map((p) => (typeof p === 'number' ? p.toFixed(5) : p)).join('|');
+}
+
 export type LocationType =
   | 'CUSTOMER_LOCATION'
   | 'COOK_LOCATION'
@@ -47,11 +56,16 @@ export function haversineMeters(a: GeoPoint, b: GeoPoint): number {
 }
 
 export async function geocode(address: string): Promise<Location | null> {
+  const key = cacheKey([address.trim().toLowerCase()]);
+  const cached = geocodeCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+
   try {
     const provider = getMapProvider();
     const result = (await provider.geocode(address)) as (GeoPoint & { formattedAddress?: string }) | null;
-    if (!result) return null;
-    return { ...result, address: result.formattedAddress ?? address };
+    const value = result ? { ...result, address: result.formattedAddress ?? address } : null;
+    geocodeCache.set(key, { value, expiresAt: Date.now() + GEOCODE_CACHE_TTL_MS });
+    return value;
   } catch (e) {
     console.error('geocode failed', e);
     return null;
@@ -91,16 +105,26 @@ export function nearbyByDistance(
 }
 
 export async function route(origin: GeoPoint, destination: GeoPoint): Promise<Route> {
+  const key = cacheKey(['route', origin.lat, origin.lng, destination.lat, destination.lng]);
+  const cached = routeCache.get(key);
+  if (cached && cached.expiresAt > Date.now()) return cached.value;
+
   try {
     const provider = getMapProvider();
     const r = await provider.route(origin, destination);
-    if (r) return { ...r, polyline: undefined };
+    if (r) {
+      const value = { ...r, polyline: undefined };
+      routeCache.set(key, { value, expiresAt: Date.now() + ROUTE_CACHE_TTL_MS });
+      return value;
+    }
   } catch (e) {
     console.error('route failed', e);
   }
   const straight = haversineMeters(origin, destination);
   const durationSeconds = Math.round(straight / 6);
-  return { distanceMeters: straight, durationSeconds, polyline: undefined };
+  const fallback = { distanceMeters: straight, durationSeconds, polyline: undefined };
+  routeCache.set(key, { value: fallback, expiresAt: Date.now() + ROUTE_CACHE_TTL_MS });
+  return fallback;
 }
 
 export async function eta(origin: GeoPoint, destination: GeoPoint): Promise<number> {
