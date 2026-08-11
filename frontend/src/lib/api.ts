@@ -70,6 +70,8 @@ export interface DeliveryResult {
   total: string;
   sides: Side[];
   sidesKobo: number;
+  deliveryType: 'NEIGHBORHOOD' | 'PROFESSIONAL';
+  estimatedMinutes: number | null;
 }
 
 export interface CartItemPayload {
@@ -83,6 +85,7 @@ export async function checkDelivery(payload: {
   address: string;
   phone: string;
   items: CartItemPayload[];
+  deliveryType?: 'NEIGHBORHOOD' | 'PROFESSIONAL';
 }): Promise<DeliveryResult> {
   const res = await fetch(`${API_BASE}/api/delivery/check`, {
     method: 'POST',

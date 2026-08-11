@@ -34,6 +34,7 @@ interface RestaurantOrderPayload {
   phone: string;
   paymentProvider: string;
   customerId?: string;
+  deliveryType?: 'NEIGHBORHOOD' | 'PROFESSIONAL';
 }
 
 interface CookOrderPayload {
@@ -44,12 +45,13 @@ interface CookOrderPayload {
   phone: string;
   paymentProvider: string;
   customerId?: string;
+  deliveryType?: 'NEIGHBORHOOD' | 'PROFESSIONAL';
 }
 
 type OrderPayload = RestaurantOrderPayload | CookOrderPayload;
 
 async function createCookOrder(payload: CookOrderPayload) {
-  const { cookListingId, quantity, address, phone, paymentProvider, customerId } = payload;
+  const { cookListingId, quantity, address, phone, paymentProvider, customerId, deliveryType = 'NEIGHBORHOOD' } = payload;
 
   if (!address.trim() || !phone.trim()) {
     throw new ApiError(400, 'Address and phone are required');
@@ -70,7 +72,7 @@ async function createCookOrder(payload: CookOrderPayload) {
   }
 
   const subtotalKobo = listing.priceKobo * quantity;
-  const delivery = await resolveDelivery(address, subtotalKobo);
+  const delivery = await resolveDelivery(address, subtotalKobo, deliveryType as any);
   if (!delivery || !delivery.available) {
     throw new ApiError(400, 'Delivery is not available for this address', 'DELIVERY_UNAVAILABLE');
   }
@@ -100,6 +102,7 @@ async function createCookOrder(payload: CookOrderPayload) {
         address,
         phone,
         deliveryZoneId: delivery.zone.id,
+        deliveryType: deliveryType as any,
         deliveryFeeKobo: delivery.feeKobo,
         subtotalKobo,
         totalKobo,
@@ -169,7 +172,7 @@ async function createCookOrder(payload: CookOrderPayload) {
 
 export async function createOrder(payload: OrderPayload) {
   if (payload.source === 'COOK') return createCookOrder(payload);
-  const { items, address, phone, paymentProvider, customerId } = payload;
+  const { items, address, phone, paymentProvider, customerId, deliveryType = 'NEIGHBORHOOD' } = payload;
 
   if (!address.trim() || !phone.trim()) {
     throw new ApiError(400, 'Address and phone are required');
@@ -238,7 +241,7 @@ export async function createOrder(payload: OrderPayload) {
     });
   }
 
-  const delivery = await resolveDelivery(address, subtotalKobo);
+  const delivery = await resolveDelivery(address, subtotalKobo, deliveryType as any);
   if (!delivery || !delivery.available) {
     throw new ApiError(400, 'Delivery is not available for this address', 'DELIVERY_UNAVAILABLE');
   }
@@ -271,6 +274,7 @@ export async function createOrder(payload: OrderPayload) {
         address,
         phone,
         deliveryZoneId: delivery.zone.id,
+        deliveryType: deliveryType as any,
         deliveryFeeKobo: delivery.feeKobo,
         subtotalKobo,
         totalKobo,

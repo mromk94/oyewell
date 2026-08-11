@@ -10,7 +10,7 @@ const router = Router();
 router.post('/check', async (req, res, next) => {
   try {
     const body = deliveryCheckSchema.parse(req.body);
-    const { address, items } = body;
+    const { address, items, deliveryType } = body;
 
     let subtotalKobo = 0;
     const selectedSides = new Map<string, { id: string; name: string; priceKobo: number; count: number }>();
@@ -52,7 +52,7 @@ router.post('/check', async (req, res, next) => {
       }
     }
 
-    const delivery = await resolveDelivery(address, subtotalKobo);
+    const delivery = await resolveDelivery(address, subtotalKobo, deliveryType);
 
     if (!delivery || !delivery.available) {
       res.json({

@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { X, Plus, Minus, Trash2, MapPin, Phone, Upload, CheckCircle, Loader2, CreditCard, ArrowRight } from 'lucide-react';
+import { X, Plus, Minus, Trash2, MapPin, Phone, Upload, CheckCircle, Loader2, CreditCard, ArrowRight, Clock, Bike, ShieldCheck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {
   formatPrice,
   fetchPaymentMethods,
+  checkDelivery,
   createOrder,
   verifyPayment,
   uploadPaymentProof,
   getCustomerToken,
   type PaymentMethod,
   type CreatedOrder,
+  type DeliveryResult,
 } from '../lib/api';
 import { useCart } from '../lib/cart';
 import { toast } from '../lib/toast';
@@ -69,6 +71,10 @@ export default function CartModal() {
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [loadingMethods, setLoadingMethods] = useState(false);
 
+  const [deliveryType, setDeliveryType] = useState<'NEIGHBORHOOD' | 'PROFESSIONAL'>('NEIGHBORHOOD');
+  const [deliveryOptions, setDeliveryOptions] = useState<{ NEIGHBORHOOD?: DeliveryResult; PROFESSIONAL?: DeliveryResult }>({});
+  const [deliveryLoading, setDeliveryLoading] = useState(false);
+
   const [order, setOrder] = useState<CreatedOrder | null>(null);
   const [placing, setPlacing] = useState(false);
   const [verifying, setVerifying] = useState(false);
@@ -98,8 +104,34 @@ export default function CartModal() {
       setProofImage('');
       setProofNote('');
       setProofUploaded(false);
+      setDeliveryOptions({});
+      setDeliveryType('NEIGHBORHOOD');
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !address.trim() || items.length === 0) {
+      setDeliveryOptions({});
+      return;
+    }
+    setDeliveryLoading(true);
+    const payload = {
+      address: address.trim(),
+      phone: phone.trim() || '0000',
+      items: items.map((item) => ({
+        foodSlug: item.foodSlug,
+        optionId: item.option.id,
+        quantity: item.quantity,
+        sideIds: item.sides.map((s) => s.id),
+      })),
+    };
+    Promise.all([checkDelivery({ ...payload, deliveryType: 'NEIGHBORHOOD' }), checkDelivery({ ...payload, deliveryType: 'PROFESSIONAL' })])
+      .then(([neighborhood, professional]) => {
+        setDeliveryOptions({ NEIGHBORHOOD: neighborhood, PROFESSIONAL: professional });
+      })
+      .catch(() => setDeliveryOptions({}))
+      .finally(() => setDeliveryLoading(false));
+  }, [isOpen, address, phone, items.length, totalKobo]);
 
   if (!isOpen) return null;
 
@@ -123,6 +155,7 @@ export default function CartModal() {
         address: address.trim(),
         phone: phone.trim(),
         paymentProvider: selectedMethod.provider,
+        deliveryType,
         items: items.map((item) => ({
           foodSlug: item.foodSlug,
           optionId: item.option.id,
@@ -182,10 +215,17 @@ export default function CartModal() {
     setIsOpen(false);
   }
 
-  const deliveryFee = order?.order.deliveryFee ? order.order.deliveryFee : null;
+  const selectedDelivery = deliveryOptions[deliveryType];
+  const deliveryFee = order?.order.deliveryFee
+    ? order.order.deliveryFee
+    : selectedDelivery?.available
+      ? formatPrice(selectedDelivery.deliveryFeeKobo)
+      : null;
   const grandTotal = order?.order.total
     ? order.order.total
-    : formatPrice(totalKobo);
+    : selectedDelivery?.available
+      ? formatPrice(selectedDelivery.totalKobo)
+      : formatPrice(totalKobo);
 
   return createPortal(
     <div
@@ -380,6 +420,49 @@ export default function CartModal() {
                   <span>Total</span>
                   <span>{grandTotal}</span>
                 </p>
+              </div>
+
+              <div className='mt-6'>
+                <p className='mb-3 flex items-center gap-2 text-sm font-medium text-white/90'>
+                  <Bike className='h-4 w-4' /> Choose delivery tier
+                </p>
+                {deliveryLoading ? (
+                  <Loader2 className='h-5 w-5 animate-spin text-white/60' />
+                ) : (
+                  <div className='grid gap-3'>
+                    {(['NEIGHBORHOOD', 'PROFESSIONAL'] as const).map((type) => {
+                      const option = deliveryOptions[type];
+                      const selected = deliveryType === type;
+                      return (
+                        <button
+                          key={type}
+                          onClick={() => setDeliveryType(type)}
+                          disabled={!option?.available}
+                          className={`flex items-center justify-between rounded-2xl border p-4 text-left transition disabled:opacity-40 ${
+                            selected ? 'border-emerald-400 bg-emerald-500/10' : 'border-white/10 bg-white/5 hover:bg-white/10'
+                          }`}
+                        >
+                          <div className='flex items-center gap-3'>
+                            <span className={`flex h-5 w-5 items-center justify-center rounded-full border ${selected ? 'border-emerald-400 bg-emerald-400' : 'border-white/30'}`}>
+                              {selected && <CheckCircle className='h-3.5 w-3.5 text-black' />}
+                            </span>
+                            <div>
+                              <p className='font-bold text-white'>{type === 'NEIGHBORHOOD' ? 'Neighborhood' : 'Professional'}</p>
+                              {option?.available ? (
+                                <p className='text-xs text-white/60'>
+                                  <Clock className='inline h-3 w-3' /> {option.estimatedMinutes ?? 0} min · {formatPrice(option.deliveryFeeKobo)}
+                                </p>
+                              ) : (
+                                <p className='text-xs text-white/40'>Not available for this address</p>
+                              )}
+                            </div>
+                          </div>
+                          {type === 'PROFESSIONAL' && <ShieldCheck className='h-5 w-5 text-emerald-400' />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <div className='mt-6 grid gap-4'>

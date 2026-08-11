@@ -1,6 +1,9 @@
 import { prisma } from '../prisma.js';
-import { DeliveryZone, DeliveryZoneType } from '@prisma/client';
+import { DeliveryType, DeliveryZone, DeliveryZoneType } from '@prisma/client';
 import { getMapProvider } from './maps.js';
+
+const PROFESSIONAL_MULTIPLIER = 1.5;
+const PROFESSIONAL_TIME_MULTIPLIER = 0.8;
 
 export interface Coords {
   lat: number;
@@ -130,17 +133,25 @@ export async function findDeliveryZone(address: string, coords?: Coords | null) 
   return matches[0].zone;
 }
 
-export async function resolveDelivery(address: string, subtotalKobo: number) {
+export async function resolveDelivery(address: string, subtotalKobo: number, type: DeliveryType = DeliveryType.NEIGHBORHOOD) {
   const coords = await geocodeAddress(address);
   const zone = await findDeliveryZone(address, coords);
   if (!zone) return null;
   if (zone.minOrderKobo && subtotalKobo < zone.minOrderKobo) {
     return { zone, feeKobo: 0, available: false, reason: 'Minimum order not met' };
   }
+  const feeKobo =
+    type === DeliveryType.PROFESSIONAL
+      ? Math.round(zone.feeKobo * PROFESSIONAL_MULTIPLIER)
+      : zone.feeKobo;
+  const estimatedMinutes =
+    type === DeliveryType.PROFESSIONAL && zone.estimatedMinutes
+      ? Math.max(10, Math.round(zone.estimatedMinutes * PROFESSIONAL_TIME_MULTIPLIER))
+      : zone.estimatedMinutes;
   return {
     zone,
-    feeKobo: zone.feeKobo,
+    feeKobo,
     available: true,
-    estimatedMinutes: zone.estimatedMinutes,
+    estimatedMinutes,
   };
 }
