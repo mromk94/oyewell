@@ -109,6 +109,8 @@ router.get('/orders', requireAuth, async (req: AuthRequest, res, next) => {
         sides: true,
         payment: { include: { attempts: { orderBy: { createdAt: 'desc' } } } },
         statusHistory: true,
+        deliveryZone: true,
+        rider: { include: { location: true } },
       },
     });
     res.json({ orders: orders.map((o) => serializeOrder(o, false, true)) });

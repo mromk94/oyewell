@@ -245,6 +245,7 @@ export interface OrderSummary {
   riderId?: string;
   riderFee?: string;
   riderStatus?: string;
+  riderLocation?: { lat: number; lng: number; updatedAt: string } | null;
   deliveredAt?: string;
   createdAt: string;
   items: {

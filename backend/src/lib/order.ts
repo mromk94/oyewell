@@ -379,6 +379,10 @@ export function serializeOrder(order: any, includeDeliveryCode = false, maskCust
     riderStatus: order.riderStatus,
     riderFee: formatKobo(order.riderFeeKobo),
     riderPaid: order.riderPaid,
+    riderLocation:
+      order.rider?.location && order.rider.operationalStatus === 'ONLINE' && !delivered
+        ? { lat: order.rider.location.latitude, lng: order.rider.location.longitude, updatedAt: order.rider.location.updatedAt }
+        : null,
     deliveredAt: order.deliveredAt,
     deliveredCodeVerifiedAt: order.deliveredCodeVerifiedAt,
     createdAt: order.createdAt,

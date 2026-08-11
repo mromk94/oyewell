@@ -43,6 +43,7 @@ router.get('/:orderNumber', async (req, res, next) => {
         payment: { include: { attempts: { orderBy: { createdAt: 'desc' }, take: 1 } } },
         deliveryZone: true,
         statusHistory: true,
+        rider: { include: { location: true } },
       },
     });
     if (!order) {

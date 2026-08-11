@@ -5,6 +5,7 @@ import { ArrowLeft, Loader2, CheckCircle, XCircle, Clock, Upload, UserPlus, Pack
 import { toast } from '../lib/toast';
 import { fetchOrder, formatPrice, type OrderSummary, uploadPaymentProof, register, createReview, getCustomerToken } from '../lib/api';
 import Logo from '../components/Logo';
+import { DeliveryMap } from '../components/DeliveryMap';
 
 type StatusDef = {
   key: string;
@@ -424,6 +425,11 @@ export default function TrackOrder() {
           <h2 className='text-xl font-bold text-white'>Delivery</h2>
           <p className='mt-2 text-white/80'>{order.status === 'DELIVERED' ? order.address : order.approximateArea}</p>
           <p className='text-white/80'>{order.status === 'DELIVERED' ? order.phone : order.phone.replace(/.(?=.{4})/g, '*')}</p>
+          {['OUT_FOR_DELIVERY', 'PICKED_UP', 'DELIVERED'].includes(order.status) && (
+            <div className='mt-4'>
+              <DeliveryMap order={order} />
+            </div>
+          )}
         </div>
 
         {order.status === 'DELIVERED' && order.cookId && getCustomerToken() && (
