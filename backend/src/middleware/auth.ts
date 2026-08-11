@@ -1,8 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../prisma.js';
-
-const JWT_SECRET = process.env.JWT_SECRET ?? 'change-me';
+import { JWT_SECRET } from '../lib/config.js';
 
 export interface AuthRequest extends Request {
   user?: { id: string; email: string; role: string; roles: string[] };

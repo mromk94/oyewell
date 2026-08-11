@@ -9,9 +9,8 @@ import { isRiderEligibleForType } from '../lib/assignment.js';
 import { ApiError } from '../lib/errors.js';
 import { formatKobo } from '../lib/money.js';
 import { emitEvent } from '../lib/realtime.js';
+import { JWT_SECRET, JWT_EXPIRES_IN } from '../lib/config.js';
 
-const JWT_SECRET = process.env.JWT_SECRET ?? 'change-me';
-const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN ?? '7d') as any;
 const router = Router();
 
 router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {

@@ -4,10 +4,9 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../prisma.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { serializeOrder } from '../lib/order.js';
+import { JWT_SECRET, JWT_EXPIRES_IN } from '../lib/config.js';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET ?? 'change-me';
-const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN ?? '7d') as any;
 
 router.post('/register', async (req, res, next) => {
   try {

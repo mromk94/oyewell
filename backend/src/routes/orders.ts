@@ -6,8 +6,8 @@ import { createOrderSchema } from '../lib/validation.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../lib/errors.js';
 import jwt from 'jsonwebtoken';
+import { JWT_SECRET } from '../lib/config.js';
 
-const JWT_SECRET = process.env.JWT_SECRET ?? 'change-me';
 const router = Router();
 
 function getCustomerId(req: { headers: { authorization?: string } }): string | undefined {
