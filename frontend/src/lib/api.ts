@@ -185,6 +185,7 @@ export interface OrderSummary {
   orderNumber: string;
   status: string;
   paymentStatus: string;
+  deliveryType?: 'NEIGHBORHOOD' | 'PROFESSIONAL';
   subtotal: string;
   deliveryFee: string;
   total: string;

@@ -22,6 +22,7 @@ const TRACK_STATUSES: StatusDef[] = [
   { key: 'READY_FOR_PICKUP', label: 'Ready for pickup', description: 'Your order is packed and waiting for a delivery rider.', Icon: Package },
   { key: 'READY_FOR_DISPATCH', label: 'Ready for dispatch', description: 'Your order is packed and waiting for the delivery rider.', Icon: Package },
   { key: 'OUT_FOR_DELIVERY', label: 'Out for delivery', description: 'A rider is on the way with your order.', Icon: Truck },
+  { key: 'PICKED_UP', label: 'Picked up', description: 'The rider has collected your order and is heading to you.', Icon: Truck },
   { key: 'DELIVERED', label: 'Delivered', description: 'Your order has arrived. Enjoy your meal!', Icon: Home },
 ];
 
@@ -185,7 +186,16 @@ export default function TrackOrder() {
         </Link>
 
         <h1 className='mt-8 text-4xl font-black text-white'>Order {order.orderNumber}</h1>
-        <p className='mt-2 text-lg text-white/70'>{order.status.replace(/_/g, ' ')}</p>
+        <div className='mt-2 flex items-center gap-3'>
+          {order.deliveryType && (
+            <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+              order.deliveryType === 'PROFESSIONAL' ? 'bg-blue-500/20 text-blue-300' : 'bg-emerald-500/10 text-emerald-300'
+            }`}>
+              {order.deliveryType === 'PROFESSIONAL' ? 'Professional' : 'Neighborhood'} delivery
+            </span>
+          )}
+          <p className='text-lg text-white/70'>{order.status.replace(/_/g, ' ')}</p>
+        </div>
 
         {order.payment && (
           <div className='mt-6 rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8'>
