@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { createOrder, serializeOrder } from '../lib/order.js';
 import { prisma } from '../prisma.js';
 import { createOrderSchema } from '../lib/validation.js';
+import { requireAuth, type AuthRequest } from '../middleware/auth.js';
+import { ApiError } from '../lib/errors.js';
 import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET ?? 'change-me';
@@ -47,6 +49,47 @@ router.get('/:orderNumber', async (req, res, next) => {
       return;
     }
     res.json({ order: serializeOrder(order, false, true) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/:orderNumber/cancel', requireAuth, async (req: AuthRequest, res, next) => {
+  try {
+    const { orderNumber } = req.params;
+    const user = req.user!;
+    const order = await prisma.order.findUnique({
+      where: { orderNumber },
+      include: { payment: true, statusHistory: true },
+    });
+    if (!order) throw new ApiError(404, 'Order not found');
+    const isCustomer = user.id === order.customerId;
+    const isCook = user.roles.includes('COOK') && order.cookId ? await prisma.cookProfile.findFirst({ where: { id: order.cookId, userId: user.id } }) : null;
+    const isRider = user.roles.includes('RIDER') && order.riderId ? await prisma.rider.findFirst({ where: { id: order.riderId, userId: user.id } }) : null;
+    const isAdmin = user.roles.includes('ADMIN');
+    if (!isCustomer && !isCook && !isRider && !isAdmin) throw new ApiError(403, 'Not authorized to cancel this order');
+    if (order.status === 'CANCELLED') throw new ApiError(400, 'Order is already cancelled');
+    if (order.status === 'DELIVERED') throw new ApiError(400, 'Delivered orders cannot be cancelled');
+    const cancellableByCustomer = ['PENDING_PAYMENT', 'PAID', 'CONFIRMED', 'COOK_ACCEPTED'];
+    const cancellableByCook = ['PENDING_PAYMENT', 'PAID', 'CONFIRMED', 'COOK_ACCEPTED', 'PREPARING'];
+    const cancellableByRider = ['OUT_FOR_DELIVERY'];
+    const canCancel =
+      (isCustomer && cancellableByCustomer.includes(order.status)) ||
+      (isCook && cancellableByCook.includes(order.status)) ||
+      (isRider && cancellableByRider.includes(order.status)) ||
+      isAdmin;
+    if (!canCancel) throw new ApiError(400, 'This order cannot be cancelled at its current stage');
+    const updated = await prisma.order.update({
+      where: { id: order.id },
+      data: {
+        status: 'CANCELLED',
+        paymentStatus: order.paymentStatus === 'SUCCESS' ? 'REFUNDED' : 'CANCELLED',
+        riderFeeKobo: 0,
+        statusHistory: { create: { status: 'CANCELLED', note: `Cancelled by ${isAdmin ? 'admin' : isCook ? 'cook' : isRider ? 'rider' : 'customer'}`, actor: user.email } },
+      },
+      include: { items: true, sides: true, payment: true, statusHistory: true },
+    });
+    res.json({ order: serializeOrder(updated, false, true) });
   } catch (err) {
     next(err);
   }
