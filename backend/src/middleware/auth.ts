@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../prisma.js';
 import { JWT_SECRET } from '../lib/config.js';
+import { hasPermission } from '../lib/management.js';
 
 export interface AuthRequest extends Request {
   user?: { id: string; email: string; role: string; roles: string[] };
@@ -61,4 +62,19 @@ export async function requireRider(req: AuthRequest, res: Response, next: NextFu
   } catch {
     res.status(500).json({ error: 'Could not verify rider status' });
   }
+}
+
+export function requirePermission(key: string) {
+  return async (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    const ok = await hasPermission({ userId: req.user.id, key });
+    if (!ok) {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+    next();
+  };
 }

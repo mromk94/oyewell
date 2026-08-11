@@ -16,6 +16,7 @@ import messagesRouter from './routes/messages.js';
 import reviewsRouter from './routes/reviews.js';
 import eventsRouter from './routes/events.js';
 import locationRouter from './routes/location.js';
+import managementRouter from './routes/management.js';
 import { rateLimit } from './middleware/rateLimit.js';
 import { ApiError } from './lib/errors.js';
 
@@ -57,6 +58,7 @@ app.use('/api/messages', messagesRouter);
 app.use('/api/reviews', reviewsRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/location', locationRouter);
+app.use('/api/management', managementRouter);
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof ApiError) {

@@ -30,6 +30,7 @@ model User {
   rider     Rider?
   cookProfile CookProfile?
   addresses UserAddress[]
+  managementEmployee ManagementEmployee?
 }
 
 enum OrderingMode {
@@ -620,4 +621,57 @@ model GenericTask {
   feeKobo     Int        @default(0)
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
+}
+
+enum ManagementEmployeeStatus {
+  ACTIVE
+  SUSPENDED
+  INVITED
+  INACTIVE
+}
+
+model ManagementEmployee {
+  id           String                 @id @default(cuid())
+  user         User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       String                 @unique
+  employeeId   String                 @unique
+  tier         AdminTier              @relation(fields: [adminTierId], references: [id])
+  adminTierId  String
+  department   String?
+  status       ManagementEmployeeStatus @default(INVITED)
+  limits       Json?                  @default("{}")
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+}
+
+model AdminTier {
+  id          String               @id @default(cuid())
+  key         String               @unique
+  name        String
+  description String?
+  isActive    Boolean              @default(true)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  employees   ManagementEmployee[]
+  permissions AdminTierPermission[]
+}
+
+model Permission {
+  id          String                @id @default(cuid())
+  key         String                @unique
+  scope       String
+  description String?
+  tierPermissions AdminTierPermission[]
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+}
+
+model AdminTierPermission {
+  id          String    @id @default(cuid())
+  tier        AdminTier @relation(fields: [adminTierId], references: [id], onDelete: Cascade)
+  adminTierId String
+  permission  Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  permissionId String
+
+  @@unique([adminTierId, permissionId])
 }
