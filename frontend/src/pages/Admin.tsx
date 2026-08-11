@@ -64,6 +64,7 @@ import {
   rejectCookListing,
   featureCookListing,
   fetchAdminCookEarnings,
+  settleCookEarnings,
 } from '../lib/admin';
 
 type Tab = 'dashboard' | 'menu' | 'orders' | 'sides' | 'customers' | 'delivery' | 'payments' | 'settings' | 'email' | 'riders' | 'live-map' | 'cooks' | 'cook-listings' | 'cook-earnings' | 'management' | 'moderation';
@@ -346,7 +347,7 @@ export default function Admin() {
         {tab === 'live-map' && <LiveMapTab riders={riderLocations} cooks={cookLocations} />}
         {tab === 'cooks' && <CooksTab cooks={cooks} onRefresh={loadTab} />}
         {tab === 'cook-listings' && <CookListingsTab />}
-        {tab === 'cook-earnings' && <CookEarningsTab earnings={cookEarnings} />}
+        {tab === 'cook-earnings' && <CookEarningsTab earnings={cookEarnings} onRefresh={loadTab} />}
         {tab === 'management' && <ManagementDashboard />}
         {tab === 'moderation' && <ModerationPanel />}
       </main>
@@ -1423,7 +1424,26 @@ function CookListingsTab() {
   );
 }
 
-function CookEarningsTab({ earnings }: { earnings: any }) {
+function CookEarningsTab({ earnings, onRefresh }: { earnings: any; onRefresh: () => void }) {
+  const [processing, setProcessing] = useState<string | null>(null);
+  const [selected, setSelected] = useState<any | null>(null);
+  const cooks = earnings?.cooks ?? [];
+
+  async function handleSettle(cookId: string) {
+    if (!confirm('Settle all pending earnings for this cook?')) return;
+    setProcessing(cookId);
+    try {
+      await settleCookEarnings(cookId);
+      onRefresh();
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Settle failed');
+    } finally {
+      setProcessing(null);
+    }
+  }
+
+  const pendingEarnings = (c: any) => (c.earnings ?? []).filter((e: any) => e.status === 'PENDING');
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-white">Cook earnings</h2>
@@ -1431,13 +1451,100 @@ function CookEarningsTab({ earnings }: { earnings: any }) {
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-yellow-300">
           <p className="text-sm opacity-80">Pending</p>
-          <p className="mt-2 text-3xl font-black">{formatPrice(earnings.pendingKobo ?? 0)}</p>
+          <p className="mt-2 text-3xl font-black">{formatPrice(earnings?.pendingKobo ?? 0)}</p>
         </div>
         <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-emerald-300">
           <p className="text-sm opacity-80">Settled</p>
-          <p className="mt-2 text-3xl font-black">{formatPrice(earnings.settledKobo ?? 0)}</p>
+          <p className="mt-2 text-3xl font-black">{formatPrice(earnings?.settledKobo ?? 0)}</p>
         </div>
       </div>
+
+      {cooks.length === 0 ? (
+        <p className="mt-6 text-white/50">No cook earnings yet.</p>
+      ) : (
+        <div className="mt-6 space-y-4">
+          {cooks.map((c: any) => {
+            const pending = pendingEarnings(c);
+            return (
+              <div key={c.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="font-bold text-white">{c.displayName}</p>
+                    <p className="text-sm text-white/60">{c.user?.email}</p>
+                    <p className="mt-1 text-sm text-yellow-300">Pending: {formatPrice(c.pendingKobo ?? 0)}</p>
+                    <p className="text-sm text-emerald-300">Settled: {formatPrice(c.settledKobo ?? 0)}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={() => setSelected(c)}
+                      className="rounded-full border border-white/20 px-4 py-2 text-sm font-bold text-white transition hover:bg-white/10"
+                    >
+                      View
+                    </button>
+                    <button
+                      onClick={() => handleSettle(c.id)}
+                      disabled={processing === c.id || (c.pendingKobo ?? 0) <= 0}
+                      className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50"
+                    >
+                      {processing === c.id ? '...' : 'Settle'}
+                    </button>
+                  </div>
+                </div>
+                {pending.length > 0 && (
+                  <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
+                    {pending.map((e: any) => (
+                      <div key={e.id} className="flex justify-between text-sm text-white/70">
+                        <span>{e.order?.orderNumber || e.id}</span>
+                        <span>{formatPrice(e.amountKobo)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {selected && (
+        <div className="fixed inset-0 z-50 bg-black/80 p-4 backdrop-blur-sm md:p-8">
+          <div className="mx-auto h-full max-w-2xl overflow-hidden rounded-3xl border border-white/10 bg-brand-900 shadow-2xl">
+            <div className="flex h-full flex-col">
+              <div className="flex items-center justify-between border-b border-white/10 p-4">
+                <h3 className="text-xl font-bold text-white">{selected.displayName}</h3>
+                <button
+                  onClick={() => setSelected(null)}
+                  className="rounded-full bg-black/50 p-2 text-white transition hover:bg-white/20"
+                  aria-label="Close"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-6">
+                <p className="text-sm text-white/60">{selected.user?.email}</p>
+                <p className="mt-4 text-yellow-300">Pending: {formatPrice(selected.pendingKobo ?? 0)}</p>
+                <p className="text-emerald-300">Settled: {formatPrice(selected.settledKobo ?? 0)}</p>
+
+                <div className="mt-6 space-y-2">
+                  {(selected.earnings ?? []).map((e: any) => (
+                    <div
+                      key={e.id}
+                      className={`flex items-center justify-between rounded-2xl border p-3 text-sm ${
+                        e.status === 'SETTLED'
+                          ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-300'
+                          : 'border-yellow-500/20 bg-yellow-500/10 text-yellow-300'
+                      }`}
+                    >
+                      <span>{e.order?.orderNumber || e.id}</span>
+                      <span>{formatPrice(e.amountKobo)} · {e.status}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

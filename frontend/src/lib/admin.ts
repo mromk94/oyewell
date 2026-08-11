@@ -458,5 +458,14 @@ export async function rejectCookListing(id: string) {
 export async function fetchAdminCookEarnings() {
   const res = await fetch(`${API_BASE}/api/admin/cook-earnings`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load cook earnings');
-  return res.json() as Promise<{ pendingKobo: number; settledKobo: number }>;
+  return res.json() as Promise<{ pendingKobo: number; settledKobo: number; cooks: any[] }>;
+}
+
+export async function settleCookEarnings(cookId: string) {
+  const res = await fetch(`${API_BASE}/api/admin/cook-earnings/${cookId}/settle`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error('Failed to settle earnings');
+  return res.json();
 }

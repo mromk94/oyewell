@@ -1042,14 +1042,61 @@ router.patch('/cook-listings/:id/featured', async (req, res, next) => {
 
 router.get('/cook-earnings', async (_req, res, next) => {
   try {
-    const [pending, settled] = await Promise.all([
+    const [pending, settled, rows] = await Promise.all([
       prisma.cookEarning.aggregate({ where: { status: 'PENDING' }, _sum: { amountKobo: true } }),
       prisma.cookEarning.aggregate({ where: { status: 'SETTLED' }, _sum: { amountKobo: true } }),
+      prisma.cookEarning.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: 500,
+        include: {
+          cook: { include: { user: { select: { email: true, phone: true } } } },
+          order: { select: { orderNumber: true } },
+        },
+      }),
     ]);
+
+    const byCook: Record<string, any> = {};
+    for (const e of rows) {
+      if (!byCook[e.cookId]) {
+        byCook[e.cookId] = {
+          ...e.cook,
+          pendingKobo: 0,
+          settledKobo: 0,
+          earnings: [],
+        };
+      }
+      if (e.status === 'PENDING') byCook[e.cookId].pendingKobo += e.amountKobo;
+      if (e.status === 'SETTLED') byCook[e.cookId].settledKobo += e.amountKobo;
+      byCook[e.cookId].earnings.push(e);
+    }
+
     res.json({
       pendingKobo: pending._sum.amountKobo ?? 0,
       settledKobo: settled._sum.amountKobo ?? 0,
+      cooks: Object.values(byCook),
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/cook-earnings/:cookId/settle', async (req: AuthRequest, res, next) => {
+  try {
+    const cookId = req.params.cookId;
+    const before = await prisma.cookEarning.aggregate({ where: { cookId, status: 'PENDING' }, _sum: { amountKobo: true } });
+    const result = await prisma.cookEarning.updateMany({
+      where: { cookId, status: 'PENDING' },
+      data: { status: 'SETTLED', settledAt: new Date() },
+    });
+    await logAudit({
+      actorId: req.user!.id,
+      action: 'COOK_EARNINGS_SETTLED',
+      targetId: cookId,
+      targetType: 'CookProfile',
+      newState: { settledCount: result.count, settledKobo: before._sum.amountKobo ?? 0 },
+      ip: req.ip ?? undefined,
+    });
+    res.json({ ok: true, settled: result.count, amountKobo: before._sum.amountKobo ?? 0 });
   } catch (err) {
     next(err);
   }
