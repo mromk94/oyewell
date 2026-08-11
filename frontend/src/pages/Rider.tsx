@@ -369,7 +369,7 @@ function MyOrdersPanel({ onError }: { onError: (m: string) => void }) {
       <div className='space-y-4'>
         {orders.map((order) => (
           <OrderCard key={order.id} order={order} actions={[
-            ...(order.status === 'OUT_FOR_DELIVERY' ? [{ label: 'I have collected the food', icon: CheckCircle, onClick: () => setPrompt({ open: true, orderNumber: order.orderNumber }) }] : []),
+            ...(order.status === 'OUT_FOR_DELIVERY' && order.riderStatus === 'ASSIGNED' ? [{ label: 'I have collected the food', icon: CheckCircle, onClick: () => setPrompt({ open: true, orderNumber: order.orderNumber }) }] : []),
             ...(order.riderStatus === 'PICKED_UP' ? [
               { label: 'I am on my way', icon: Navigation, onClick: () => setStartConfirm({ open: true, orderNumber: order.orderNumber }) },
               { label: 'Customer has their food', icon: ShieldCheck, onClick: () => setDeliveryPrompt({ open: true, orderNumber: order.orderNumber }) },
