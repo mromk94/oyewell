@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { X, Plus, Minus, Trash2, MapPin, Phone, Upload, CheckCircle, Loader2, CreditCard, ArrowRight, Clock, Bike, ShieldCheck } from 'lucide-react';
@@ -135,17 +135,13 @@ export default function CartModal() {
 
   if (!isOpen) return null;
 
-  async function handlePlaceOrder() {
+  const doPlaceOrder = useCallback(async () => {
     if (!selectedMethod) {
       toast.error('Choose a payment method.');
       return;
     }
     if (!address.trim() || !phone.trim()) {
       toast.error('Address and phone are required.');
-      return;
-    }
-    if (!isAuthenticated) {
-      openAuth(() => handlePlaceOrder(), 'Create an account or sign in so we can secure this order to your account and keep it safe.');
       return;
     }
     setPlacing(true);
@@ -156,8 +152,8 @@ export default function CartModal() {
         phone: phone.trim(),
         paymentProvider: selectedMethod.provider,
         deliveryType,
-        lat: selectedDelivery?.lat,
-        lng: selectedDelivery?.lng,
+        lat: deliveryOptions[deliveryType]?.lat,
+        lng: deliveryOptions[deliveryType]?.lng,
       };
       const isCook = items.every((item) => item.source === 'COOK');
       const isRestaurant = items.every((item) => item.source === 'RESTAURANT');
@@ -204,6 +200,19 @@ export default function CartModal() {
     } finally {
       setPlacing(false);
     }
+  }, [selectedMethod, address, phone, deliveryType, deliveryOptions, items, navigate, setIsOpen, clear]);
+
+  const doPlaceOrderRef = useRef(doPlaceOrder);
+  useEffect(() => {
+    doPlaceOrderRef.current = doPlaceOrder;
+  }, [doPlaceOrder]);
+
+  async function handlePlaceOrder() {
+    if (!isAuthenticated) {
+      openAuth(() => doPlaceOrderRef.current(), 'Create an account or sign in so we can secure this order to your account and keep it safe.');
+      return;
+    }
+    await doPlaceOrderRef.current();
   }
 
   async function handleUploadProof() {

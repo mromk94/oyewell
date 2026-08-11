@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { login as apiLogin, register as apiRegister, fetchMe, getCustomerToken, setCustomerToken, removeCustomerToken, type User, hasRole as apiHasRole } from './api';
+import { toast } from './toast';
 
 export interface AuthState {
   customer: User | null;
@@ -56,10 +57,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { token, user } = await apiLogin(email, password);
     if (token) setCustomerToken(token);
     setCustomer(user ?? null);
+    toast.success('Welcome back!');
+    const fromModal = authOpen;
+    const cb = onAuthSuccessRef.current;
     setAuthOpen(false);
-    if (onAuthSuccessRef.current) {
-      const cb = onAuthSuccessRef.current;
-      onAuthSuccessRef.current = null;
+    onAuthSuccessRef.current = null;
+    if (fromModal && cb) {
       cb();
     } else {
       navigate('/account');
@@ -70,10 +73,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { token, user } = await apiRegister(data);
     if (token) setCustomerToken(token);
     setCustomer(user ?? null);
+    toast.success('Account created!');
+    const fromModal = authOpen;
+    const cb = onAuthSuccessRef.current;
     setAuthOpen(false);
-    if (onAuthSuccessRef.current) {
-      const cb = onAuthSuccessRef.current;
-      onAuthSuccessRef.current = null;
+    onAuthSuccessRef.current = null;
+    if (fromModal && cb) {
       cb();
     } else {
       navigate('/account');
