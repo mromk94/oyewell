@@ -876,6 +876,64 @@ router.post('/orders/:id/dispatch', async (req, res, next) => {
   }
 });
 
+router.get('/riders', async (_req, res, next) => {
+  try {
+    const riders = await prisma.rider.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } },
+        location: { select: { latitude: true, longitude: true } },
+        _count: { select: { orders: true, payoutRequests: true } },
+      },
+    });
+    res.json({ riders });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/riders/:id', async (req, res, next) => {
+  try {
+    const rider = await prisma.rider.findUnique({
+      where: { id: req.params.id },
+      include: {
+        user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } },
+        location: true,
+        inspections: true,
+        payoutRequests: { orderBy: { createdAt: 'desc' }, take: 20 },
+        _count: { select: { orders: true } },
+      },
+    });
+    if (!rider) throw new ApiError(404, 'Rider not found');
+    res.json({ rider });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/riders/:id', async (req, res, next) => {
+  try {
+    const { isApproved, isActive, neighborhoodApproval, professionalApproval, operationalStatus } = req.body as Record<string, any>;
+    const existing = await prisma.rider.findUnique({ where: { id: req.params.id } });
+    if (!existing) throw new ApiError(404, 'Rider not found');
+    const data: any = {};
+    if (isApproved !== undefined) data.isApproved = Boolean(isApproved);
+    if (isActive !== undefined) data.isActive = Boolean(isActive);
+    if (neighborhoodApproval !== undefined) data.neighborhoodApproval = neighborhoodApproval;
+    if (professionalApproval !== undefined) data.professionalApproval = professionalApproval;
+    if (operationalStatus !== undefined) data.operationalStatus = operationalStatus;
+    data.updatedAt = new Date();
+    const updated = await prisma.rider.update({
+      where: { id: req.params.id },
+      data,
+      include: { user: { select: { email: true, firstName: true, lastName: true } } },
+    });
+    res.json({ rider: updated });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/delivery-control-center', async (_req, res, next) => {
   try {
     const [liveOrders, riders, pendingApplications, pendingPayouts, recentApplications, activeProfessional, activeNeighborhood] = await Promise.all([
