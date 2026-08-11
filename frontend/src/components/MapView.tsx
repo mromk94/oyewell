@@ -1,5 +1,26 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import type { LocationResult } from '../lib/api';
+
+function useReducedMap() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const conn = (navigator as any).connection;
+    const shouldReduce = mq.matches || (conn && (conn.saveData || (conn.effectiveType ?? '').startsWith('2g')));
+    setReduced(shouldReduce);
+    function onChange() {
+      const conn = (navigator as any).connection;
+      setReduced(window.matchMedia('(prefers-reduced-motion: reduce)').matches || (conn && (conn.saveData || (conn.effectiveType ?? '').startsWith('2g'))));
+    }
+    mq.addEventListener('change', onChange);
+    conn?.addEventListener('change', onChange);
+    return () => {
+      mq.removeEventListener('change', onChange);
+      conn?.removeEventListener('change', onChange);
+    };
+  }, []);
+  return reduced;
+}
 
 export interface MapMarker {
   id: string;
@@ -14,6 +35,7 @@ interface MapViewProps {
 }
 
 export function MapView({ center, markers, height = 240 }: MapViewProps) {
+  const reduced = useReducedMap();
   const markerPositions = useMemo(
     () =>
       (markers || []).map((m) => ({
@@ -23,6 +45,20 @@ export function MapView({ center, markers, height = 240 }: MapViewProps) {
       })),
     [markers, center],
   );
+
+  if (reduced) {
+    return (
+      <div style={{ height }} className='overflow-hidden rounded-2xl border border-white/10 bg-[#0d1b12] p-4 text-white'>
+        <p className='text-sm font-medium'>Map reduced to save data</p>
+        <p className='text-xs text-white/60'>Center: {center.lat.toFixed(4)}, {center.lng.toFixed(4)}</p>
+        <ul className='mt-2 space-y-1 text-xs text-white/70'>
+          {markerPositions.map((m) => (
+            <li key={m.id}>{m.label || m.id} — {m.point.lat.toFixed(4)}, {m.point.lng.toFixed(4)}</li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
 
   return (
     <div
