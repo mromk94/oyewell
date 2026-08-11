@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, User, Bike, CheckCircle, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react';
-import { applyAsDeliveryPartner } from '../lib/api';
+import { X, User, Bike, CheckCircle, ChevronRight, ChevronLeft, Loader2, FileText } from 'lucide-react';
+import { applyAsDeliveryPartner, fetchRiderOnboardingFields, type OnboardingField } from '../lib/api';
 
 const MODES = [
   { id: 'WALK', label: 'Walking', icon: 'W' },
@@ -15,6 +15,7 @@ const STEPS = [
   { id: 'about', label: 'About you' },
   { id: 'mode', label: 'How you deliver' },
   { id: 'area', label: 'Where' },
+  { id: 'kyc', label: 'Verification' },
   { id: 'review', label: 'Review' },
 ];
 
@@ -36,9 +37,28 @@ export default function DeliveryApplicationModal({
   const [vehicle, setVehicle] = useState('');
   const [area, setArea] = useState('');
   const [radius, setRadius] = useState(5000);
-  const [kyc, setKyc] = useState(false);
+  const [fields, setFields] = useState<OnboardingField[]>([]);
+  const [fieldsLoading, setFieldsLoading] = useState(true);
+  const [onboardingData, setOnboardingData] = useState<Record<string, any>>({});
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchRiderOnboardingFields()
+      .then((res) => setFields(res.fields))
+      .catch(() => setError('Could not load onboarding form'))
+      .finally(() => setFieldsLoading(false));
+  }, []);
+
+  const visibleFields = fields.filter((f) => {
+    if (!f.gatingRule) return true;
+    const [gateKey, gateValue] = f.gatingRule.split('=');
+    return onboardingData[gateKey]?.toString() === gateValue;
+  });
+
+  function updateOnboarding(key: string, value: any) {
+    setOnboardingData((prev) => ({ ...prev, [key]: value }));
+  }
 
   async function submit() {
     setSubmitting(true);
@@ -49,7 +69,8 @@ export default function DeliveryApplicationModal({
         vehicle,
         operatingArea: area,
         serviceRadiusMeters: radius,
-        kycSubmitted: kyc,
+        kycSubmitted: !!(onboardingData.idDocumentUrl || onboardingData.facePhotoUrl),
+        onboardingData,
       });
       onSubmitted();
     } catch (e) {
@@ -62,7 +83,21 @@ export default function DeliveryApplicationModal({
   function canNext() {
     if (step === 1 && !mode) return false;
     if (step === 2 && !area.trim()) return false;
+    if (step === 3) {
+      for (const f of visibleFields) {
+        if (f.required && (!onboardingData[f.key] || (Array.isArray(onboardingData[f.key]) && !onboardingData[f.key].length))) return false;
+      }
+    }
     return true;
+  }
+
+  if (fieldsLoading) {
+    return createPortal(
+      <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4'>
+        <Loader2 className='h-8 w-8 animate-spin text-emerald-400' />
+      </div>,
+      document.body
+    );
   }
 
   return createPortal(
@@ -172,16 +207,25 @@ export default function DeliveryApplicationModal({
                     className='mt-2 w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white'
                   />
                 </label>
-                <label className='mt-4 flex items-start gap-3 text-sm text-white/70'>
-                  <input type='checkbox' checked={kyc} onChange={(e) => setKyc(e.target.checked)} className='mt-1 h-4 w-4' />
-                  <span>
-                    I agree to verify my identity so customers can trust the person delivering their food.
-                  </span>
-                </label>
               </StepPanel>
             )}
 
             {step === 3 && (
+              <StepPanel key='kyc'>
+                <p className='mb-4 text-sm text-white/70'>Verification & references</p>
+                <div className='space-y-4'>
+                  {visibleFields.map((f) => (
+                    <OnboardingInput key={f.id} field={f} value={onboardingData[f.key] ?? ''} onChange={(v) => updateOnboarding(f.key, v)} />
+                  ))}
+                  {fields.length === 0 && (
+                    <p className='text-sm text-white/50'>No verification fields are currently configured.</p>
+                  )}
+                </div>
+                {error && <p className='mt-3 text-sm text-red-300'>{error}</p>}
+              </StepPanel>
+            )}
+
+            {step === 4 && (
               <StepPanel key='review'>
                 <p className='mb-4 text-sm text-white/70'>Review your application</p>
                 <div className='space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80'>
@@ -191,6 +235,12 @@ export default function DeliveryApplicationModal({
                   <p className='flex justify-between'><span className='text-white/50'>Vehicle</span> {vehicle || '—'}</p>
                   <p className='flex justify-between'><span className='text-white/50'>Area</span> {area}</p>
                   <p className='flex justify-between'><span className='text-white/50'>Radius</span> {radius} m</p>
+                  {visibleFields.map((f) => onboardingData[f.key] ? (
+                    <p key={f.key} className='flex justify-between'>
+                      <span className='text-white/50'>{f.label}</span>
+                      <span className='truncate max-w-[150px]'>{String(onboardingData[f.key])}</span>
+                    </p>
+                  ) : null)}
                 </div>
                 {error && <p className='mt-3 text-sm text-red-300'>{error}</p>}
               </StepPanel>
@@ -229,6 +279,81 @@ export default function DeliveryApplicationModal({
       </motion.div>
     </div>,
     document.body
+  );
+}
+
+function OnboardingInput({
+  field,
+  value,
+  onChange,
+}: {
+  field: OnboardingField;
+  value: any;
+  onChange: (v: any) => void;
+}) {
+  const inputClass =
+    'mt-2 w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white placeholder-white/40';
+
+  if (field.type === 'textarea') {
+    return (
+      <label className='block text-sm text-white/60'>
+        {field.label} {field.required && <span className='text-red-300'>*</span>}
+        <textarea value={value} onChange={(e) => onChange(e.target.value)} className={inputClass} rows={3} />
+      </label>
+    );
+  }
+
+  if (field.type === 'select') {
+    return (
+      <label className='block text-sm text-white/60'>
+        {field.label} {field.required && <span className='text-red-300'>*</span>}
+        <select value={value} onChange={(e) => onChange(e.target.value)} className={inputClass}>
+          <option value='' className='bg-brand-900'>Select...</option>
+          {field.options.map((o) => (
+            <option key={o} value={o} className='bg-brand-900'>{o}</option>
+          ))}
+        </select>
+      </label>
+    );
+  }
+
+  if (field.type === 'file') {
+    return (
+      <label className='block text-sm text-white/60'>
+        {field.label} {field.required && <span className='text-red-300'>*</span>}
+        <div className='mt-2 flex items-center gap-2'>
+          <FileText className='h-5 w-5 text-white/50' />
+          <input
+            type='url'
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder='https://...'
+            className='flex-1 rounded-2xl border border-white/20 bg-white/5 p-3 text-white placeholder-white/40'
+          />
+        </div>
+      </label>
+    );
+  }
+
+  if (field.type === 'checkbox') {
+    return (
+      <label className='flex items-start gap-3 text-sm text-white/70'>
+        <input type='checkbox' checked={!!value} onChange={(e) => onChange(e.target.checked)} className='mt-1 h-4 w-4' />
+        <span>{field.label} {field.required && <span className='text-red-300'>*</span>}</span>
+      </label>
+    );
+  }
+
+  return (
+    <label className='block text-sm text-white/60'>
+      {field.label} {field.required && <span className='text-red-300'>*</span>}
+      <input
+        type={field.type === 'number' ? 'number' : 'text'}
+        value={value}
+        onChange={(e) => onChange(field.type === 'number' ? Number(e.target.value) : e.target.value)}
+        className={inputClass}
+      />
+    </label>
   );
 }
 

@@ -17,11 +17,15 @@ const router = Router();
 router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {
   try {
     const userId = req.user!.id;
-    const { deliveryMode, vehicle, operatingArea, serviceRadiusMeters, kycSubmitted } = req.body as Record<string, unknown>;
+    const { deliveryMode, vehicle, operatingArea, serviceRadiusMeters, onboardingData } = req.body as Record<string, any>;
     if (!deliveryMode || !['WALK', 'BICYCLE', 'MOTORCYCLE', 'CAR'].includes(String(deliveryMode))) {
       throw new ApiError(400, 'Valid delivery mode is required');
     }
     const radius = Number(serviceRadiusMeters) || 5000;
+
+    const dataRecord = onboardingData && typeof onboardingData === 'object' ? onboardingData : {};
+    await validateRiderOnboarding(dataRecord);
+
     const existing = await prisma.rider.findUnique({ where: { userId } });
     if (existing && ['APPROVED', 'PENDING'].includes(existing.neighborhoodApproval)) {
       throw new ApiError(409, 'You have already applied or are already approved');
@@ -34,19 +38,21 @@ router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {
         deliveryMode: String(deliveryMode) as any,
         operatingArea: operatingArea ? String(operatingArea) : undefined,
         serviceRadiusMeters: radius,
-        kycStatus: kycSubmitted ? 'SUBMITTED' : 'NOT_STARTED',
+        kycStatus: dataRecord.idDocumentUrl || dataRecord.facePhotoUrl ? 'SUBMITTED' : 'NOT_STARTED',
         neighborhoodApproval: 'PENDING',
         professionalApproval: 'NOT_APPLIED',
         isActive: true,
         isApproved: false,
+        onboardingData: dataRecord,
       },
       update: {
         vehicle: vehicle ? String(vehicle) : undefined,
         deliveryMode: String(deliveryMode) as any,
         operatingArea: operatingArea ? String(operatingArea) : undefined,
         serviceRadiusMeters: radius,
-        kycStatus: kycSubmitted ? 'SUBMITTED' : 'NOT_STARTED',
+        kycStatus: dataRecord.idDocumentUrl || dataRecord.facePhotoUrl ? 'SUBMITTED' : 'NOT_STARTED',
         neighborhoodApproval: 'PENDING',
+        onboardingData: dataRecord,
       },
     });
     res.status(201).json({ rider });
@@ -55,10 +61,51 @@ router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {
   }
 });
 
+function isNigeria(record: Record<string, any>) {
+  const raw = (record.country as string) ?? '';
+  return /^(nigeria|ng|nig)$/i.test(raw.trim());
+}
+
+async function validateRiderOnboarding(record: Record<string, any>) {
+  const fields = await prisma.riderOnboardingField.findMany({ where: { active: true }, orderBy: { order: 'asc' } });
+  if (!fields.length) return; // no custom config yet, fall through to hard-coded defaults
+
+  for (const f of fields) {
+    if (!f.required) continue;
+    const value = record[f.key];
+    if (f.gatingRule) {
+      const [gateKey, gateValue] = f.gatingRule.split('=');
+      if (String(record[gateKey] ?? '') !== gateValue) continue;
+    }
+    if (value === undefined || value === null || value === '') {
+      throw new ApiError(400, `${f.label} is required`);
+    }
+  }
+
+  // Minimum hard-coded safety rules
+  const hasId = record.idDocumentUrl || record.facePhotoUrl;
+  if (!hasId) throw new ApiError(400, 'A government-issued ID or a clear face photo is required');
+  if (isNigeria(record)) {
+    if (!record.bvn && !record.nin) throw new ApiError(400, 'Nigerian riders must provide a BVN or NIN');
+  }
+}
+
 router.get('/application', requireAuth, async (req: AuthRequest, res, next) => {
   try {
     const rider = await prisma.rider.findUnique({ where: { userId: req.user!.id } });
     res.json({ rider });
+  } catch (e) {
+    next(e);
+  }
+});
+
+router.get('/onboarding/fields', async (_req, res, next) => {
+  try {
+    const fields = await prisma.riderOnboardingField.findMany({
+      where: { active: true },
+      orderBy: { order: 'asc' },
+    });
+    res.json({ fields });
   } catch (e) {
     next(e);
   }

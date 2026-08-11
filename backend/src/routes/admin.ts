@@ -1352,7 +1352,7 @@ router.get('/riders/:id', async (req, res, next) => {
 
 router.patch('/riders/:id', async (req, res, next) => {
   try {
-    const { isApproved, isActive, neighborhoodApproval, professionalApproval, operationalStatus } = req.body as Record<string, any>;
+    const { isApproved, isActive, neighborhoodApproval, professionalApproval, operationalStatus, onboardingData } = req.body as Record<string, any>;
     const existing = await prisma.rider.findUnique({ where: { id: req.params.id } });
     if (!existing) throw new ApiError(404, 'Rider not found');
     const data: any = {};
@@ -1361,6 +1361,7 @@ router.patch('/riders/:id', async (req, res, next) => {
     if (neighborhoodApproval !== undefined) data.neighborhoodApproval = neighborhoodApproval;
     if (professionalApproval !== undefined) data.professionalApproval = professionalApproval;
     if (operationalStatus !== undefined) data.operationalStatus = operationalStatus;
+    if (onboardingData !== undefined) data.onboardingData = onboardingData;
     data.updatedAt = new Date();
     const updated = await prisma.rider.update({
       where: { id: req.params.id },
@@ -1514,6 +1515,95 @@ router.put('/feature-flags/:key', async (req, res, next) => {
       update: { enabled: enabled ?? false, rollout: rollout ?? 0 },
     });
     res.json({ flag });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const DEFAULT_RIDER_ONBOARDING_FIELDS = [
+  { key: 'country', label: 'Country of operation', type: 'select', required: true, order: 1, options: ['Nigeria', 'Ghana', 'Kenya', 'Other'] },
+  { key: 'state', label: 'State/Region', type: 'text', required: true, order: 2 },
+  { key: 'lga', label: 'LGA/City', type: 'text', required: true, order: 3 },
+  { key: 'riderAddress', label: 'Residential address', type: 'textarea', required: true, order: 4 },
+  { key: 'idDocumentUrl', label: 'Government-issued ID', type: 'file', required: false, order: 5 },
+  { key: 'facePhotoUrl', label: 'Clear photo of face', type: 'file', required: false, order: 6 },
+  { key: 'guarantorName', label: 'Guarantor name', type: 'text', required: true, order: 7 },
+  { key: 'guarantorAddress', label: 'Guarantor address', type: 'textarea', required: true, order: 8 },
+  { key: 'guarantorPhone', label: 'Guarantor phone', type: 'text', required: true, order: 9 },
+  { key: 'bvn', label: 'BVN', type: 'text', required: false, order: 10, gatingRule: 'country=Nigeria' },
+  { key: 'nin', label: 'NIN', type: 'text', required: false, order: 11, gatingRule: 'country=Nigeria' },
+];
+
+async function ensureDefaultRiderOnboardingFields() {
+  const existing = await prisma.riderOnboardingField.count();
+  if (existing) return;
+  await prisma.riderOnboardingField.createMany({
+    data: DEFAULT_RIDER_ONBOARDING_FIELDS as any,
+    skipDuplicates: true,
+  });
+}
+
+router.get('/rider-onboarding/fields', async (_req, res, next) => {
+  try {
+    await ensureDefaultRiderOnboardingFields();
+    const fields = await prisma.riderOnboardingField.findMany({ orderBy: { order: 'asc' } });
+    res.json({ fields });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/rider-onboarding/fields', async (req, res, next) => {
+  try {
+    const { key, label, type, required, active, order, gatingRule, options } = req.body as Record<string, any>;
+    if (!key || !label || !type) throw new ApiError(400, 'key, label and type are required');
+    const field = await prisma.riderOnboardingField.create({
+      data: { key: String(key), label: String(label), type: String(type), required: Boolean(required), active: active !== false, order: Number(order) || 0, gatingRule: gatingRule ? String(gatingRule) : null, options: Array.isArray(options) ? options.map(String) : [] },
+    });
+    res.status(201).json({ field });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.patch('/rider-onboarding/fields/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { label, type, required, active, order, gatingRule, options } = req.body as Record<string, any>;
+    const data: any = {};
+    if (label !== undefined) data.label = String(label);
+    if (type !== undefined) data.type = String(type);
+    if (required !== undefined) data.required = Boolean(required);
+    if (active !== undefined) data.active = Boolean(active);
+    if (order !== undefined) data.order = Number(order);
+    if (gatingRule !== undefined) data.gatingRule = gatingRule ? String(gatingRule) : null;
+    if (options !== undefined) data.options = Array.isArray(options) ? options.map(String) : [];
+    const field = await prisma.riderOnboardingField.update({ where: { id }, data });
+    res.json({ field });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete('/rider-onboarding/fields/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    await prisma.riderOnboardingField.delete({ where: { id } });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/riders/:id/audit', async (req, res, next) => {
+  try {
+    const rider = await prisma.rider.findUnique({
+      where: { id: req.params.id },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    });
+    if (!rider) throw new ApiError(404, 'Rider not found');
+    const fields = await prisma.riderOnboardingField.findMany({ orderBy: { order: 'asc' } });
+    res.json({ rider, fields });
   } catch (err) {
     next(err);
   }

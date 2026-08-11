@@ -345,8 +345,21 @@ export interface DeliveryApplication {
   neighborhoodApproval: 'NOT_APPLIED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
   kycStatus: string;
   isApproved: boolean;
+  onboardingData?: Record<string, any>;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface OnboardingField {
+  id: string;
+  key: string;
+  label: string;
+  type: 'text' | 'textarea' | 'select' | 'file' | 'number' | 'checkbox' | 'phone';
+  required: boolean;
+  active: boolean;
+  order: number;
+  gatingRule?: string;
+  options: string[];
 }
 
 export async function fetchDeliveryApplication() {
@@ -356,12 +369,20 @@ export async function fetchDeliveryApplication() {
   return data;
 }
 
+export async function fetchRiderOnboardingFields() {
+  const res = await fetch(`${API_BASE}/api/rider/onboarding/fields`);
+  const data = (await res.json()) as { fields: OnboardingField[]; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to load fields');
+  return data;
+}
+
 export async function applyAsDeliveryPartner(payload: {
   deliveryMode: string;
   vehicle?: string;
   operatingArea: string;
   serviceRadiusMeters: number;
   kycSubmitted: boolean;
+  onboardingData?: Record<string, any>;
 }) {
   const res = await fetch(`${API_BASE}/api/rider/apply`, {
     method: 'POST',
