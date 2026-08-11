@@ -449,7 +449,7 @@ function DeliveryTab({ zones, onRefresh }: { zones: any[]; onRefresh: () => void
           >
             <div>
               <p className="font-bold text-white">{zone.name}</p>
-              <p className="text-sm text-white/60">{zone.type}</p>
+              <p className="text-sm text-white/60">{zone.type} • {zone._count?.orders ?? 0} active orders</p>
               <p className="text-sm text-white/60">Fee: {formatPrice(zone.feeKobo)}</p>
             </div>
             <button

@@ -271,7 +271,16 @@ router.post('/orders/:id/verify-payment', async (req: AuthRequest, res, next) =>
 
 router.get('/delivery-zones', async (_req, res, next) => {
   try {
-    const zones = await prisma.deliveryZone.findMany({ orderBy: { createdAt: 'desc' } });
+    const zones = await prisma.deliveryZone.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: {
+        _count: {
+          select: {
+            orders: { where: { status: { in: ['PAID', 'CONFIRMED', 'PREPARING', 'OUT_FOR_DELIVERY', 'PICKED_UP'] } } },
+          },
+        },
+      },
+    });
     res.json({ zones });
   } catch (err) {
     next(err);
