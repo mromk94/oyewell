@@ -5,6 +5,7 @@ import { paymentVerifySchema } from '../lib/validation.js';
 import { ApiError } from '../lib/errors.js';
 import { cache } from '../lib/cache.js';
 import { emitEvent } from '../lib/realtime.js';
+import { getCurrencies } from '../lib/money.js';
 
 const router = Router();
 
@@ -36,17 +37,19 @@ const PAYMENT_METHODS_CACHE_KEY = 'payments:methods:public';
 const PAYMENT_METHODS_TTL = 60;
 
 async function loadPublicPaymentMethods() {
-  const methods = await prisma.paymentMethodConfig.findMany({
-    where: { enabled: true },
-    orderBy: { name: 'asc' },
-  });
+  const [methods, currencies] = await Promise.all([
+    prisma.paymentMethodConfig.findMany({ where: { enabled: true }, orderBy: { name: 'asc' } }),
+    getCurrencies(),
+  ]);
   return {
+    currencies,
     methods: methods.map((m) => ({
       id: m.id,
       name: m.name,
       provider: m.provider,
       enabled: m.enabled,
       publicKey: m.publicKey,
+      currency: (m.config as any)?.currency ?? 'NGN',
       config: safePublicConfig(m.provider, m.config),
     })),
   };

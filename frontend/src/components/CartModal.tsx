@@ -14,7 +14,9 @@ import {
   type PaymentMethod,
   type CreatedOrder,
   type DeliveryResult,
+  type Currency,
 } from '../lib/api';
+import { formatKoboInCurrency } from '../lib/currency';
 import { useCart } from '../lib/cart';
 import { toast } from '../lib/toast';
 import { useAuth } from '../lib/auth';
@@ -37,25 +39,36 @@ function isManualProvider(provider: string) {
   return provider === 'BANK_TRANSFER' || provider === 'CRYPTO';
 }
 
-function PaymentDetails({ method }: { method: PaymentMethod }) {
+function PaymentDetails({ method, totalKobo, currencies }: { method: PaymentMethod; totalKobo: number; currencies: Currency[] }) {
   const config = method.config;
-  if (!isManualProvider(method.provider)) return null;
+  const converted = formatKoboInCurrency(totalKobo, method.currency ?? 'NGN', currencies);
 
   return (
     <div className='mt-3 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-sm'>
-      {method.provider === 'BANK_TRANSFER' ? (
-        <div className='space-y-1 text-white/80'>
-          {config?.accountName && <p><span className='text-white/60'>Account name:</span> {config.accountName}</p>}
-          {method.publicKey && <p className='break-all'><span className='text-white/60'>Account number:</span> {method.publicKey}</p>}
-          {config?.bankName && <p><span className='text-white/60'>Bank:</span> {config.bankName}</p>}
-          {config?.instructions && <p className='pt-1 italic text-white/70'>{config.instructions}</p>}
-        </div>
-      ) : (
-        <div className='space-y-1 text-white/80'>
-          {method.publicKey && <p className='break-all'><span className='text-white/60'>Wallet address:</span> {method.publicKey}</p>}
-          {config?.network && <p><span className='text-white/60'>Network:</span> {config.network}</p>}
-          {config?.instructions && <p className='pt-1 italic text-white/70'>{config.instructions}</p>}
-        </div>
+      <p className='text-white/80'>
+        <span className='text-white/60'>You pay:</span>{' '}
+        <span className='font-semibold text-white'>{converted}</span>
+        {method.currency && method.currency !== 'NGN' && (
+          <span className='ml-1 text-white/60'>({formatPrice(totalKobo)} NGN)</span>
+        )}
+      </p>
+      {isManualProvider(method.provider) && (
+        <>
+          {method.provider === 'BANK_TRANSFER' ? (
+            <div className='mt-2 space-y-1 text-white/80'>
+              {config?.accountName && <p><span className='text-white/60'>Account name:</span> {config.accountName}</p>}
+              {method.publicKey && <p className='break-all'><span className='text-white/60'>Account number:</span> {method.publicKey}</p>}
+              {config?.bankName && <p><span className='text-white/60'>Bank:</span> {config.bankName}</p>}
+              {config?.instructions && <p className='pt-1 italic text-white/70'>{config.instructions}</p>}
+            </div>
+          ) : (
+            <div className='mt-2 space-y-1 text-white/80'>
+              {method.publicKey && <p className='break-all'><span className='text-white/60'>Wallet address:</span> {method.publicKey}</p>}
+              {config?.network && <p><span className='text-white/60'>Network:</span> {config.network}</p>}
+              {config?.instructions && <p className='pt-1 italic text-white/70'>{config.instructions}</p>}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -69,6 +82,7 @@ export default function CartModal() {
   const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [loadingMethods, setLoadingMethods] = useState(false);
 
@@ -92,6 +106,7 @@ export default function CartModal() {
     fetchPaymentMethods()
       .then((data) => {
         setPaymentMethods(data.methods.filter((m) => m.enabled));
+        setCurrencies(data.currencies ?? []);
         setSelectedMethod(data.methods.find((m) => m.enabled) ?? null);
       })
       .catch(() => setError('Could not load payment methods'))
@@ -151,6 +166,7 @@ export default function CartModal() {
         address: address.trim(),
         phone: phone.trim(),
         paymentProvider: selectedMethod.provider,
+        paymentCurrency: selectedMethod.currency ?? 'NGN',
         deliveryType,
         lat: deliveryOptions[deliveryType]?.lat,
         lng: deliveryOptions[deliveryType]?.lng,
@@ -300,7 +316,7 @@ export default function CartModal() {
                   <p className='mt-1 text-sm text-white/60'>
                     Pay to the {order.payment.provider === 'BANK_TRANSFER' ? 'account' : 'address'} below, then upload proof.
                   </p>
-                  {selectedMethod && <PaymentDetails method={selectedMethod} />}
+                  {selectedMethod && <PaymentDetails method={selectedMethod} totalKobo={selectedDelivery?.totalKobo ?? totalKobo} currencies={currencies} />}
 
                   {proofUploaded ? (
                     <motion.div
@@ -573,7 +589,7 @@ export default function CartModal() {
                       ))}
                     </div>
                   )}
-                  {selectedMethod && <PaymentDetails method={selectedMethod} />}
+                  {selectedMethod && <PaymentDetails method={selectedMethod} totalKobo={selectedDelivery?.totalKobo ?? totalKobo} currencies={currencies} />}
                 </div>
               </div>
 
@@ -589,7 +605,7 @@ export default function CartModal() {
                     <Loader2 className='h-5 w-5 animate-spin' /> Placing order…
                   </span>
                 ) : (
-                  `Place order · ${formatPrice(totalKobo)}`
+                  `Place order · ${selectedMethod && selectedMethod.currency && selectedMethod.currency !== 'NGN' ? formatKoboInCurrency(selectedDelivery?.totalKobo ?? totalKobo, selectedMethod.currency, currencies) : formatPrice(totalKobo)}`
                 )}
               </button>
             </>

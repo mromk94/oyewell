@@ -177,6 +177,7 @@ export async function createOrder(
     address: string;
     phone: string;
     paymentProvider: string;
+    paymentCurrency?: string;
     deliveryType?: 'NEIGHBORHOOD' | 'PROFESSIONAL';
     lat?: number;
     lng?: number;
@@ -452,19 +453,29 @@ export async function fetchMyOrders() {
   return res.json() as Promise<{ orders: OrderSummary[] }>;
 }
 
+export interface Currency {
+  code: string;
+  name: string;
+  symbol: string;
+  rate: number;
+  decimals: number;
+  isDefault?: boolean;
+}
+
 export interface PaymentMethod {
   id: string;
   name: string;
   provider: string;
   enabled: boolean;
   publicKey?: string;
+  currency?: string;
   config?: any;
 }
 
 export async function fetchPaymentMethods() {
   const res = await fetch(`${API_BASE}/api/payments/methods`);
   if (!res.ok) throw new Error('Failed to load payment methods');
-  return res.json() as Promise<{ methods: PaymentMethod[] }>;
+  return res.json() as Promise<{ methods: PaymentMethod[]; currencies: Currency[] }>;
 }
 
 export async function updateProfile(profile: { firstName?: string; lastName?: string; phone?: string }) {

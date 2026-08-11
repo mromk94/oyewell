@@ -33,6 +33,7 @@ interface RestaurantOrderPayload {
   address: string;
   phone: string;
   paymentProvider: string;
+  paymentCurrency?: string;
   customerId?: string;
   deliveryType?: 'NEIGHBORHOOD' | 'PROFESSIONAL';
   idempotencyKey?: string;
@@ -47,6 +48,7 @@ interface CookOrderPayload {
   address: string;
   phone: string;
   paymentProvider: string;
+  paymentCurrency?: string;
   customerId?: string;
   deliveryType?: 'NEIGHBORHOOD' | 'PROFESSIONAL';
   idempotencyKey?: string;
@@ -57,7 +59,7 @@ interface CookOrderPayload {
 type OrderPayload = RestaurantOrderPayload | CookOrderPayload;
 
 async function createCookOrder(payload: CookOrderPayload) {
-  const { cookListingId, quantity, address, phone, paymentProvider, customerId, deliveryType = 'NEIGHBORHOOD', idempotencyKey, lat, lng } = payload;
+  const { cookListingId, quantity, address, phone, paymentProvider, paymentCurrency, customerId, deliveryType = 'NEIGHBORHOOD', idempotencyKey, lat, lng } = payload;
   const providedCoords = lat != null && lng != null ? { lat, lng } : undefined;
 
   if (idempotencyKey) {
@@ -149,7 +151,7 @@ async function createCookOrder(payload: CookOrderPayload) {
       },
     });
 
-    const payment = await createPaymentForOrder(tx, created.id, totalKobo, provider);
+    const payment = await createPaymentForOrder(tx, created.id, totalKobo, provider, paymentCurrency);
     return { ...created, payment };
   });
 
@@ -188,7 +190,7 @@ async function createCookOrder(payload: CookOrderPayload) {
 
 export async function createOrder(payload: OrderPayload) {
   if (payload.source === 'COOK') return createCookOrder(payload);
-  const { items, address, phone, paymentProvider, customerId, deliveryType = 'NEIGHBORHOOD', idempotencyKey, lat, lng } = payload;
+  const { items, address, phone, paymentProvider, paymentCurrency, customerId, deliveryType = 'NEIGHBORHOOD', idempotencyKey, lat, lng } = payload;
   const providedCoords = lat != null && lng != null ? { lat, lng } : undefined;
 
   if (idempotencyKey) {
@@ -321,7 +323,7 @@ export async function createOrder(payload: OrderPayload) {
       },
     });
 
-    const payment = await createPaymentForOrder(tx, created.id, totalKobo, provider);
+    const payment = await createPaymentForOrder(tx, created.id, totalKobo, provider, paymentCurrency);
 
     return { ...created, payment };
   });

@@ -27,6 +27,7 @@ const orderBase = z.object({
   address: z.string().min(3),
   phone: z.string().min(5),
   paymentProvider: z.string().min(1).default('MOCK'),
+  paymentCurrency: z.string().min(1).optional(),
   deliveryType: z.enum(['NEIGHBORHOOD', 'PROFESSIONAL']).default('NEIGHBORHOOD'),
   idempotencyKey: z.string().optional(),
   lat: z.coerce.number().min(-90).max(90).optional(),

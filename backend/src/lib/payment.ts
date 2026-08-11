@@ -4,21 +4,26 @@ import { ApiError } from './errors.js';
 import { getProvider } from './payment-providers.js';
 import { emitEvent } from './realtime.js';
 import { assertOrderTransition, afterOrderTransition } from './order-state.js';
+import { getCurrency, convertKoboToMinor, convertMinorToKobo } from './money.js';
 
 export async function createPaymentForOrder(
   prisma: PrismaClient | Prisma.TransactionClient,
   orderId: string,
   amountKobo: number,
   provider: PaymentProvider = PaymentProvider.MOCK,
+  currencyCode = 'NGN',
 ) {
   const adapter = getProvider(provider);
   const order = await prisma.order.findUnique({ where: { id: orderId }, select: { orderNumber: true, customer: { select: { email: true } } } });
   const email = order?.customer?.email ?? 'guest@oyewell.com';
   const idempotencyKey = crypto.randomUUID();
+  const currency = await getCurrency(currencyCode);
+  const foreignAmountMinor = convertKoboToMinor(amountKobo, currency);
+
   const providerPayment = await adapter.charge({
     orderNumber: order?.orderNumber ?? orderId,
-    amountKobo,
-    currency: 'NGN',
+    amountKobo: foreignAmountMinor,
+    currency: currency.code,
     idempotencyKey,
     email,
     metadata: { orderId },
@@ -28,10 +33,15 @@ export async function createPaymentForOrder(
     data: {
       orderId,
       amountKobo,
-      currency: 'NGN',
+      currency: currency.code,
       provider,
       status: providerPayment.status === 'SUCCESS' ? PaymentStatus.SUCCESS : PaymentStatus.PENDING,
       providerRef: providerPayment.providerRef,
+      metadata: {
+        rate: currency.rate,
+        decimals: currency.decimals,
+        foreignAmountMinor,
+      },
     },
   });
 }
@@ -186,10 +196,21 @@ export async function verifyPayment(
   }
 
   // Server-side amount/currency validation where the provider reports it.
-  if (verification.amountKobo != null && verification.amountKobo !== payment.amountKobo) {
-    throw new ApiError(400, 'Payment amount mismatch');
+  if (verification.amountKobo != null) {
+    let verifiedAmountKobo = verification.amountKobo;
+    if (payment.currency !== 'NGN') {
+      const meta = (payment.metadata as Record<string, unknown> | undefined) ?? {};
+      const rate = Number(meta.rate);
+      const decimals = Number(meta.decimals);
+      if (Number.isFinite(rate) && Number.isFinite(decimals)) {
+        verifiedAmountKobo = convertMinorToKobo(verification.amountKobo, { code: payment.currency, name: payment.currency, symbol: payment.currency, rate, decimals });
+      }
+    }
+    if (verifiedAmountKobo !== payment.amountKobo) {
+      throw new ApiError(400, 'Payment amount mismatch');
+    }
   }
-  if (verification.currency && verification.currency !== payment.currency) {
+  if (verification.currency && verification.currency.toUpperCase() !== payment.currency.toUpperCase()) {
     throw new ApiError(400, 'Payment currency mismatch');
   }
 

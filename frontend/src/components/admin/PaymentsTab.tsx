@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { toast } from '../../lib/toast';
 import { createPaymentMethod, updatePaymentMethod, deletePaymentMethod, fetchSettings, updateSettings } from '../../lib/admin';
+import type { Currency } from '../../lib/api';
 
 type MethodConfig = {
   secretKey?: string;
@@ -12,6 +13,7 @@ type MethodConfig = {
   bankName?: string;
   instructions?: string;
   network?: string;
+  currency?: string;
 };
 
 type MethodDraft = {
@@ -71,7 +73,7 @@ function providerFields(provider: string): FieldDef[] {
 }
 
 function emptyConfig(): MethodConfig {
-  return { testMode: true };
+  return { testMode: true, currency: 'NGN' };
 }
 
 function emptyDraft(): MethodDraft {
@@ -96,6 +98,7 @@ function methodToDraft(method: any): MethodDraft {
       bankName: rawConfig.bankName ?? '',
       instructions: rawConfig.instructions ?? '',
       network: rawConfig.network ?? '',
+      currency: rawConfig.currency ?? 'NGN',
     },
   };
 }
@@ -112,6 +115,9 @@ function buildConfig(draft: MethodDraft): MethodConfig {
       (cfg as any)[f.key] = value;
     }
   }
+  if (draft.config.currency) {
+    cfg.currency = draft.config.currency.trim().toUpperCase() || 'NGN';
+  }
   return cfg;
 }
 
@@ -120,6 +126,9 @@ export function PaymentsTab({ methods, onRefresh }: { methods: any[]; onRefresh:
   const [draft, setDraft] = useState<MethodDraft>(emptyDraft());
   const [platformFee, setPlatformFee] = useState<string>('5');
   const [savingFee, setSavingFee] = useState(false);
+  const [currencies, setCurrencies] = useState<Currency[]>([]);
+  const [currencyDraft, setCurrencyDraft] = useState<Partial<Currency>>({});
+  const [savingCurrencies, setSavingCurrencies] = useState(false);
 
   const closeForm = () => {
     setMode('closed');
@@ -134,6 +143,7 @@ export function PaymentsTab({ methods, onRefresh }: { methods: any[]; onRefresh:
         if (Number.isFinite(fee) && fee >= 0) {
           setPlatformFee(String(fee));
         }
+        setCurrencies((map.currencies as Currency[]) ?? []);
       })
       .catch(() => {});
   }, []);
@@ -156,6 +166,46 @@ export function PaymentsTab({ methods, onRefresh }: { methods: any[]; onRefresh:
     } finally {
       setSavingFee(false);
     }
+  }
+
+  async function saveCurrencies(next: Currency[]) {
+    setSavingCurrencies(true);
+    try {
+      const { settings } = await fetchSettings();
+      const map = (settings?.mapSettings as Record<string, unknown>) ?? {};
+      await updateSettings({ mapSettings: { ...map, currencies: next } });
+      setCurrencies(next);
+      toast.success('Currencies saved.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not save currencies.');
+    } finally {
+      setSavingCurrencies(false);
+    }
+  }
+
+  function handleAddCurrency(e: React.FormEvent) {
+    e.preventDefault();
+    const code = String(currencyDraft.code ?? '').trim().toUpperCase();
+    const name = String(currencyDraft.name ?? '').trim();
+    const symbol = String(currencyDraft.symbol ?? '').trim();
+    const rate = Number(currencyDraft.rate);
+    const decimals = Number.isFinite(Number(currencyDraft.decimals)) ? Number(currencyDraft.decimals) : 2;
+    if (!code || !name || !Number.isFinite(rate) || rate <= 0) {
+      toast.error('Currency code, name, and a positive rate are required.');
+      return;
+    }
+    if (currencies.find((c) => c.code === code)) {
+      toast.error('Currency code already exists.');
+      return;
+    }
+    const next = [...currencies, { code, name, symbol: symbol || code, rate, decimals }];
+    void saveCurrencies(next);
+    setCurrencyDraft({});
+  }
+
+  function handleRemoveCurrency(code: string) {
+    const next = currencies.filter((c) => c.code !== code);
+    void saveCurrencies(next);
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -318,6 +368,93 @@ export function PaymentsTab({ methods, onRefresh }: { methods: any[]; onRefresh:
         </div>
       </form>
 
+      <form onSubmit={handleAddCurrency} className='mt-6 rounded-2xl border border-white/10 bg-white/5 p-6'>
+        <h3 className='text-lg font-bold text-white'>Currencies</h3>
+        <p className='text-sm text-white/60'>Base is NGN (₦). Rate = how many NGN equal 1 unit of the foreign currency.</p>
+        <div className='mt-4 grid gap-4 sm:grid-cols-6'>
+          <label className='sm:col-span-1'>
+            <span className='text-sm font-medium text-white/90'>Code</span>
+            <input
+              value={currencyDraft.code ?? ''}
+              onChange={(e) => setCurrencyDraft((d) => ({ ...d, code: e.target.value }))}
+              placeholder='USD'
+              className='mt-1 w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white uppercase'
+            />
+          </label>
+          <label className='sm:col-span-2'>
+            <span className='text-sm font-medium text-white/90'>Name</span>
+            <input
+              value={currencyDraft.name ?? ''}
+              onChange={(e) => setCurrencyDraft((d) => ({ ...d, name: e.target.value }))}
+              placeholder='US Dollar'
+              className='mt-1 w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white'
+            />
+          </label>
+          <label className='sm:col-span-1'>
+            <span className='text-sm font-medium text-white/90'>Symbol</span>
+            <input
+              value={currencyDraft.symbol ?? ''}
+              onChange={(e) => setCurrencyDraft((d) => ({ ...d, symbol: e.target.value }))}
+              placeholder='$'
+              className='mt-1 w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white'
+            />
+          </label>
+          <label className='sm:col-span-1'>
+            <span className='text-sm font-medium text-white/90'>Rate</span>
+            <input
+              type='number'
+              min='0.000001'
+              step='any'
+              value={currencyDraft.rate ?? ''}
+              onChange={(e) => setCurrencyDraft((d) => ({ ...d, rate: Number(e.target.value) }))}
+              placeholder='1550'
+              className='mt-1 w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white'
+            />
+          </label>
+          <label className='sm:col-span-1'>
+            <span className='text-sm font-medium text-white/90'>Decimals</span>
+            <input
+              type='number'
+              min='0'
+              value={currencyDraft.decimals ?? 2}
+              onChange={(e) => setCurrencyDraft((d) => ({ ...d, decimals: Number(e.target.value) }))}
+              className='mt-1 w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white'
+            />
+          </label>
+        </div>
+        <div className='mt-4'>
+          <button
+            type='submit'
+            disabled={savingCurrencies}
+            className='rounded-full bg-white px-6 py-2 font-bold text-black disabled:opacity-50'
+          >
+            {savingCurrencies ? 'Saving…' : 'Add currency'}
+          </button>
+        </div>
+        {currencies.length > 0 && (
+          <div className='mt-4 space-y-2'>
+            {currencies.map((c) => (
+              <div key={c.code} className='flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 p-3'>
+                <div className='text-sm text-white/80'>
+                  <span className='font-semibold text-white'>{c.code}</span> — {c.name}{' '}
+                  <span className='text-white/60'>({c.symbol}) 1 {c.code} = {c.rate} NGN · {c.decimals} decimals</span>
+                </div>
+                {c.code !== 'NGN' && (
+                  <button
+                    type='button'
+                    onClick={() => handleRemoveCurrency(c.code)}
+                    disabled={savingCurrencies}
+                    className='text-sm text-red-300 hover:text-red-200 disabled:opacity-50'
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </form>
+
       {isFormOpen && (
         <form onSubmit={handleSave} className='mt-6 rounded-2xl border border-white/10 bg-white/5 p-6'>
           <h3 className='text-lg font-bold text-white'>{draft.id ? 'Edit payment method' : 'Add payment method'}</h3>
@@ -346,6 +483,22 @@ export function PaymentsTab({ methods, onRefresh }: { methods: any[]; onRefresh:
                     {p.label}
                   </option>
                 ))}
+              </select>
+            </label>
+
+            <label className='block'>
+              <span className='text-sm font-medium text-white/90'>Currency</span>
+              <select
+                value={draft.config.currency ?? 'NGN'}
+                onChange={(e) => setConfigField('currency', e.target.value.toUpperCase())}
+                className='mt-1 w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white'
+              >
+                {currencies.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.code} — {c.name}
+                  </option>
+                ))}
+                <option value='NGN'>NGN — Nigerian Naira</option>
               </select>
             </label>
           </div>
