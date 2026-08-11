@@ -1,8 +1,22 @@
 import { prisma } from '../prisma.js';
+import type { Request, Response, NextFunction } from 'express';
+
+export interface AuthRequest extends Request {
+  user?: { id: string; email: string; role: string; roles: string[] };
+}
 
 export interface PermissionCheck {
   userId: string;
   key: string;
+}
+
+export function requireOwnerOrEmployee(canAccess: (userId: string) => Promise<boolean>) {
+  return async (req: AuthRequest, res: Response, next: NextFunction) => {
+    if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
+    const ok = await canAccess(req.user.id).catch(() => false);
+    if (!ok) return res.status(403).json({ error: 'Forbidden' });
+    next();
+  };
 }
 
 export async function hasPermission({ userId, key }: PermissionCheck): Promise<boolean> {
@@ -19,7 +33,7 @@ export async function hasPermission({ userId, key }: PermissionCheck): Promise<b
     },
   });
   if (!employee || employee.status !== 'ACTIVE') return false;
-  return employee.tier.permissions.some((p) => p.permission.key === key);
+  return employee.tier.permissions.some((p: { permission: { key: string } }) => p.permission.key === key);
 }
 
 export async function requirePermission({ userId, key }: PermissionCheck): Promise<void> {
@@ -41,7 +55,7 @@ export async function getEmployeePermissions(userId: string) {
     },
   });
   if (!employee || employee.status !== 'ACTIVE') return [];
-  return employee.tier.permissions.map((p) => p.permission);
+  return employee.tier.permissions.map((p: { permission: { key: string; scope: string; description: string | null } }) => p.permission);
 }
 
 export async function getEmployeeLimits(userId: string): Promise<Record<string, number> | null> {

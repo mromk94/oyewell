@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { ApiError } from '../lib/errors.js';
 import { createTicket, getTickets, getTicket, updateTicketStatus, assignTicket, addTicketMessage } from '../lib/ticketing.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
+import { hasPermission } from '../lib/management.js';
 
 const router = Router();
 
@@ -17,10 +18,13 @@ router.get('/', async (req: AuthRequest, res, next) => {
   }
 });
 
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', async (req: AuthRequest, res, next) => {
   try {
     const ticket = await getTicket(req.params.id);
     if (!ticket) throw new ApiError(404, 'Ticket not found');
+    const isOwner = ticket.customerId === req.user!.id;
+    const isEmployee = await hasPermission({ userId: req.user!.id, key: 'TICKET_VIEW' }).catch(() => false);
+    if (!isOwner && !isEmployee) throw new ApiError(403, 'Forbidden');
     res.json({ ticket });
   } catch (e) {
     next(e);
