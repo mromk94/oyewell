@@ -96,26 +96,72 @@ model DeliveryZone {
 }
 
 model Rider {
-  id                String   @id @default(cuid())
-  user              User     @relation(fields: [userId], references: [id])
-  userId            String   @unique
-  vehicle           String?
-  bankName          String?
-  bankAccountName   String?
-  bankAccountNumber String?
-  isActive          Boolean  @default(true)
-  available         Boolean  @default(true)
-  isApproved        Boolean         @default(false)
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
-  orders            Order[]
-  location          RiderLocation?
+  id                         String            @id @default(cuid())
+  user                       User              @relation(fields: [userId], references: [id])
+  userId                     String            @unique
+  vehicle                    String?
+  bankName                   String?
+  bankAccountName            String?
+  bankAccountNumber          String?
+  isActive                   Boolean           @default(true)
+  available                  Boolean           @default(true)
+  isApproved                 Boolean           @default(false)
+  neighborhoodApproval       PartnerApproval   @default(PENDING)
+  professionalApproval       PartnerApproval   @default(NOT_APPLIED)
+  professionalUpgradeStatus  String            @default("")
+  canAcceptNeighborhood      Boolean           @default(false)
+  deliveryMode               DeliveryMode      @default(MOTORCYCLE)
+  serviceRadiusMeters        Int               @default(5000)
+  operatingArea              String?
+  kycStatus                  KycStatus         @default(NOT_STARTED)
+  operationalStatus          OperationalStatus @default(OFFLINE)
+  location                   RiderLocation?
+  inspections                RiderInspection[]
+  createdAt                  DateTime          @default(now())
+  updatedAt                  DateTime          @updatedAt
+  orders                     Order[]
 }
 
 enum OrderSource {
   RESTAURANT
   COOK
   OTHER_FUTURE
+}
+
+enum DeliveryType {
+  NEIGHBORHOOD
+  PROFESSIONAL
+}
+
+enum DeliveryMode {
+  WALK
+  BICYCLE
+  MOTORCYCLE
+  CAR
+}
+
+enum PartnerApproval {
+  NOT_APPLIED
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum OperationalStatus {
+  OFFLINE
+  ONLINE
+  BUSY
+}
+
+enum KycStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  NEEDS_INFORMATION
 }
 
 model Order {
@@ -136,6 +182,7 @@ model Order {
   phone                    String
   deliveryZone             DeliveryZone?        @relation(fields: [deliveryZoneId], references: [id])
   deliveryZoneId           String?
+  deliveryType             DeliveryType         @default(NEIGHBORHOOD)
   deliveryFeeKobo          Int
   subtotalKobo             Int
   totalKobo                Int
@@ -150,6 +197,7 @@ model Order {
   riderId                  String?
   riderStatus              String               @default("UNASSIGNED")
   riderFeeKobo             Int                  @default(0)
+  riderFeeBasis            DeliveryType?        @default(NEIGHBORHOOD)
   riderPaid                Boolean              @default(false)
   cookAcceptedAt           DateTime?
   cookReadyAt              DateTime?
@@ -160,6 +208,7 @@ model Order {
 
   @@index([cookId, status])
   @@index([customerId, createdAt])
+  @@index([deliveryType, status, riderId])
 }
 
 model OrderItem {
@@ -459,6 +508,23 @@ model CookEarning {
   updatedAt   DateTime          @updatedAt
 }
 
+model RiderInspection {
+  id            String   @id @default(cuid())
+  rider         Rider    @relation(fields: [riderId], references: [id], onDelete: Cascade)
+  riderId       String
+  scheduledAt   DateTime?
+  inspectedAt   DateTime?
+  inspector     String?
+  result        String   @default("PENDING")
+  notes         String?
+  photos        String[]
+  nextInspectionAt DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([riderId])
+}
+
 model RiderLocation {
   id        String   @id @default(cuid())
   rider     Rider    @relation(fields: [riderId], references: [id], onDelete: Cascade)
@@ -466,4 +532,6 @@ model RiderLocation {
   latitude  Float
   longitude Float
   updatedAt DateTime @updatedAt
+
+  @@index([latitude, longitude])
 }
