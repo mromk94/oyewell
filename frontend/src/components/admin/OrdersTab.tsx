@@ -36,6 +36,10 @@ export function OrdersTab({ orders, onRefresh }: { orders: any[]; onRefresh: () 
   const [riderFee, setRiderFee] = useState('');
   const [ridersLoading, setRidersLoading] = useState(false);
 
+  const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [detail, setDetail] = useState<any | null>(null);
+
   async function handleStatusChange(order: any, status: string) {
     try {
       await updateOrderStatus(order.id, status);
@@ -99,19 +103,53 @@ export function OrdersTab({ orders, onRefresh }: { orders: any[]; onRefresh: () 
     }
   }
 
+  const visible = orders.filter((order: any) => {
+    const q = query.trim().toLowerCase();
+    const matchesQuery =
+      !q ||
+      order.orderNumber?.toLowerCase().includes(q) ||
+      order.customer?.email?.toLowerCase().includes(q) ||
+      order.customer?.phone?.toLowerCase().includes(q) ||
+      order.items?.some((i: any) => i.foodName?.toLowerCase().includes(q));
+    const matchesStatus = !statusFilter || order.status === statusFilter;
+    return matchesQuery && matchesStatus;
+  });
+
   return (
     <div>
       <h2 className='text-2xl font-bold text-white'>Orders</h2>
       <p className='text-sm text-white/60'>Review, update and verify payments.</p>
 
+      <div className='mt-4 flex flex-col gap-3 sm:flex-row'>
+        <input
+          type='text'
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder='Search order number, customer, item...'
+          className='flex-1 rounded-2xl border border-white/20 bg-white/5 p-3 text-sm text-white placeholder-white/40 outline-none focus:border-white'
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className='rounded-2xl border border-white/20 bg-white/5 p-3 text-sm text-white outline-none focus:border-white'
+        >
+          <option value='' className='bg-brand-900'>All statuses</option>
+          {STATUSES.map((s) => (
+            <option key={s} value={s} className='bg-brand-900'>
+              {s.replace(/_/g, ' ')}
+            </option>
+          ))}
+        </select>
+      </div>
+
       <div className='mt-6 space-y-4'>
-        {orders.length === 0 && (
+        {visible.length === 0 && (
           <div className='rounded-2xl border border-white/10 bg-white/5 p-8 text-center text-white/70'>
-            No orders yet.
+            No orders match.
           </div>
         )}
 
-        {orders.map((order) => (
+        {visible.map((order) => (
           <div key={order.id} className='rounded-2xl border border-white/10 bg-white/5 p-4'>
             <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
               <div>
@@ -146,6 +184,12 @@ export function OrdersTab({ orders, onRefresh }: { orders: any[]; onRefresh: () 
                     {order.payment.provider}
                   </span>
                 )}
+                <button
+                  onClick={() => setDetail(order)}
+                  className='rounded-full border border-white/20 px-3 py-1 text-xs font-bold text-white transition hover:bg-white/10'
+                >
+                  View
+                </button>
               </div>
             </div>
 
@@ -335,6 +379,61 @@ export function OrdersTab({ orders, onRefresh }: { orders: any[]; onRefresh: () 
                   {assigning.riderId ? 'Reassign' : 'Assign rider'}
                 </button>
               </div>
+            </motion.div>
+          </div>,
+          document.body
+        )}
+
+      {detail &&
+        createPortal(
+          <div
+            className='fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm'
+            onClick={() => setDetail(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              onClick={(e) => e.stopPropagation()}
+              className='w-full max-w-2xl rounded-3xl border border-white/10 bg-brand-900 p-6 shadow-2xl'
+            >
+              <div className='flex items-center justify-between'>
+                <h3 className='text-xl font-bold text-white'>{detail.orderNumber}</h3>
+                <button onClick={() => setDetail(null)} className='rounded-full bg-white/10 p-2 text-white hover:bg-white/20'>
+                  <XCircle className='h-5 w-5' />
+                </button>
+              </div>
+              <p className='mt-1 text-white/60'>{detail.customer?.email ?? detail.customer?.phone ?? 'Unknown customer'}</p>
+              <p className='mt-2 text-2xl font-bold text-white'>{formatPrice(detail.totalKobo)}</p>
+
+              <div className='mt-4 grid gap-4 sm:grid-cols-2'>
+                <div className='rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80'>
+                  <p><span className='text-white/50'>Status:</span> {detail.status.replace(/_/g, ' ')}</p>
+                  <p><span className='text-white/50'>Payment:</span> {detail.paymentStatus} {detail.payment?.provider ? `· ${detail.payment.provider}` : ''}</p>
+                  <p><span className='text-white/50'>Created:</span> {new Date(detail.createdAt).toLocaleString()}</p>
+                  <p><span className='text-white/50'>Address:</span> {detail.address || '—'}</p>
+                </div>
+                <div className='rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-white/80'>
+                  <p className='text-white/50'>Rider</p>
+                  <p>{detail.rider?.user?.firstName || detail.rider?.user?.email || 'Unassigned'}</p>
+                  {detail.riderFeeKobo ? <p>{formatPrice(detail.riderFeeKobo)} rider fee</p> : null}
+                </div>
+              </div>
+
+              <div className='mt-4 rounded-2xl border border-white/10 bg-white/5 p-4'>
+                <p className='text-sm text-white/50'>Items</p>
+                <div className='mt-2 space-y-1 text-sm text-white/80'>
+                  {detail.items?.map((item: any, idx: number) => (
+                    <p key={idx}>{item.foodName} × {item.quantity} · {formatPrice(item.subtotalKobo ?? 0)}</p>
+                  ))}
+                </div>
+              </div>
+
+              {detail.notes && (
+                <div className='mt-4 rounded-2xl border border-white/10 bg-white/5 p-4'>
+                  <p className='text-sm text-white/50'>Notes</p>
+                  <p className='mt-1 text-white/80'>{detail.notes}</p>
+                </div>
+              )}
             </motion.div>
           </div>,
           document.body

@@ -576,12 +576,32 @@ function RidersTab({ riders, onRefresh }: { riders: any[]; onRefresh: () => void
 
 function CustomersTab({ customers, onRefresh }: { customers: any[]; onRefresh: () => void }) {
   const [selected, setSelected] = useState<any | null>(null);
+  const [query, setQuery] = useState('');
+
+  const visible = customers.filter((customer) => {
+    const q = query.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      customer.firstName?.toLowerCase().includes(q) ||
+      customer.lastName?.toLowerCase().includes(q) ||
+      customer.email?.toLowerCase().includes(q) ||
+      customer.phone?.toLowerCase().includes(q) ||
+      customer.role?.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div>
       <h2 className="text-2xl font-bold text-white">Customers</h2>
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search name, email, phone..."
+        className="mt-4 w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white placeholder-white/40 outline-none focus:border-white"
+      />
       <div className="mt-6 space-y-4">
-        {customers.map((customer) => (
+        {visible.map((customer) => (
           <div
             key={customer.id}
             className="rounded-2xl border border-white/10 bg-white/5 p-4"

@@ -7,7 +7,9 @@ export default function ModerationPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [activeTab, setActiveTab] = useState<'tickets' | 'disputes'>('tickets');
+  const [selected, setSelected] = useState<any | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -26,15 +28,19 @@ export default function ModerationPanel() {
 
   const rows = useMemo(() => {
     const source = activeTab === 'tickets' ? tickets : disputes;
-    if (!filter.trim()) return source;
-    const q = filter.toLowerCase();
-    return source.filter((r) =>
-      (r.ticketNumber ?? r.disputeNumber ?? '').toLowerCase().includes(q) ||
-      (r.category ?? r.type ?? '').toLowerCase().includes(q) ||
-      (r.subject ?? r.description ?? '').toLowerCase().includes(q) ||
-      (r.status ?? '').toLowerCase().includes(q)
-    );
-  }, [filter, activeTab, tickets, disputes]);
+    return source.filter((r) => {
+      const matchesStatus = !statusFilter || r.status === statusFilter;
+      if (!filter.trim()) return matchesStatus;
+      const q = filter.toLowerCase();
+      return (
+        matchesStatus &&
+        ((r.ticketNumber ?? r.disputeNumber ?? '').toLowerCase().includes(q) ||
+          (r.category ?? r.type ?? '').toLowerCase().includes(q) ||
+          (r.subject ?? r.description ?? '').toLowerCase().includes(q) ||
+          (r.status ?? '').toLowerCase().includes(q))
+      );
+    });
+  }, [filter, statusFilter, activeTab, tickets, disputes]);
 
   async function closeTicket(id: string) {
     try {
@@ -74,13 +80,24 @@ export default function ModerationPanel() {
           Disputes ({disputes.length})
         </button>
       </div>
-      <input
-        type="text"
-        placeholder="Search by number, category, status..."
-        value={filter}
-        onChange={(e) => setFilter(e.target.value)}
-        className="w-full rounded-lg border border-gray-300 p-3 text-sm"
-      />
+      <div className="flex gap-3">
+        <input
+          type="text"
+          placeholder="Search by number, category, status..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="flex-1 rounded-lg border border-gray-300 p-3 text-sm"
+        />
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="rounded-lg border border-gray-300 bg-white p-3 text-sm text-gray-700"
+        >
+          <option value="">All statuses</option>
+          <option value="OPEN">Open</option>
+          <option value="RESOLVED">Resolved</option>
+        </select>
+      </div>
       <div className="bg-white rounded-xl shadow overflow-hidden">
         <table className="min-w-full text-left text-sm">
           <thead className="bg-gray-50 text-gray-600">
@@ -102,16 +119,21 @@ export default function ModerationPanel() {
                 </td>
                 <td className="p-3 text-gray-500">{new Date(row.createdAt).toLocaleString()}</td>
                 <td className="p-3">
-                  {activeTab === 'tickets' && row.status !== 'RESOLVED' && (
-                    <button onClick={() => closeTicket(row.id)} className="text-xs text-orange-600 hover:underline">
-                      Resolve
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setSelected(row)} className="text-xs text-gray-600 hover:underline">
+                      View
                     </button>
-                  )}
-                  {activeTab === 'disputes' && row.status !== 'RESOLVED' && (
-                    <button onClick={() => resolveDisputeById(row.id)} className="text-xs text-orange-600 hover:underline">
-                      Resolve
-                    </button>
-                  )}
+                    {activeTab === 'tickets' && row.status !== 'RESOLVED' && (
+                      <button onClick={() => closeTicket(row.id)} className="text-xs text-orange-600 hover:underline">
+                        Resolve
+                      </button>
+                    )}
+                    {activeTab === 'disputes' && row.status !== 'RESOLVED' && (
+                      <button onClick={() => resolveDisputeById(row.id)} className="text-xs text-orange-600 hover:underline">
+                        Resolve
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
@@ -121,6 +143,35 @@ export default function ModerationPanel() {
           <div className="p-6 text-center text-gray-500">No {activeTab} found.</div>
         )}
       </div>
+
+      {selected && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onClick={() => setSelected(null)}
+        >
+          <div
+            className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold text-gray-800">
+                {selected.ticketNumber ?? selected.disputeNumber}
+              </h3>
+              <button onClick={() => setSelected(null)} className="text-gray-500 hover:text-gray-800">
+                Close
+              </button>
+            </div>
+            <div className="mt-4 space-y-2 text-sm text-gray-700">
+              <p><span className="font-semibold">Type:</span> {selected.category ?? selected.type}</p>
+              <p><span className="font-semibold">Status:</span> {selected.status}</p>
+              <p><span className="font-semibold">Created:</span> {new Date(selected.createdAt).toLocaleString()}</p>
+              {selected.subject && <p><span className="font-semibold">Subject:</span> {selected.subject}</p>}
+              {selected.description && <p><span className="font-semibold">Description:</span> {selected.description}</p>}
+              {selected.resolution && <p><span className="font-semibold">Resolution:</span> {selected.resolution}</p>}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
