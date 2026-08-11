@@ -50,7 +50,7 @@ const PAYMENT_COLORS: Record<string, string> = {
 };
 
 export default function Account() {
-  const { isAuthenticated, openAuth, logout, customer } = useAuth();
+  const { isAuthenticated, openAuth, logout, customer, loading: authLoading } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [orders, setOrders] = useState<OrderSummary[]>([]);
   const [deliveryApp, setDeliveryApp] = useState<DeliveryApplication | null>(null);
@@ -59,6 +59,7 @@ export default function Account() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!isAuthenticated) {
       setLoading(false);
       openAuth();
@@ -66,7 +67,7 @@ export default function Account() {
     }
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [isAuthenticated, authLoading]);
 
   async function load() {
     setLoading(true);
@@ -87,7 +88,7 @@ export default function Account() {
     logout();
   }
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className='flex h-screen w-full items-center justify-center bg-brand-900'>
         <Loader2 className='h-10 w-10 animate-spin text-white/70' />

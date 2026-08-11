@@ -39,8 +39,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { user } = await fetchMe();
       setCustomer(user);
-    } catch {
-      removeCustomerToken();
+    } catch (err) {
+      const shouldClear = err instanceof Error && (err.message === 'Unauthorized' || err.message.includes('Invalid token'));
+      if (shouldClear) removeCustomerToken();
       setCustomer(null);
     } finally {
       setLoading(false);

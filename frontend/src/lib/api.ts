@@ -410,6 +410,7 @@ export async function login(email: string, password: string) {
 
 export async function fetchMe() {
   const res = await fetch(`${API_BASE}/api/auth/me`, { headers: authHeaders(getCustomerToken()) });
+  if (res.status === 401) throw new Error('Unauthorized');
   if (!res.ok) throw new Error('Failed to load profile');
   return res.json() as Promise<{ user: User }>;
 }
