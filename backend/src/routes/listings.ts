@@ -93,20 +93,27 @@ router.get('/around-me', async (req, res, next) => {
 
     // Local-first discovery rings
     const rings = customRadiusKm ? [customRadiusKm * 1000] : LOCAL_SEARCH_RINGS_METERS;
-    let selected = withDistance;
-    let matchedRadius = rings[rings.length - 1];
-    for (const r of rings) {
-      const within = withDistance.filter((l) => l.distanceMeters <= r);
-      if (within.length >= minResults) {
-        selected = within;
-        matchedRadius = r;
-        break;
+    const ringLabels = ['Around you', 'Nearby', 'More options'];
+    const sections: { label: string; radiusMeters: number; listings: typeof withDistance }[] = [];
+    let lastEnd = 0;
+
+    for (let i = 0; i < rings.length; i++) {
+      const r = rings[i];
+      const bucket = withDistance.filter((l) => l.distanceMeters > lastEnd && l.distanceMeters <= r);
+      if (bucket.length) {
+        sections.push({ label: ringLabels[i] ?? `Within ${r}m`, radiusMeters: r, listings: bucket });
       }
-      selected = within;
-      matchedRadius = r;
+      lastEnd = r;
     }
 
-    res.json({ listings: selected, center: { lat, lng }, radiusMeters: matchedRadius });
+    // Fallback: if overall nearby is insufficient, also include closest options beyond the last ring
+    const fallback = withDistance.length < minResults;
+    if (fallback && withDistance.length > 0) {
+      const best = withDistance.slice(0, Math.min(minResults, withDistance.length));
+      sections.push({ label: 'Closest available', radiusMeters: best[best.length - 1]?.distanceMeters ?? 0, listings: best });
+    }
+
+    res.json({ sections, fallback, center: { lat, lng }, total: withDistance.length });
   } catch (err) {
     next(err);
   }
