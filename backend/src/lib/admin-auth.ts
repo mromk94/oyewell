@@ -10,14 +10,17 @@ export function adminLoginRateLimit(req: Request, res: Response, next: NextFunct
   const now = Date.now();
   const record = attempts.get(key);
 
-  if (record && record.until > now) {
+  if (record && record.count >= MAX_ATTEMPTS && record.until > now) {
     res.status(429).json({ error: 'Too many failed admin login attempts. Try again later.' });
     return;
   }
 
   res.once('finish', () => {
     if (res.statusCode === 401) {
-      const current = attempts.get(key) ?? { count: 0, until: 0 };
+      let current = attempts.get(key);
+      if (!current || now > current.until) {
+        current = { count: 0, until: 0 };
+      }
       current.count += 1;
       if (current.count >= MAX_ATTEMPTS) {
         current.until = now + LOCKOUT_MS;
