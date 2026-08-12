@@ -1,20 +1,26 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { useAuth } from '../lib/auth';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp, type NavigationProp } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, radii, spacing, fontSizes } from '../theme';
+import { Logo } from '../components/Logo';
 import { forgotPassword, resetPassword } from '../lib/api';
+import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type Mode = 'signin' | 'register' | 'forgot';
 
 export function AuthScreen() {
   const { login, register } = useAuth();
-  const navigation = useNavigation();
-  const [mode, setMode] = useState<Mode>('signin');
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const { params } = useRoute<RouteProp<RootStackParamList, 'Auth'>>();
+  const initialMode = params?.mode ?? 'signin';
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [phone, setPhone] = useState('');
   const [resetToken, setResetToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +35,7 @@ export function AuthScreen() {
         await login(email, password);
         navigation.navigate('MainTabs' as never);
       } else if (mode === 'register') {
-        await register({ email, password, firstName, lastName });
+        await register({ email, password, firstName, lastName, phone });
         navigation.navigate('MainTabs' as never);
       } else if (mode === 'forgot') {
         if (!resetToken) {
@@ -50,92 +56,121 @@ export function AuthScreen() {
     }
   }
 
+  function switchMode(next: Mode) {
+    setMode(next);
+    setError(null);
+    setSuccess(null);
+  }
+
+  const title = mode === 'signin' ? 'Welcome back' : mode === 'register' ? 'Create an account' : 'Reset password';
+  const subtitle = mode === 'signin' ? 'Sign in to your OYE Well account.' : mode === 'register' ? 'Save your details and track orders.' : 'Enter your email to receive a reset code.';
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>
-        {mode === 'signin' ? 'Welcome back' : mode === 'register' ? 'Create account' : 'Reset password'}
-      </Text>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex}>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+          <Logo />
+          <View style={styles.card}>
+            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.subtitle}>{subtitle}</Text>
 
-      {mode === 'register' && (
-        <>
-          <TextInput style={styles.input} placeholder="First name" placeholderTextColor={colors.muted} value={firstName} onChangeText={setFirstName} />
-          <TextInput style={styles.input} placeholder="Last name" placeholderTextColor={colors.muted} value={lastName} onChangeText={setLastName} />
-        </>
-      )}
+            {error && <Text style={styles.error}>{error}</Text>}
+            {success && <Text style={styles.success}>{success}</Text>}
 
-      <TextInput
-        style={styles.input}
-        placeholder="Email"
-        placeholderTextColor={colors.muted}
-        autoCapitalize="none"
-        keyboardType="email-address"
-        value={email}
-        onChangeText={setEmail}
-      />
+            {mode === 'register' && (
+              <>
+                <TextInput style={styles.input} placeholder="First name" placeholderTextColor={colors.muted} value={firstName} onChangeText={setFirstName} />
+                <TextInput style={styles.input} placeholder="Last name" placeholderTextColor={colors.muted} value={lastName} onChangeText={setLastName} />
+                <TextInput style={styles.input} placeholder="Phone" placeholderTextColor={colors.muted} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+              </>
+            )}
 
-      {mode === 'forgot' && (
-        <>
-          <TextInput
-            style={styles.input}
-            placeholder="Reset code (from email)"
-            placeholderTextColor={colors.muted}
-            value={resetToken}
-            onChangeText={setResetToken}
-          />
-          {resetToken && (
             <TextInput
               style={styles.input}
-              placeholder="New password"
+              placeholder="Email"
               placeholderTextColor={colors.muted}
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
             />
-          )}
-        </>
-      )}
 
-      {mode !== 'forgot' && (
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          placeholderTextColor={colors.muted}
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
-        />
-      )}
+            {mode === 'forgot' && (
+              <TextInput
+                style={styles.input}
+                placeholder="Reset code (from email)"
+                placeholderTextColor={colors.muted}
+                value={resetToken}
+                onChangeText={setResetToken}
+              />
+            )}
 
-      {error && <Text style={styles.error}>{error}</Text>}
-      {success && <Text style={styles.success}>{success}</Text>}
+            {mode !== 'forgot' && (
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor={colors.muted}
+                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+              />
+            )}
 
-      <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={loading}>
-        {loading ? <ActivityIndicator color={colors.brand900} /> : <Text style={styles.buttonText}>{mode === 'signin' ? 'Sign In' : mode === 'register' ? 'Register' : resetToken ? 'Update password' : 'Request reset'}</Text>}
-      </TouchableOpacity>
+            {mode === 'forgot' && resetToken && (
+              <TextInput
+                style={styles.input}
+                placeholder="New password"
+                placeholderTextColor={colors.muted}
+                secureTextEntry
+                value={password}
+                onChangeText={setPassword}
+              />
+            )}
 
-      <View style={styles.switches}>
-        <TouchableOpacity onPress={() => setMode('signin')}>
-          <Text style={styles.switch}>Sign in</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setMode('register')}>
-          <Text style={styles.switch}>Create account</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => setMode('forgot')}>
-          <Text style={styles.switch}>Forgot password?</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+            <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={loading}>
+              {loading ? <ActivityIndicator color={colors.black} /> : <Text style={styles.buttonText}>{mode === 'signin' ? 'Sign in' : mode === 'register' ? 'Register' : resetToken ? 'Update password' : 'Request reset'}</Text>}
+            </TouchableOpacity>
+
+            <View style={styles.footer}>
+              {mode === 'signin' ? (
+                <>
+                  <TouchableOpacity onPress={() => switchMode('forgot')}>
+                    <Text style={styles.link}>Forgot password?</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.footerText}>
+                    Don't have an account? <Text style={styles.link} onPress={() => switchMode('register')}>Register</Text>
+                  </Text>
+                </>
+              ) : mode === 'register' ? (
+                <Text style={styles.footerText}>
+                  Already have an account? <Text style={styles.link} onPress={() => switchMode('signin')}>Sign in</Text>
+                </Text>
+              ) : (
+                <Text style={styles.footerText}>
+                  <Text style={styles.link} onPress={() => switchMode('signin')}>Back to sign in</Text>
+                </Text>
+              )}
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: spacing.md, backgroundColor: colors.brand900, justifyContent: 'center' },
-  title: { color: colors.white, fontSize: fontSizes.hero, marginBottom: spacing.lg, fontWeight: '700' },
-  input: { backgroundColor: colors.brand800, color: colors.white, padding: spacing.md, borderRadius: radii.lg, marginBottom: spacing.md },
-  button: { backgroundColor: colors.brand100, padding: spacing.md, borderRadius: radii.full, alignItems: 'center' },
-  buttonText: { color: colors.brand900, fontWeight: '700' },
-  error: { color: colors.danger, marginBottom: spacing.md },
-  success: { color: colors.success, marginBottom: spacing.md },
-  switches: { flexDirection: 'row', justifyContent: 'space-around', marginTop: spacing.md },
-  switch: { color: colors.muted, textAlign: 'center' },
+  container: { flex: 1, backgroundColor: colors.brand900 },
+  flex: { flex: 1 },
+  scroll: { flexGrow: 1, justifyContent: 'center', padding: spacing.md, gap: spacing.xl },
+  card: { backgroundColor: colors.white5, borderRadius: radii.xl, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, gap: spacing.md },
+  title: { color: colors.white, fontSize: fontSizes.xxl, fontWeight: '700' },
+  subtitle: { color: colors.muted, fontSize: fontSizes.base },
+  input: { backgroundColor: colors.white5, color: colors.white, borderWidth: 1, borderColor: colors.white20, borderRadius: radii.lg, padding: spacing.md },
+  button: { backgroundColor: colors.white, padding: spacing.md, borderRadius: radii.full, alignItems: 'center' },
+  buttonText: { color: colors.black, fontSize: fontSizes.base, fontWeight: '700' },
+  error: { color: colors.danger },
+  success: { color: colors.success },
+  footer: { gap: spacing.sm, alignItems: 'center' },
+  footerText: { color: colors.muted, fontSize: fontSizes.sm },
+  link: { color: colors.white, fontSize: fontSizes.sm, textDecorationLine: 'underline' },
 });

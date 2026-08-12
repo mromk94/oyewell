@@ -15,12 +15,14 @@ import { CookListingsScreen } from '../screens/cook/CookListingsScreen';
 import { RiderDashboardScreen } from '../screens/rider/RiderDashboardScreen';
 import { AdminDashboardScreen } from '../screens/management/AdminDashboardScreen';
 import { AuthScreen } from '../screens/AuthScreen';
+import { LandingScreen } from '../screens/LandingScreen';
 import { AccountScreen } from '../screens/customer/AccountScreen';
 import { PaymentProofScreen } from '../screens/customer/PaymentProofScreen';
 import { colors } from '../theme';
 import { Home, User, ShoppingCart, Wallet, Package, ChefHat, Bike, Shield } from 'lucide-react-native';
 
 export type RootStackParamList = {
+  Landing: undefined;
   MainTabs: undefined;
   Auth: { mode?: 'signin' | 'register' | 'forgot' };
   Food: { slug: string };
@@ -36,6 +38,7 @@ export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 function CustomerTabs() {
   const { count } = useCart();
+  const { user } = useAuth();
   return (
     <Tabs.Navigator
       screenOptions={{
@@ -51,21 +54,27 @@ function CustomerTabs() {
         component={HomeScreen}
         options={{ tabBarIcon: ({ color }: { color: string }) => <Home size={20} color={color} /> }}
       />
-      <Tabs.Screen
-        name="Orders"
-        component={OrdersScreen}
-        options={{ tabBarIcon: ({ color }: { color: string }) => <Package size={20} color={color} /> }}
-      />
-      <Tabs.Screen
-        name="Cart"
-        component={CartScreen}
-        options={{ tabBarBadge: count > 0 ? count : undefined, tabBarIcon: ({ color }: { color: string }) => <ShoppingCart size={20} color={color} /> }}
-      />
-      <Tabs.Screen
-        name="Wallet"
-        component={WalletScreen}
-        options={{ tabBarIcon: ({ color }: { color: string }) => <Wallet size={20} color={color} /> }}
-      />
+      {user && (
+        <Tabs.Screen
+          name="Orders"
+          component={OrdersScreen}
+          options={{ tabBarIcon: ({ color }: { color: string }) => <Package size={20} color={color} /> }}
+        />
+      )}
+      {user && (
+        <Tabs.Screen
+          name="Cart"
+          component={CartScreen}
+          options={{ tabBarBadge: count > 0 ? count : undefined, tabBarIcon: ({ color }: { color: string }) => <ShoppingCart size={20} color={color} /> }}
+        />
+      )}
+      {user && (
+        <Tabs.Screen
+          name="Wallet"
+          component={WalletScreen}
+          options={{ tabBarIcon: ({ color }: { color: string }) => <Wallet size={20} color={color} /> }}
+        />
+      )}
       <Tabs.Screen
         name="Account"
         component={AccountScreen}
@@ -185,6 +194,7 @@ export function AppNavigator() {
           </>
         ) : (
           <>
+            <Stack.Screen name="Landing" component={LandingScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Auth" component={AuthScreen} options={{ title: 'Sign In' }} />
           </>
         )}
