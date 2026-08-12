@@ -229,7 +229,7 @@ export async function createOrder(payload: {
   address: string;
   phone: string;
   items: CartItemPayload[];
-  source: 'RESTAURANT';
+  source: 'RESTAURANT' | 'COOK';
   deliveryType?: 'NEIGHBORHOOD' | 'PROFESSIONAL';
   paymentProvider?: string;
   paymentCurrency?: string;

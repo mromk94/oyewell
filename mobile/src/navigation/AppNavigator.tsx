@@ -6,6 +6,7 @@ import { useAuth } from '../lib/auth';
 import { useCart } from '../lib/cart';
 import { HomeScreen } from '../screens/customer/HomeScreen';
 import { FoodDetailScreen } from '../screens/customer/FoodDetailScreen';
+import { CookListingDetailScreen } from '../screens/customer/CookListingDetailScreen';
 import { CartScreen } from '../screens/customer/CartScreen';
 import { TrackOrderScreen } from '../screens/customer/TrackOrderScreen';
 import { WalletScreen } from '../screens/customer/WalletScreen';
@@ -26,6 +27,7 @@ export type RootStackParamList = {
   MainTabs: undefined;
   Auth: { mode?: 'signin' | 'register' | 'forgot' };
   Food: { slug: string };
+  CookListing: { id: string };
   Track: { orderNumber: string };
   Cart: undefined;
   PaymentProof: { paymentId: string; orderNumber: string; instructions: string };
@@ -188,6 +190,7 @@ export function AppNavigator() {
           <>
             <Stack.Screen name="MainTabs" component={RoleTabs} options={{ headerShown: false }} />
             <Stack.Screen name="Food" component={FoodDetailScreen} options={{ title: 'Food' }} />
+            <Stack.Screen name="CookListing" component={CookListingDetailScreen} options={{ title: 'Cook Listing' }} />
             <Stack.Screen name="Cart" component={CartScreen} options={{ title: 'Cart' }} />
             <Stack.Screen name="Track" component={TrackOrderScreen} options={{ title: 'Track Order' }} />
             <Stack.Screen name="PaymentProof" component={PaymentProofScreen} options={{ title: 'Payment Proof' }} />
@@ -198,6 +201,7 @@ export function AppNavigator() {
             <Stack.Screen name="Auth" component={AuthScreen} options={{ title: 'Sign In' }} />
             <Stack.Screen name="MainTabs" component={RoleTabs} options={{ headerShown: false }} />
             <Stack.Screen name="Food" component={FoodDetailScreen} options={{ title: 'Food' }} />
+            <Stack.Screen name="CookListing" component={CookListingDetailScreen} options={{ title: 'Cook Listing' }} />
             <Stack.Screen name="Cart" component={CartScreen} options={{ title: 'Cart' }} />
           </>
         )}

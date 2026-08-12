@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { FoodOption, Side } from './api';
 
 export type CartSource = 'RESTAURANT' | 'COOK';
@@ -32,7 +32,7 @@ interface CartContextValue {
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
-const CART_KEY = 'oye_cart';
+const CART_KEY = '@oye_cart';
 
 function generateId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -42,14 +42,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
 
   useEffect(() => {
-    SecureStore.getItemAsync(CART_KEY)
+    AsyncStorage.getItem(CART_KEY)
       .then((raw) => setItems(raw ? (JSON.parse(raw) as CartItem[]) : []))
       .catch(() => setItems([]));
   }, []);
 
   useEffect(() => {
     const minimal = items.map(({ option, sides, ...rest }) => rest);
-    SecureStore.setItemAsync(CART_KEY, JSON.stringify(minimal)).catch(() => {});
+    AsyncStorage.setItem(CART_KEY, JSON.stringify(minimal)).catch(() => {});
   }, [items]);
 
   const totalKobo = useMemo(

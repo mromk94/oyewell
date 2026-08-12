@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, ActivityIndicator, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, Text, Image, FlatList, TouchableOpacity, TextInput, ActivityIndicator, StyleSheet } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { colors, fontSizes, radii, spacing } from '../../theme';
 import { useCart } from '../../lib/cart';
@@ -8,6 +8,7 @@ import { useAuth } from '../../lib/auth';
 import { formatPrice, createOrder, fetchPaymentMethods, type CartItemPayload, type PaymentMethod } from '../../lib/api';
 import { getCurrentAddress } from '../../lib/location';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
+import { ShoppingCart } from 'lucide-react-native';
 
 const MANUAL_PROVIDERS = new Set(['BANK_TRANSFER', 'CRYPTO']);
 
@@ -15,6 +16,7 @@ export function CartScreen() {
   const { items, totalKobo, count, updateQuantity, removeItem, clear } = useCart();
   const { user } = useAuth();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const insets = useSafeAreaInsets();
   const [address, setAddress] = useState('');
   const [lat, setLat] = useState<number | undefined>();
   const [lng, setLng] = useState<number | undefined>();
@@ -61,6 +63,11 @@ export function CartScreen() {
       setError('Select a payment method');
       return;
     }
+    const mixed = items.some((i) => i.source !== items[0].source);
+    if (mixed) {
+      setError('Cannot mix restaurant and cook orders in one checkout.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -75,7 +82,7 @@ export function CartScreen() {
         address,
         phone,
         items: cartItems,
-        source: 'RESTAURANT',
+        source: items[0].source,
         paymentProvider: method.provider,
         paymentCurrency: method.currency,
         lat,
@@ -94,14 +101,7 @@ export function CartScreen() {
     }
   }
 
-  if (count === 0) {
-    return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <Text style={styles.title}>Cart</Text>
-        <Text style={styles.empty}>Your cart is empty.</Text>
-      </SafeAreaView>
-    );
-  }
+  const empty = count === 0;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -109,79 +109,101 @@ export function CartScreen() {
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
+        ListEmptyComponent={
+          <View style={styles.emptyBox}>
+            <ShoppingCart size={48} color={colors.muted} />
+            <Text style={styles.empty}>Your cart is empty.</Text>
+            <TouchableOpacity style={styles.continue} onPress={() => navigation.goBack()}>
+              <Text style={styles.continueText}>Continue browsing</Text>
+            </TouchableOpacity>
+          </View>
+        }
         renderItem={({ item }) => (
           <View style={styles.item}>
-            <View style={styles.row}>
-              <Text style={styles.name} numberOfLines={1}>{item.foodName ?? item.cookName}</Text>
-              <Text style={styles.price}>{formatPrice(item.priceKobo * item.quantity)}</Text>
-            </View>
-            <View style={styles.row}>
-              <View style={styles.qty}>
-                <TouchableOpacity onPress={() => updateQuantity(item.id, item.quantity - 1)} style={styles.qtyButton}>
-                  <Text style={styles.qtyText}>-</Text>
-                </TouchableOpacity>
-                <Text style={styles.qtyCount}>{item.quantity}</Text>
-                <TouchableOpacity onPress={() => updateQuantity(item.id, item.quantity + 1)} style={styles.qtyButton}>
-                  <Text style={styles.qtyText}>+</Text>
+            {item.foodImage ? (
+              <Image source={{ uri: item.foodImage }} style={styles.thumb} />
+            ) : (
+              <View style={[styles.thumb, styles.thumbPlaceholder]} />
+            )}
+            <View style={styles.itemBody}>
+              <View style={styles.row}>
+                <Text style={styles.name} numberOfLines={2}>{item.foodName ?? item.cookName}</Text>
+                <Text style={styles.price}>{formatPrice(item.priceKobo * item.quantity)}</Text>
+              </View>
+              <View style={styles.row}>
+                <Text style={styles.source}>{item.source === 'COOK' ? `By ${item.cookName}` : 'Restaurant'}</Text>
+                {item.option && <Text style={styles.meta}>{item.option.label}</Text>}
+                {item.sides && item.sides.length > 0 && <Text style={styles.meta}>+ {item.sides.map((s) => s.name).join(', ')}</Text>}
+              </View>
+              <View style={styles.row}>
+                <View style={styles.qty}>
+                  <TouchableOpacity onPress={() => updateQuantity(item.id, item.quantity - 1)} style={styles.qtyButton}>
+                    <Text style={styles.qtyText}>-</Text>
+                  </TouchableOpacity>
+                  <Text style={styles.qtyCount}>{item.quantity}</Text>
+                  <TouchableOpacity onPress={() => updateQuantity(item.id, item.quantity + 1)} style={styles.qtyButton}>
+                    <Text style={styles.qtyText}>+</Text>
+                  </TouchableOpacity>
+                </View>
+                <TouchableOpacity onPress={() => removeItem(item.id)}>
+                  <Text style={styles.remove}>Remove</Text>
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity onPress={() => removeItem(item.id)}>
-                <Text style={styles.remove}>Remove</Text>
-              </TouchableOpacity>
             </View>
           </View>
         )}
-      />
+        ListFooterComponent={!empty ? (
+          <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+          <TextInput
+            style={styles.input}
+            placeholder="Delivery address"
+            placeholderTextColor={colors.muted}
+            value={address}
+            onChangeText={setAddress}
+          />
+          <TouchableOpacity style={styles.locationButton} onPress={detectLocation} disabled={loading}>
+            <Text style={styles.locationButtonText}>Use my current location</Text>
+          </TouchableOpacity>
+          <TextInput
+            style={styles.input}
+            placeholder="Phone number"
+            placeholderTextColor={colors.muted}
+            value={phone}
+            onChangeText={setPhone}
+          />
 
-      <View style={styles.footer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Delivery address"
-          placeholderTextColor={colors.muted}
-          value={address}
-          onChangeText={setAddress}
-        />
-        <TouchableOpacity style={styles.locationButton} onPress={detectLocation} disabled={loading}>
-          <Text style={styles.locationButtonText}>Use my current location</Text>
-        </TouchableOpacity>
-        <TextInput
-          style={styles.input}
-          placeholder="Phone number"
-          placeholderTextColor={colors.muted}
-          value={phone}
-          onChangeText={setPhone}
-        />
+          <Text style={styles.section}>Payment method</Text>
+          <FlatList
+            data={methods}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.methodList}
+            keyExtractor={(item) => item.id}
+            ListEmptyComponent={<Text style={styles.emptyMethod}>No payment methods available.</Text>}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[styles.method, selectedMethodId === item.id && styles.methodSelected]}
+                onPress={() => setSelectedMethodId(item.id)}
+              >
+                <Text style={styles.methodName}>{item.name}</Text>
+              </TouchableOpacity>
+            )}
+          />
 
-        <Text style={styles.section}>Payment method</Text>
-        <FlatList
-          data={methods}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.methodList}
-          keyExtractor={(item) => item.id}
-          ListEmptyComponent={<Text style={styles.emptyMethod}>No payment methods available.</Text>}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={[styles.method, selectedMethodId === item.id && styles.methodSelected]}
-              onPress={() => setSelectedMethodId(item.id)}
-            >
-              <Text style={styles.methodName}>{item.name}</Text>
-            </TouchableOpacity>
-          )}
-        />
+          {error && <Text style={styles.error}>{error}</Text>}
 
-        {error && <Text style={styles.error}>{error}</Text>}
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalValue}>{formatPrice(totalKobo)}</Text>
+          </View>
 
-        <View style={styles.totalRow}>
-          <Text style={styles.totalLabel}>Total</Text>
-          <Text style={styles.totalValue}>{formatPrice(totalKobo)}</Text>
-        </View>
-
-        <TouchableOpacity style={styles.checkout} onPress={handleCheckout} disabled={loading}>
+          <TouchableOpacity style={styles.checkout} onPress={handleCheckout} disabled={loading}>
           {loading ? <ActivityIndicator color={colors.brand900} /> : <Text style={styles.checkoutText}>Checkout</Text>}
         </TouchableOpacity>
-      </View>
+        </View>
+        ) : null}
+      />
     </SafeAreaView>
   );
 }
@@ -189,18 +211,25 @@ export function CartScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.brand900, padding: spacing.md },
   title: { color: colors.white, fontSize: fontSizes.xxl, fontWeight: '700', marginBottom: spacing.md },
-  empty: { color: colors.muted, textAlign: 'center', marginTop: spacing.lg },
-  list: { paddingBottom: spacing.md },
-  item: { backgroundColor: colors.brand800, padding: spacing.md, borderRadius: radii.lg, marginBottom: spacing.md },
+  emptyBox: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
+  empty: { color: colors.muted, textAlign: 'center', marginTop: spacing.lg, marginBottom: spacing.md },
+  continue: { backgroundColor: colors.brand100, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radii.full },
+  continueText: { color: colors.brand900, fontWeight: '700' },
+  item: { flexDirection: 'row', gap: spacing.md, backgroundColor: colors.brand800, padding: spacing.md, borderRadius: radii.lg, marginBottom: spacing.md },
+  thumb: { width: 64, height: 64, borderRadius: radii.md, backgroundColor: colors.brand900 },
+  thumbPlaceholder: { backgroundColor: colors.brand900 },
+  itemBody: { flex: 1 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
   name: { color: colors.white, fontSize: fontSizes.base, fontWeight: '600', flex: 1, marginRight: spacing.sm },
-  price: { color: colors.brand100 },
+  price: { color: colors.brand100, fontWeight: '700' },
+  source: { color: colors.muted, fontSize: fontSizes.sm },
+  meta: { color: colors.muted, fontSize: fontSizes.sm, flex: 1, textAlign: 'right' },
   qty: { flexDirection: 'row', alignItems: 'center' },
   qtyButton: { backgroundColor: colors.brand900, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radii.md },
   qtyText: { color: colors.white },
   qtyCount: { color: colors.white, marginHorizontal: spacing.md },
-  remove: { color: colors.danger },
-  footer: { marginTop: 'auto' },
+  remove: { color: colors.danger, fontSize: fontSizes.sm },
+  footer: { paddingTop: spacing.md },
   input: { backgroundColor: colors.brand800, color: colors.white, padding: spacing.md, borderRadius: radii.lg, marginBottom: spacing.md },
   locationButton: { backgroundColor: colors.brand800, padding: spacing.md, borderRadius: radii.full, alignItems: 'center', marginBottom: spacing.md },
   locationButtonText: { color: colors.brand100, fontWeight: '600' },

@@ -210,7 +210,7 @@ export function HomeScreen() {
           <TouchableOpacity style={styles.iconButton} onPress={() => setFiltersOpen((s) => !s)}>
             {filtersOpen ? <X size={18} color={colors.white} /> : <Search size={18} color={colors.white} />}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton} onPress={() => user ? navigation.navigate('MainTabs' as never) : navigation.navigate('Auth', { mode: 'signin' })}>
+          <TouchableOpacity style={styles.iconButton} onPress={() => user ? navigation.navigate('MainTabs') : navigation.navigate('Auth', { mode: 'signin' })}>
             <User size={18} color={colors.white} />
           </TouchableOpacity>
         </View>

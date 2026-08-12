@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, ImageBackground, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, Image, ImageBackground, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRoute, type RouteProp, useNavigation } from '@react-navigation/native';
+import { useRoute, type RouteProp, useNavigation, type NavigationProp } from '@react-navigation/native';
 import { colors, fontSizes, radii, spacing } from '../../theme';
 import { fetchFood, fetchSides, formatPrice, type FoodItem, type FoodOption, type Side } from '../../lib/api';
 import { useCart } from '../../lib/cart';
@@ -11,8 +11,11 @@ import type { RootStackParamList } from '../../navigation/AppNavigator';
 export function FoodDetailScreen() {
   const { params } = useRoute<RouteProp<RootStackParamList, 'Food'>>();
   const slug = params?.slug;
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const heroHeight = Math.min(height * 0.45, 360);
+  const bottomPad = Math.max(insets.bottom, spacing.lg);
   const { addItem, count } = useCart();
   const [food, setFood] = useState<FoodItem | null>(null);
   const [sides, setSides] = useState<Side[]>([]);
@@ -66,10 +69,12 @@ export function FoodDetailScreen() {
   if (loading) return <ActivityIndicator color={colors.brand100} style={styles.loader} />;
   if (error || !food) return <Text style={styles.error}>{error ?? 'Not found'}</Text>;
 
+  const canOrder = !!selectedOption && selectedOption.isAvailable && (selectedOption.stock === null || quantity <= selectedOption.stock);
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}>
-        <View style={styles.hero}>
+      <ScrollView contentContainerStyle={{ paddingBottom: bottomPad + 110 }}>
+        <View style={[styles.hero, { height: heroHeight }]}>
           {food.heroImage ? (
             <ImageBackground source={{ uri: food.heroImage }} style={styles.image} resizeMode="cover" imageStyle={{ backgroundColor: colors.brand800 }}>
               <View style={styles.heroOverlay} />
@@ -82,7 +87,7 @@ export function FoodDetailScreen() {
             <Text style={styles.backText}>Menu</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.cart, { top: insets.top + spacing.sm }]} onPress={() => navigation.navigate('Cart' as never)}
+            style={[styles.cart, { top: insets.top + spacing.sm }]} onPress={() => navigation.navigate('Cart')}
           >
             <ShoppingCart size={20} color={colors.white} />
             {count > 0 && (
@@ -149,19 +154,21 @@ export function FoodDetailScreen() {
               </TouchableOpacity>
             </View>
           </View>
-
-          {added ? (
-            <TouchableOpacity style={styles.added} onPress={() => navigation.navigate('Cart' as never)}>
-              <CheckCircle size={40} color={colors.success} />
-              <Text style={styles.addedText}>Added — view cart</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.addButton} onPress={handleAddToCart} activeOpacity={0.8}>
-              <Text style={styles.addText}>Order now — {formatPrice(((selectedOption?.priceKobo ?? 0) * quantity) + selectedSides.reduce((s, x) => s + x.priceKobo * quantity, 0))}</Text>
-            </TouchableOpacity>
-          )}
         </View>
       </ScrollView>
+
+      <View style={[styles.footer, { bottom: bottomPad + spacing.md }]}>
+        {added ? (
+          <TouchableOpacity style={styles.added} onPress={() => navigation.navigate('Cart')}>
+            <CheckCircle size={20} color={colors.success} />
+            <Text style={styles.addedText}>Added — view cart</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity style={[styles.addButton, !canOrder && styles.addButtonDisabled]} onPress={handleAddToCart} activeOpacity={0.8} disabled={!canOrder}>
+            <Text style={styles.addText}>Order now — {formatPrice(((selectedOption?.priceKobo ?? 0) * quantity) + selectedSides.reduce((s, x) => s + x.priceKobo * quantity, 0))}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </SafeAreaView>
   );
 }
@@ -170,7 +177,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.brand900 },
   loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   error: { color: colors.danger, textAlign: 'center', marginTop: spacing.md },
-  hero: { position: 'relative', width: '100%', height: '60%' },
+  hero: { position: 'relative', width: '100%' },
   image: { width: '100%', height: '100%', backgroundColor: colors.brand800 },
   heroOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.3)' },
   placeholder: { backgroundColor: colors.brand900 },
@@ -203,8 +210,10 @@ const styles = StyleSheet.create({
   qtyText: { color: colors.white, fontSize: fontSizes.lg, fontWeight: '700' },
   qtyTextDisabled: { color: colors.muted },
   qtyCount: { color: colors.white, fontSize: fontSizes.xl, minWidth: 40, textAlign: 'center' },
+  footer: { position: 'absolute', left: spacing.md, right: spacing.md, backgroundColor: colors.brand900, paddingTop: spacing.md },
   addButton: { backgroundColor: colors.white, padding: spacing.md, borderRadius: radii.full, alignItems: 'center' },
+  addButtonDisabled: { opacity: 0.5 },
   addText: { color: colors.brand900, fontWeight: '800', fontSize: fontSizes.base },
-  added: { alignItems: 'center', marginBottom: spacing.lg },
-  addedText: { color: colors.success, fontSize: fontSizes.xl, fontWeight: '700', marginTop: spacing.sm },
+  added: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: spacing.sm, backgroundColor: 'rgba(34,197,94,0.1)', padding: spacing.md, borderRadius: radii.full },
+  addedText: { color: colors.success, fontSize: fontSizes.base, fontWeight: '700' },
 });

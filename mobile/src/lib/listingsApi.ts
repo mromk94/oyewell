@@ -85,3 +85,17 @@ export async function fetchCookListing(id: string) {
   const res = await api<{ listing: CookListing }>(`/api/listings/${id}`);
   return { ...res.listing, price: formatPrice(res.listing.priceKobo) };
 }
+
+export async function viewCookListing(id: string) {
+  await api<{ ok: true }>(`/api/listings/${id}/view`, { method: 'POST' });
+}
+
+export async function likeCookListing(id: string) {
+  const res = await api<{ liked: boolean; likeCount: number }>(`/api/listings/${id}/like`, { method: 'POST' });
+  return res;
+}
+
+export async function fetchCookReviews(cookId: string) {
+  const res = await api<{ reviews: any[] }>(`/api/reviews/cook/${cookId}`);
+  return res;
+}

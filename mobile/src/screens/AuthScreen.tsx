@@ -33,10 +33,10 @@ export function AuthScreen() {
     try {
       if (mode === 'signin') {
         await login(email, password);
-        navigation.navigate('MainTabs' as never);
+        navigation.navigate('MainTabs');
       } else if (mode === 'register') {
         await register({ email, password, firstName, lastName, phone });
-        navigation.navigate('MainTabs' as never);
+        navigation.navigate('MainTabs');
       } else if (mode === 'forgot') {
         if (!resetToken) {
           const data = await forgotPassword(email);

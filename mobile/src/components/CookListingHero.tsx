@@ -2,9 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, ImageBackground, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, radii, spacing, fontSizes } from '../theme';
 import { formatPrice } from '../lib/api';
-import { useCart } from '../lib/cart';
+import { viewCookListing } from '../lib/listingsApi';
 import type { CookListing } from '../lib/listingsApi';
 import { ChefHat, Clock, Star, MapPin, Heart, Bookmark, Flag } from 'lucide-react-native';
+import { useNavigation, type NavigationProp } from '@react-navigation/native';
+import type { RootStackParamList } from '../navigation/AppNavigator';
 
 interface Props {
   listing: CookListing;
@@ -13,16 +15,17 @@ interface Props {
 }
 
 export function CookListingHero({ listing, insets, tabBarHeight }: Props) {
-  const { addItem } = useCart();
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const media = listing.media?.length ? listing.media : [{ url: '', type: 'IMAGE' as const }];
   const [index, setIndex] = useState(0);
   const isAvailable = listing.isActive && listing.stock > 0;
 
   useEffect(() => {
+    viewCookListing(listing.id).catch(() => {});
     if (media.length <= 1) return;
     const interval = setInterval(() => setIndex((prev) => (prev + 1) % media.length), 6000);
     return () => clearInterval(interval);
-  }, [media]);
+  }, [media, listing.id]);
 
   const active = media[index];
 
@@ -82,20 +85,7 @@ export function CookListingHero({ listing, insets, tabBarHeight }: Props) {
               <TouchableOpacity
                 style={styles.orderButton}
                 activeOpacity={0.8}
-                onPress={() =>
-                  isAvailable &&
-                  addItem({
-                    source: 'COOK',
-                    cookListingId: listing.id,
-                    cookName: listing.cook.displayName,
-                    foodName: listing.title,
-                    foodImage: listing.media[0]?.url ?? null,
-                    unitLabel: listing.portionDescription ?? 'portion',
-                    priceKobo: listing.priceKobo,
-                    quantity: 1,
-                    sideIds: [],
-                  })
-                }
+                onPress={() => navigation.navigate('CookListing', { id: listing.id })}
               >
                 <Text style={styles.orderText}>Order</Text>
               </TouchableOpacity>
