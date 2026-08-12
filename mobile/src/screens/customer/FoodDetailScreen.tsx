@@ -10,7 +10,7 @@ import type { RootStackParamList } from '../../navigation/AppNavigator';
 
 export function FoodDetailScreen() {
   const { params } = useRoute<RouteProp<RootStackParamList, 'Food'>>();
-  const { slug } = params!;
+  const slug = params?.slug;
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { addItem } = useCart();
@@ -34,6 +34,11 @@ export function FoodDetailScreen() {
   }, [bounce]);
 
   useEffect(() => {
+    if (!slug) {
+      setError('Missing food slug');
+      setLoading(false);
+      return;
+    }
     Promise.all([fetchFood(slug), fetchSides()])
       .then(([foodData, sidesData]) => {
         setFood(foodData);

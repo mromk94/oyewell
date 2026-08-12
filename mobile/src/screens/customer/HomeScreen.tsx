@@ -8,13 +8,13 @@ import { fetchFoods, type FoodItem } from '../../lib/api';
 import { fetchCookListingsPublic, type CookListing } from '../../lib/listingsApi';
 import { FoodCard } from '../../components/FoodCard';
 import { CookListingHero } from '../../components/CookListingHero';
-import { CookListingCard } from '../../components/CookListingCard';
 import { Logo } from '../../components/Logo';
 import { ScrollHint } from '../../components/ScrollHint';
-import { User, X, SlidersHorizontal } from 'lucide-react-native';
+import { User, X, Search } from 'lucide-react-native';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 
 type ViewTab = 'home' | 'cooks' | 'restaurants' | 'nearby';
+const cookViews: ViewTab[] = ['cooks', 'nearby'];
 const tabs: { id: ViewTab; label: string }[] = [
   { id: 'home', label: 'Home' },
   { id: 'cooks', label: 'Food' },
@@ -125,8 +125,8 @@ export function HomeScreen() {
     setCanScrollUp(contentOffset.y > 10);
     setCanScrollDown(contentOffset.y < contentSize.height - layoutMeasurement.height - 10);
 
-    if (isAppending.current || active === 'nearby') return;
-    const list = active === 'cooks' ? filteredCookListings : filteredFoods;
+    if (isAppending.current) return;
+    const list = cookViews.includes(active) ? filteredCookListings : filteredFoods;
     if (list.length === 0) return;
     const totalHeight = reps * list.length * itemHeight;
     if (contentOffset.y + layoutMeasurement.height >= totalHeight - 100) {
@@ -161,28 +161,8 @@ export function HomeScreen() {
       <View style={{ height: itemHeight }}>
         <CookListingHero
           listing={item}
-          onPress={() => navigation.navigate('Food' as never)}
           insets={insets}
           tabBarHeight={user ? TAB_BAR_HEIGHT : 0}
-        />
-      </View>
-    );
-  }
-
-  function renderNearby() {
-    return (
-      <View style={{ paddingTop: insets.top + 120, paddingHorizontal: spacing.md, paddingBottom: insets.bottom + spacing.lg }}>
-        <View style={styles.nearbyHeader}>
-          <Text style={styles.nearbyTitle}>Food Around Me</Text>
-        </View>
-        <FlatList
-          horizontal
-          data={filteredCookListings}
-          keyExtractor={(item) => item.id}
-          showsHorizontalScrollIndicator={false}
-          renderItem={({ item }) => (
-            <CookListingCard listing={item} onPress={() => navigation.navigate('Food' as never)} />
-          )}
         />
       </View>
     );
@@ -204,34 +184,31 @@ export function HomeScreen() {
     );
   }
 
-  const data = active === 'cooks' ? visibleCookListings : visibleFoods;
+  const data = cookViews.includes(active) ? visibleCookListings : visibleFoods;
+  const renderItem = ({ item }: any) => (cookViews.includes(active) ? renderCook({ item }) : renderFood({ item }));
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
-      {active === 'nearby' ? (
-        renderNearby()
-      ) : (
-        <FlatList
-          ref={listRef}
-          data={data as any}
-          keyExtractor={(item: any, i: number) => `${item.id ?? item.slug}-${i}`}
-          pagingEnabled
-          decelerationRate="fast"
-          snapToInterval={itemHeight}
-          showsVerticalScrollIndicator={false}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-          renderItem={({ item }: any) => (active === 'cooks' ? renderCook({ item }) : renderFood({ item }))}
-        />
-      )}
+      <FlatList
+        ref={listRef}
+        data={data as any}
+        keyExtractor={(item: any, i: number) => `${item.id ?? item.slug}-${i}`}
+        pagingEnabled
+        decelerationRate="fast"
+        snapToInterval={itemHeight}
+        showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        renderItem={renderItem}
+      />
 
-      <ScrollHint canScrollUp={canScrollUp && active !== 'nearby'} canScrollDown={canScrollDown && active !== 'nearby'} onNavigate={handleNavigate} />
+      <ScrollHint canScrollUp={canScrollUp} canScrollDown={canScrollDown} onNavigate={handleNavigate} />
 
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <Logo />
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.iconButton} onPress={() => setFiltersOpen((s) => !s)}>
-            {filtersOpen ? <X size={18} color={colors.white} /> : <SlidersHorizontal size={18} color={colors.white} />}
+            {filtersOpen ? <X size={18} color={colors.white} /> : <Search size={18} color={colors.white} />}
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={() => user ? navigation.navigate('MainTabs' as never) : navigation.navigate('Auth', { mode: 'signin' })}>
             <User size={18} color={colors.white} />
@@ -320,6 +297,4 @@ const styles = StyleSheet.create({
   availableText: { color: colors.white, fontSize: fontSizes.base },
   clearButton: { padding: spacing.sm, alignItems: 'center' },
   clearText: { color: colors.danger, fontWeight: '700' },
-  nearbyHeader: { marginBottom: spacing.md },
-  nearbyTitle: { color: colors.white, fontSize: fontSizes.xl, fontWeight: '800' },
 });

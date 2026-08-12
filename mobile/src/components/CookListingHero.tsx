@@ -2,17 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, ImageBackground, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, radii, spacing, fontSizes } from '../theme';
 import { formatPrice } from '../lib/api';
+import { useCart } from '../lib/cart';
 import type { CookListing } from '../lib/listingsApi';
-import { ChefHat, Clock, Star, MapPin } from 'lucide-react-native';
+import { ChefHat, Clock, Star, MapPin, Heart, Bookmark, Flag } from 'lucide-react-native';
 
 interface Props {
   listing: CookListing;
-  onPress: () => void;
   insets: { bottom: number; top: number };
   tabBarHeight: number;
 }
 
-export function CookListingHero({ listing, onPress, insets, tabBarHeight }: Props) {
+export function CookListingHero({ listing, insets, tabBarHeight }: Props) {
+  const { addItem } = useCart();
   const media = listing.media?.length ? listing.media : [{ url: '', type: 'IMAGE' as const }];
   const [index, setIndex] = useState(0);
   const isAvailable = listing.isActive && listing.stock > 0;
@@ -68,9 +69,36 @@ export function CookListingHero({ listing, onPress, insets, tabBarHeight }: Prop
           </View>
           <View style={styles.row}>
             <Text style={styles.price}>{formatPrice(listing.priceKobo)}</Text>
-            <TouchableOpacity style={styles.orderButton} onPress={onPress} activeOpacity={0.8}>
-              <Text style={styles.orderText}>Order</Text>
-            </TouchableOpacity>
+            <View style={styles.actions}>
+              <TouchableOpacity style={styles.action} activeOpacity={0.8}>
+                <Heart size={18} color={colors.white} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.action} activeOpacity={0.8}>
+                <Bookmark size={18} color={colors.white} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.action} activeOpacity={0.8}>
+                <Flag size={18} color={colors.white} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.orderButton}
+                activeOpacity={0.8}
+                onPress={() =>
+                  isAvailable &&
+                  addItem({
+                    source: 'COOK',
+                    cookListingId: listing.id,
+                    cookName: listing.cook.displayName,
+                    foodName: listing.title,
+                    foodImage: listing.media[0]?.url ?? null,
+                    unitLabel: listing.portionDescription ?? 'portion',
+                    priceKobo: listing.priceKobo,
+                    quantity: 1,
+                  })
+                }
+              >
+                <Text style={styles.orderText}>Order</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </ImageBackground>
@@ -93,8 +121,10 @@ const styles = StyleSheet.create({
   meta: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginTop: spacing.md },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   metaText: { color: colors.white, fontSize: fontSizes.sm },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, marginTop: spacing.lg },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, marginTop: spacing.lg },
   price: { color: colors.white, fontSize: fontSizes.lg, fontWeight: '600' },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  action: { width: 38, height: 38, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.4)', borderWidth: 1, borderColor: colors.border, justifyContent: 'center', alignItems: 'center' },
   orderButton: { backgroundColor: colors.white, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radii.full },
   orderText: { color: colors.black, fontSize: fontSizes.base, fontWeight: '700' },
 });
