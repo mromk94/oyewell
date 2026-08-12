@@ -218,3 +218,16 @@ export async function createOrder(payload: {
     body: JSON.stringify(payload),
   });
 }
+
+export interface FullOrder {
+  orderNumber: string;
+  status: string;
+  deliveryCode?: string;
+  totalKobo: number;
+  createdAt: string;
+  items: { name: string; quantity: number }[];
+}
+
+export async function fetchOrder(orderNumber: string) {
+  return api<{ order: FullOrder }>(`/api/orders/${orderNumber}`);
+}
