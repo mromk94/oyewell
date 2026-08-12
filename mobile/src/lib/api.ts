@@ -1,7 +1,7 @@
 import { getActiveToken } from './secureStorage';
 import type { User } from '../types';
 
-const API_BASE = 'http://localhost:4000';
+const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 export async function api<T>(
   path: string,

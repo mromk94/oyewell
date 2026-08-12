@@ -3,7 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, radii, spacing, shadows, fontSizes } from '../theme';
 import { formatPrice, type FoodItem } from '../lib/api';
 
-export function FoodCard({ food, onPress }: { food: FoodItem; onPress: () => void }) {
+export const FoodCard = React.memo(function FoodCard({ food, onPress }: { food: FoodItem; onPress: () => void }) {
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8}>
       {food.heroImage ? (
@@ -19,7 +19,7 @@ export function FoodCard({ food, onPress }: { food: FoodItem; onPress: () => voi
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: { backgroundColor: colors.brand800, borderRadius: radii.lg, overflow: 'hidden', ...shadows.small, marginBottom: spacing.md },

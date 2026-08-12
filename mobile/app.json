@@ -17,6 +17,12 @@
     },
     "android": {
       "package": "com.oyewell.mobile",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#0f0f0f",
         "foregroundImage": "./assets/android-icon-foreground.png",

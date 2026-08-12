@@ -5,10 +5,13 @@ import { CartProvider } from './src/lib/cart';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { useNotifications } from './src/lib/notifications';
 import { useDeepLinks } from './src/lib/deepLinks';
+import { useEffect } from 'react';
+import { startNetworkListener } from './src/lib/network';
 
 function AppRoot() {
   useNotifications();
   useDeepLinks();
+  useEffect(() => startNetworkListener(), []);
   return (
     <AuthProvider>
       <CartProvider>
