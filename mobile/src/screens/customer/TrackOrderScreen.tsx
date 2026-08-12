@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, SafeAreaView, ActivityIndicator, FlatList } fro
 import { useRoute, type RouteProp } from '@react-navigation/native';
 import { colors, fontSizes, radii, spacing } from '../../theme';
 import { fetchOrder, formatPrice, type FullOrder } from '../../lib/api';
+import { useInterval } from '../../lib/polling';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 
 export function TrackOrderScreen() {
@@ -11,12 +12,16 @@ export function TrackOrderScreen() {
   const [order, setOrder] = useState<FullOrder | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  function load() {
+    setLoading(true);
     fetchOrder(orderNumber)
       .then(({ order }) => setOrder(order))
       .catch(() => setOrder(null))
       .finally(() => setLoading(false));
-  }, [orderNumber]);
+  }
+
+  useEffect(() => { load(); }, [orderNumber]);
+  useInterval(load, 15000);
 
   if (loading) return <ActivityIndicator color={colors.brand100} style={styles.loader} />;
   if (!order) return <Text style={styles.error}>Order not found</Text>;

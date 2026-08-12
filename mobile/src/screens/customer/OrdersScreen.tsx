@@ -3,6 +3,7 @@ import { View, Text, FlatList, StyleSheet, SafeAreaView, ActivityIndicator, Touc
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { colors, fontSizes, radii, spacing } from '../../theme';
 import { api, formatPrice } from '../../lib/api';
+import { useInterval } from '../../lib/polling';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 
 interface Order {
@@ -17,12 +18,15 @@ export function OrdersScreen() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  function load() {
     api<{ orders: Order[] }>('/api/orders')
       .then(({ orders }) => setOrders(orders))
       .catch(() => setOrders([]))
       .finally(() => setLoading(false));
-  }, []);
+  }
+
+  useEffect(() => { load(); }, []);
+  useInterval(load, 15000);
 
   return (
     <SafeAreaView style={styles.container}>

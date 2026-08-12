@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, SafeAreaView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { colors, fontSizes, radii, spacing } from '../../theme';
 import { useAuth } from '../../lib/auth';
+import { useInterval } from '../../lib/polling';
 import { fetchCookOrders, acceptCookOrder, preparingCookOrder, readyCookOrder, fetchCookEarnings, updateKitchenStatus, type CookOrder } from '../../lib/cookApi';
 
 export function CookDashboardScreen() {
@@ -11,7 +12,8 @@ export function CookDashboardScreen() {
   const [kitchenStatus, setKitchenStatus] = useState<'OPEN' | 'CLOSED' | 'PAUSED'>('OPEN');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  function load() {
+    setLoading(true);
     Promise.all([fetchCookOrders(), fetchCookEarnings()])
       .then(([ordersData, earningsData]) => {
         setOrders(ordersData.orders);
@@ -21,7 +23,10 @@ export function CookDashboardScreen() {
         setOrders([]);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }
+
+  useEffect(() => { load(); }, []);
+  useInterval(load, 15000);
 
   async function setStatus(status: 'OPEN' | 'CLOSED' | 'PAUSED') {
     try {

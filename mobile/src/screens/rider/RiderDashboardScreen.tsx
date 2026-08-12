@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TextInput, StyleSheet, SafeAreaView, ActivityIndicator, TouchableOpacity, Switch } from 'react-native';
 import { colors, fontSizes, radii, spacing } from '../../theme';
 import { useAuth } from '../../lib/auth';
+import { useInterval } from '../../lib/polling';
 import {
   fetchRiderProfile,
   updateRiderAvailability,
@@ -40,6 +41,7 @@ export function RiderDashboardScreen() {
   }
 
   useEffect(() => { load(); }, []);
+  useInterval(load, 10000);
 
   async function toggleAvailability(value: boolean) {
     try {

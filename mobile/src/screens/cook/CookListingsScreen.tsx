@@ -3,18 +3,23 @@ import { View, Text, FlatList, Switch, StyleSheet, ActivityIndicator } from 'rea
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fontSizes, radii, spacing } from '../../theme';
 import { fetchCookListings, updateCookListingAvailability, type CookListing } from '../../lib/cookApi';
+import { useInterval } from '../../lib/polling';
 import { formatPrice } from '../../lib/api';
 
 export function CookListingsScreen() {
   const [listings, setListings] = useState<CookListing[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  function load() {
+    setLoading(true);
     fetchCookListings()
       .then(({ listings }) => setListings(listings))
       .catch(() => setListings([]))
       .finally(() => setLoading(false));
-  }, []);
+  }
+
+  useEffect(() => { load(); }, []);
+  useInterval(load, 15000);
 
   async function toggleAvailable(id: string, value: boolean) {
     try {
