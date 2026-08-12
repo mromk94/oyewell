@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, useWindowDimensions, TouchableOpacity, TextInput, Switch } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, useWindowDimensions, TouchableOpacity, TextInput, Switch, Modal } from 'react-native';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fontSizes, radii, spacing } from '../../theme';
@@ -10,7 +10,7 @@ import { FoodCard } from '../../components/FoodCard';
 import { CookListingHero } from '../../components/CookListingHero';
 import { Logo } from '../../components/Logo';
 import { ScrollHint } from '../../components/ScrollHint';
-import { User, X, Search } from 'lucide-react-native';
+import { User, X, Search, Plus, ChefHat } from 'lucide-react-native';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { Preloader } from '../../components/Preloader';
 
@@ -80,6 +80,7 @@ export function HomeScreen() {
   const [canScrollDown, setCanScrollDown] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [filters, setFilters] = useState<Filters>({ q: '', cuisine: '', maxPrice: '', available: false });
+  const [postModal, setPostModal] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   const [contentHeight, setContentHeight] = useState(0);
   const isAppending = useRef(false);
@@ -265,6 +266,44 @@ export function HomeScreen() {
           </View>
         </View>
       )}
+
+      {active === 'cooks' && (
+        <TouchableOpacity
+          style={[styles.fab, { bottom: (user ? 70 : 20) + insets.bottom + spacing.md }]}
+          onPress={() => setPostModal(true)}
+        >
+          <Plus size={28} color={colors.black} />
+        </TouchableOpacity>
+      )}
+
+      <Modal visible={postModal} transparent animationType="fade" onRequestClose={() => setPostModal(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>Post your food</Text>
+            <Text style={styles.modalBody}>Cooks can list dishes for neighbors to order. Apply if you haven't yet.</Text>
+            {user?.role === 'COOK' ? (
+              <TouchableOpacity
+                style={styles.modalPrimary}
+                onPress={() => { setPostModal(false); navigation.navigate('CookListingForm', {}); }}
+              >
+                <Plus size={18} color={colors.brand900} />
+                <Text style={styles.modalPrimaryText}>Post a new dish</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.modalPrimary}
+                onPress={() => { setPostModal(false); navigation.navigate('CookApply'); }}
+              >
+                <ChefHat size={18} color={colors.brand900} />
+                <Text style={styles.modalPrimaryText}>Apply to become a cook</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.modalSecondary} onPress={() => setPostModal(false)}>
+              <Text style={styles.modalSecondaryText}>Maybe later</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -292,4 +331,13 @@ const styles = StyleSheet.create({
   availableText: { color: colors.white, fontSize: fontSizes.base },
   clearButton: { padding: spacing.sm, alignItems: 'center' },
   clearText: { color: colors.danger, fontWeight: '700' },
+  fab: { position: 'absolute', right: spacing.md, width: 56, height: 56, borderRadius: 28, backgroundColor: colors.brand100, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 6, zIndex: 35 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end', padding: spacing.md },
+  modal: { backgroundColor: colors.brand900, borderRadius: radii.lg, padding: spacing.lg, borderWidth: 1, borderColor: colors.border },
+  modalTitle: { color: colors.white, fontSize: fontSizes.xl, fontWeight: '800', marginBottom: spacing.sm },
+  modalBody: { color: colors.muted, marginBottom: spacing.md },
+  modalPrimary: { backgroundColor: colors.brand100, borderRadius: radii.full, padding: spacing.md, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
+  modalPrimaryText: { color: colors.brand900, fontWeight: '700' },
+  modalSecondary: { borderRadius: radii.full, borderWidth: 1, borderColor: colors.border, padding: spacing.md, alignItems: 'center' },
+  modalSecondaryText: { color: colors.white, fontWeight: '600' },
 });

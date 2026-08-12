@@ -162,7 +162,7 @@ export function CartScreen() {
 
   const empty = count === 0;
   const selectedDelivery = deliveryOptions[deliveryType];
-  const canCheckout = !!user && !!address.trim() && !!phone.trim() && !!selectedMethodId && selectedDelivery?.available && !deliveryLoading;
+  const canCheckout = !deliveryLoading;
   const checkoutLabel = !user ? 'Sign in to place order' : !selectedDelivery?.available ? 'Delivery unavailable' : 'Checkout';
 
   return (

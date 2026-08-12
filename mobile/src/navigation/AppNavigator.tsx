@@ -14,6 +14,7 @@ import { OrdersScreen } from '../screens/customer/OrdersScreen';
 import { CookDashboardScreen } from '../screens/cook/CookDashboardScreen';
 import { CookListingsScreen } from '../screens/cook/CookListingsScreen';
 import { CookListingFormScreen } from '../screens/cook/CookListingFormScreen';
+import { CookApplyScreen } from '../screens/cook/CookApplyScreen';
 import { RiderDashboardScreen } from '../screens/rider/RiderDashboardScreen';
 import { AdminDashboardScreen } from '../screens/management/AdminDashboardScreen';
 import { AuthScreen } from '../screens/AuthScreen';
@@ -31,6 +32,7 @@ export type RootStackParamList = {
   Food: { slug: string };
   CookListing: { id: string };
   CookListingForm: { listing?: CookListing };
+  CookApply: undefined;
   Track: { orderNumber: string };
   Cart: undefined;
   PaymentProof: { paymentId: string; orderNumber: string; instructions: string };
@@ -195,6 +197,7 @@ export function AppNavigator() {
             <Stack.Screen name="Food" component={FoodDetailScreen} options={{ headerShown: false }} />
             <Stack.Screen name="CookListing" component={CookListingDetailScreen} options={{ headerShown: false }} />
             <Stack.Screen name="CookListingForm" component={CookListingFormScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="CookApply" component={CookApplyScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Track" component={TrackOrderScreen} options={{ headerShown: false }} />
             <Stack.Screen name="PaymentProof" component={PaymentProofScreen} options={{ headerShown: false }} />
@@ -207,6 +210,7 @@ export function AppNavigator() {
             <Stack.Screen name="Food" component={FoodDetailScreen} options={{ headerShown: false }} />
             <Stack.Screen name="CookListing" component={CookListingDetailScreen} options={{ headerShown: false }} />
             <Stack.Screen name="CookListingForm" component={CookListingFormScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="CookApply" component={CookApplyScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: false }} />
           </>
         )}
