@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, ScrollView, TouchableOpacity, TextInput, StyleSheet, ActivityIndicator } from 'react-native';
-import { useRoute, type RouteProp, useNavigation, type NavigationProp } from '@react-navigation/native';
+import { useRoute, type RouteProp, useNavigation, type NavigationProp, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fontSizes, radii, spacing } from '../../theme';
 import { fetchOrder, formatPrice, createReview, uploadPaymentProof, type OrderSummary } from '../../lib/api';
@@ -51,21 +51,29 @@ export function TrackOrderScreen() {
   const [confirm, setConfirm] = useState('');
   const [accepted, setAccepted] = useState(false);
   const [registering, setRegistering] = useState(false);
+  const MAX_PROOF_LENGTH = 2_000_000;
 
-  function load() {
-    setLoading(true);
+  function load(silent = false) {
+    if (!silent) setLoading(true);
     fetchOrder(orderNumber)
       .then(({ order }) => setOrder(order))
       .catch((e) => setError(e instanceof Error ? e.message : 'Order not found'))
-      .finally(() => setLoading(false));
+      .finally(() => { if (!silent) setLoading(false); });
   }
 
   useEffect(() => { load(); }, [orderNumber]);
+  useFocusEffect(React.useCallback(() => { load(true); }, [orderNumber]));
   useInterval(load, 15000);
 
   async function handlePickProof() {
     const picked = await pickImage();
-    if (picked) setProofImage(picked);
+    if (!picked) return;
+    if (picked.length > MAX_PROOF_LENGTH) {
+      setError('Image is too large. Choose a smaller file.');
+      return;
+    }
+    setError(null);
+    setProofImage(picked);
   }
 
   async function handleUploadProof() {
@@ -73,7 +81,8 @@ export function TrackOrderScreen() {
     setUploading(true);
     try {
       setError(null);
-      await uploadPaymentProof(order.payment.id, proofImage);
+      await uploadPaymentProof(order.payment.id, proofImage, '');
+      setProofImage(null);
       setJustUploaded(true);
       load();
     } catch (err) {
@@ -89,7 +98,7 @@ export function TrackOrderScreen() {
     try {
       await createReview({ orderNumber, rating, comment, target: 'cook' });
       setSubmittedReview(true);
-      load();
+      load(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Review failed');
     } finally {
@@ -129,7 +138,7 @@ export function TrackOrderScreen() {
       setPassword('');
       setConfirm('');
       setAccepted(false);
-      load();
+      load(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not create account.');
     } finally {
@@ -187,7 +196,8 @@ export function TrackOrderScreen() {
               <View style={styles.manualBox}>
                 {(proofUrl || justUploaded) ? (
                   <View>
-                    <Text style={styles.manualText}>Proof uploaded. Awaiting verification.</Text>
+                    <ActivityIndicator color={'#bfdbfe'} style={{ marginBottom: spacing.sm }} />
+                    <Text style={styles.manualText}>Proof uploaded. Awaiting verification by the restaurant.</Text>
                     {proofUrl && <Image source={{ uri: proofUrl }} style={styles.proofImage} resizeMode="cover" />}
                   </View>
                 ) : (

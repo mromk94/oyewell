@@ -17,9 +17,17 @@ export function PaymentProofScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const MAX_PROOF_LENGTH = 2_000_000;
+
   async function selectImage() {
     const picked = await pickImage();
-    if (picked) setImage(picked);
+    if (!picked) return;
+    if (picked.length > MAX_PROOF_LENGTH) {
+      setError('Image is too large. Choose a smaller file.');
+      return;
+    }
+    setError(null);
+    setImage(picked);
   }
 
   async function handleUpload() {
