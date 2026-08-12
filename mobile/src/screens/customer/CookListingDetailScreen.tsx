@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, ImageBackground, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, Image, ImageBackground, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet, useWindowDimensions } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, type RouteProp, useNavigation, type NavigationProp } from '@react-navigation/native';
 import { colors, fontSizes, radii, spacing } from '../../theme';
@@ -15,6 +15,8 @@ export function CookListingDetailScreen() {
   const id = params?.id;
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
+  const { height } = useWindowDimensions();
+  const heroHeight = Math.min(height * 0.45, 360);
   const bottomPad = Math.max(insets.bottom, spacing.lg);
   const { addItem, count } = useCart();
   const [listing, setListing] = useState<CookListing | null>(null);
@@ -66,28 +68,28 @@ export function CookListingDetailScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.hero}>
-        {listing.media?.[0]?.url ? (
-          <ImageBackground source={{ uri: listing.media[0].url }} style={styles.image} resizeMode="cover" imageStyle={{ backgroundColor: colors.brand800 }}>
-            <View style={styles.heroOverlay} />
-          </ImageBackground>
-        ) : (
-          <View style={[styles.image, styles.placeholder]} />
-        )}
-        <TouchableOpacity style={[styles.back, { top: insets.top + spacing.sm }]} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={24} color={colors.white} />
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.cart, { top: insets.top + spacing.sm }]} onPress={() => navigation.navigate('Cart')}>
-          <ShoppingCart size={20} color={colors.white} />
-          {count > 0 && (
-            <View style={styles.badgeDot}>
-              <Text style={styles.badgeCount}>{count}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
-
       <ScrollView contentContainerStyle={{ paddingBottom: bottomPad + 110 }}>
+        <View style={[styles.hero, { height: heroHeight }]}>
+          {listing.media?.[0]?.url ? (
+            <ImageBackground source={{ uri: listing.media[0].url }} style={styles.image} resizeMode="cover" imageStyle={{ backgroundColor: colors.brand800 }}>
+              <View style={styles.heroOverlay} />
+            </ImageBackground>
+          ) : (
+            <View style={[styles.image, styles.placeholder]} />
+          )}
+          <TouchableOpacity style={[styles.back, { top: insets.top + spacing.sm }]} onPress={() => navigation.goBack()}>
+            <ChevronLeft size={24} color={colors.white} />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.cart, { top: insets.top + spacing.sm }]} onPress={() => navigation.navigate('Cart')}>
+            <ShoppingCart size={20} color={colors.white} />
+            {count > 0 && (
+              <View style={styles.badgeDot}>
+                <Text style={styles.badgeCount}>{count}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.body}>
           <Text style={styles.name}>{listing.title}</Text>
           <Text style={styles.description}>{listing.description}</Text>
@@ -173,7 +175,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.brand900 },
   loader: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   error: { color: colors.danger, textAlign: 'center', marginTop: spacing.md },
-  hero: { position: 'relative', width: '100%', height: '50%' },
+  hero: { position: 'relative', width: '100%' },
   image: { width: '100%', height: '100%', backgroundColor: colors.brand800 },
   heroOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
   placeholder: { backgroundColor: colors.brand900 },
@@ -181,7 +183,7 @@ const styles = StyleSheet.create({
   cart: { position: 'absolute', right: spacing.md, padding: spacing.sm, borderRadius: radii.full, backgroundColor: 'rgba(0,0,0,0.4)' },
   badgeDot: { position: 'absolute', top: -6, right: -6, backgroundColor: colors.success, minWidth: 20, height: 20, borderRadius: 999, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 },
   badgeCount: { color: colors.white, fontSize: fontSizes.xs, fontWeight: '800' },
-  body: { padding: spacing.lg, marginTop: -spacing.xxl },
+  body: { padding: spacing.lg },
   name: { color: colors.white, fontSize: fontSizes.hero, fontWeight: '800', marginBottom: spacing.sm },
   description: { color: colors.muted, fontSize: fontSizes.lg, marginBottom: spacing.md, lineHeight: 26 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg },

@@ -214,6 +214,13 @@ export async function fetchPaymentMethods() {
   return api<{ methods: PaymentMethod[] }>('/api/payments/methods');
 }
 
+export async function verifyPayment(paymentId: string, idempotencyKey: string) {
+  return api<{ ok: boolean; order: { orderNumber: string } }>(`/api/payments/${paymentId}/verify`, {
+    method: 'POST',
+    body: JSON.stringify({ idempotencyKey }),
+  });
+}
+
 export async function uploadPaymentProof(paymentId: string, image: string, note?: string) {
   return api<{ ok: true }>(`/api/payments/${paymentId}/proof`, {
     method: 'POST',

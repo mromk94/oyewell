@@ -15,6 +15,7 @@ export function AuthScreen() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { params } = useRoute<RouteProp<RootStackParamList, 'Auth'>>();
   const initialMode = params?.mode ?? 'signin';
+  const next = params?.next;
   const [mode, setMode] = useState<Mode>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -33,10 +34,12 @@ export function AuthScreen() {
     try {
       if (mode === 'signin') {
         await login(email, password);
-        navigation.navigate('MainTabs');
+        if (next) navigation.reset({ index: 1, routes: [{ name: 'MainTabs' }, { name: next }] });
+        else navigation.navigate('MainTabs');
       } else if (mode === 'register') {
         await register({ email, password, firstName, lastName, phone });
-        navigation.navigate('MainTabs');
+        if (next) navigation.reset({ index: 1, routes: [{ name: 'MainTabs' }, { name: next }] });
+        else navigation.navigate('MainTabs');
       } else if (mode === 'forgot') {
         if (!resetToken) {
           const data = await forgotPassword(email);

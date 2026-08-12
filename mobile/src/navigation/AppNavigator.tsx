@@ -25,7 +25,7 @@ import { Home, User, ShoppingCart, Wallet, Package, ChefHat, Bike, Shield } from
 export type RootStackParamList = {
   Landing: undefined;
   MainTabs: undefined;
-  Auth: { mode?: 'signin' | 'register' | 'forgot' };
+  Auth: { mode?: 'signin' | 'register' | 'forgot'; next?: 'Cart' };
   Food: { slug: string };
   CookListing: { id: string };
   Track: { orderNumber: string };
