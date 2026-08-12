@@ -1,14 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, useWindowDimensions, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, useWindowDimensions, TouchableOpacity, TextInput, Switch } from 'react-native';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, fontSizes, spacing } from '../../theme';
+import { colors, fontSizes, radii, spacing } from '../../theme';
 import { useAuth } from '../../lib/auth';
 import { fetchFoods, type FoodItem } from '../../lib/api';
+import { fetchCookListingsPublic, type CookListing } from '../../lib/listingsApi';
 import { FoodCard } from '../../components/FoodCard';
+import { CookListingHero } from '../../components/CookListingHero';
+import { CookListingCard } from '../../components/CookListingCard';
 import { Logo } from '../../components/Logo';
 import { ScrollHint } from '../../components/ScrollHint';
-import { User, Search, X } from 'lucide-react-native';
+import { User, X, SlidersHorizontal } from 'lucide-react-native';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 
 type ViewTab = 'home' | 'cooks' | 'restaurants' | 'nearby';
@@ -21,11 +24,42 @@ const tabs: { id: ViewTab; label: string }[] = [
 
 const TAB_BAR_HEIGHT = 56;
 
-function filterFoods(list: FoodItem[], q: string) {
+interface Filters {
+  q: string;
+  cuisine: string;
+  maxPrice: string;
+  available: boolean;
+}
+
+function filterFoods(list: FoodItem[], filters: Filters) {
   let base = list;
-  if (q.trim()) {
-    const term = q.toLowerCase();
-    base = base.filter((f) => f.name.toLowerCase().includes(term) || (f.description && f.description.toLowerCase().includes(term)));
+  if (filters.q.trim()) {
+    const q = filters.q.toLowerCase();
+    base = base.filter((f) => f.name.toLowerCase().includes(q) || (f.description && f.description.toLowerCase().includes(q)));
+  }
+  if (filters.available) base = base.filter((f) => f.isAvailable);
+  if (filters.maxPrice) {
+    const max = Number(filters.maxPrice) * 100;
+    base = base.filter((f) => !f.priceFromKobo || f.priceFromKobo <= max);
+  }
+  return base;
+}
+
+function filterCookListings(list: CookListing[], filters: Filters) {
+  let base = list;
+  if (filters.q.trim()) {
+    const q = filters.q.toLowerCase();
+    base = base.filter((l) =>
+      l.title.toLowerCase().includes(q) ||
+      (l.description && l.description.toLowerCase().includes(q)) ||
+      l.cook.displayName.toLowerCase().includes(q)
+    );
+  }
+  if (filters.cuisine) base = base.filter((l) => l.cuisine && l.cuisine.toLowerCase() === filters.cuisine.toLowerCase());
+  if (filters.available) base = base.filter((l) => l.isActive && l.stock > 0);
+  if (filters.maxPrice) {
+    const max = Number(filters.maxPrice) * 100;
+    base = base.filter((l) => l.priceKobo <= max);
   }
   return base;
 }
@@ -36,24 +70,27 @@ export function HomeScreen() {
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [foods, setFoods] = useState<FoodItem[]>([]);
+  const [cookListings, setCookListings] = useState<CookListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState<ViewTab>('home');
   const [reps, setReps] = useState(1);
   const [canScrollUp, setCanScrollUp] = useState(false);
   const [canScrollDown, setCanScrollDown] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [query, setQuery] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filters, setFilters] = useState<Filters>({ q: '', cuisine: '', maxPrice: '', available: false });
   const [scrollY, setScrollY] = useState(0);
   const [contentHeight, setContentHeight] = useState(0);
   const isAppending = useRef(false);
-  const listRef = useRef<FlatList<FoodItem>>(null);
+  const listRef = useRef<FlatList<FoodItem | CookListing>>(null);
 
   useEffect(() => {
-    fetchFoods()
-      .then(({ foods }) => setFoods(foods))
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load foods'))
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetchFoods().then(({ foods }) => setFoods(foods)),
+      fetchCookListingsPublic({ take: 20 }).then(({ listings }) => setCookListings(listings)),
+    ])
+      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load'))
+      .finally(() => { setLoading(false); });
     setReps(1);
   }, []);
 
@@ -64,13 +101,20 @@ export function HomeScreen() {
   useEffect(() => {
     setReps(1);
     listRef.current?.scrollToOffset({ offset: 0, animated: false });
-  }, [active, query]);
+  }, [active, filters]);
 
-  const filteredFoods = useMemo(() => filterFoods(foods, query), [foods, query]);
+  // nearby uses the same public cook listings for now until a native location API is added
 
-  const visibleFoods = useMemo(() => {
-    return Array.from({ length: reps }).flatMap(() => filteredFoods);
-  }, [filteredFoods, reps]);
+  const filteredFoods = useMemo(() => filterFoods(foods, filters), [foods, filters]);
+  const filteredCookListings = useMemo(() => filterCookListings(cookListings, filters), [cookListings, filters]);
+  const cuisines = useMemo(() => {
+    const set = new Set<string>();
+    cookListings.forEach((l) => l.cuisine && set.add(l.cuisine));
+    return Array.from(set).sort();
+  }, [cookListings]);
+
+  const visibleFoods = useMemo(() => Array.from({ length: reps }).flatMap(() => filteredFoods), [filteredFoods, reps]);
+  const visibleCookListings = useMemo(() => Array.from({ length: reps }).flatMap(() => filteredCookListings), [filteredCookListings, reps]);
 
   const itemHeight = height;
 
@@ -81,13 +125,15 @@ export function HomeScreen() {
     setCanScrollUp(contentOffset.y > 10);
     setCanScrollDown(contentOffset.y < contentSize.height - layoutMeasurement.height - 10);
 
-    if (isAppending.current || filteredFoods.length === 0) return;
-    const totalHeight = reps * filteredFoods.length * itemHeight;
+    if (isAppending.current || active === 'nearby') return;
+    const list = active === 'cooks' ? filteredCookListings : filteredFoods;
+    if (list.length === 0) return;
+    const totalHeight = reps * list.length * itemHeight;
     if (contentOffset.y + layoutMeasurement.height >= totalHeight - 100) {
       isAppending.current = true;
       setReps((r) => r + 1);
     }
-  }, [filteredFoods, itemHeight, reps]);
+  }, [filteredFoods, filteredCookListings, itemHeight, reps, active]);
 
   function handleNavigate(direction: 'up' | 'down') {
     const currentIndex = Math.round(scrollY / itemHeight);
@@ -95,6 +141,51 @@ export function HomeScreen() {
     const maxIndex = Math.max(0, Math.ceil(contentHeight / itemHeight) - 1);
     const targetIndex = Math.max(0, Math.min(nextIndex, maxIndex));
     listRef.current?.scrollToOffset({ offset: targetIndex * itemHeight, animated: true });
+  }
+
+  function renderFood({ item }: { item: FoodItem }) {
+    return (
+      <View style={{ height: itemHeight }}>
+        <FoodCard
+          food={item}
+          onPress={() => navigation.navigate('Food', { slug: item.slug })}
+          insets={insets}
+          tabBarHeight={user ? TAB_BAR_HEIGHT : 0}
+        />
+      </View>
+    );
+  }
+
+  function renderCook({ item }: { item: CookListing }) {
+    return (
+      <View style={{ height: itemHeight }}>
+        <CookListingHero
+          listing={item}
+          onPress={() => navigation.navigate('Food' as never)}
+          insets={insets}
+          tabBarHeight={user ? TAB_BAR_HEIGHT : 0}
+        />
+      </View>
+    );
+  }
+
+  function renderNearby() {
+    return (
+      <View style={{ paddingTop: insets.top + 120, paddingHorizontal: spacing.md, paddingBottom: insets.bottom + spacing.lg }}>
+        <View style={styles.nearbyHeader}>
+          <Text style={styles.nearbyTitle}>Food Around Me</Text>
+        </View>
+        <FlatList
+          horizontal
+          data={filteredCookListings}
+          keyExtractor={(item) => item.id}
+          showsHorizontalScrollIndicator={false}
+          renderItem={({ item }) => (
+            <CookListingCard listing={item} onPress={() => navigation.navigate('Food' as never)} />
+          )}
+        />
+      </View>
+    );
   }
 
   if (loading) {
@@ -113,37 +204,34 @@ export function HomeScreen() {
     );
   }
 
+  const data = active === 'cooks' ? visibleCookListings : visibleFoods;
+
   return (
     <SafeAreaView style={styles.container} edges={[]}>
-      <FlatList
-        ref={listRef}
-        data={visibleFoods}
-        keyExtractor={(item, i) => `${item.slug}-${i}`}
-        pagingEnabled
-        decelerationRate="fast"
-        snapToInterval={itemHeight}
-        showsVerticalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        renderItem={({ item }) => (
-          <View style={{ height: itemHeight }}>
-            <FoodCard
-              food={item}
-              onPress={() => navigation.navigate('Food', { slug: item.slug })}
-              insets={insets}
-              tabBarHeight={user ? TAB_BAR_HEIGHT : 0}
-            />
-          </View>
-        )}
-      />
+      {active === 'nearby' ? (
+        renderNearby()
+      ) : (
+        <FlatList
+          ref={listRef}
+          data={data as any}
+          keyExtractor={(item: any, i: number) => `${item.id ?? item.slug}-${i}`}
+          pagingEnabled
+          decelerationRate="fast"
+          snapToInterval={itemHeight}
+          showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          renderItem={({ item }: any) => (active === 'cooks' ? renderCook({ item }) : renderFood({ item }))}
+        />
+      )}
 
-      <ScrollHint canScrollUp={canScrollUp} canScrollDown={canScrollDown} onNavigate={handleNavigate} />
+      <ScrollHint canScrollUp={canScrollUp && active !== 'nearby'} canScrollDown={canScrollDown && active !== 'nearby'} onNavigate={handleNavigate} />
 
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <Logo />
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.iconButton} onPress={() => setSearchOpen((s) => !s)}>
-            {searchOpen ? <X size={18} color={colors.white} /> : <Search size={18} color={colors.white} />}
+          <TouchableOpacity style={styles.iconButton} onPress={() => setFiltersOpen((s) => !s)}>
+            {filtersOpen ? <X size={18} color={colors.white} /> : <SlidersHorizontal size={18} color={colors.white} />}
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={() => user ? navigation.navigate('MainTabs' as never) : navigation.navigate('Auth', { mode: 'signin' })}>
             <User size={18} color={colors.white} />
@@ -151,20 +239,46 @@ export function HomeScreen() {
         </View>
       </View>
 
-      {searchOpen && (
-        <View style={[styles.searchBar, { top: insets.top + 56 }]}>
+      {filtersOpen && (
+        <View style={[styles.filtersPanel, { top: insets.top + 56 }]}>
           <TextInput
-            style={styles.searchInput}
-            placeholder="Search dishes..."
+            style={styles.input}
+            placeholder="Search..."
             placeholderTextColor={colors.muted}
-            value={query}
-            onChangeText={setQuery}
+            value={filters.q}
+            onChangeText={(q) => setFilters((f) => ({ ...f, q }))}
             autoFocus
           />
+          <View style={styles.cuisines}>
+            {cuisines.map((c) => (
+              <TouchableOpacity
+                key={c}
+                style={[styles.cuisineChip, filters.cuisine === c && styles.cuisineChipActive]}
+                onPress={() => setFilters((f) => ({ ...f, cuisine: f.cuisine === c ? '' : c }))}
+              >
+                <Text style={[styles.cuisineChipText, filters.cuisine === c && styles.cuisineChipTextActive]}>{c}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TextInput
+            style={styles.input}
+            placeholder="Max price (₦)"
+            placeholderTextColor={colors.muted}
+            value={filters.maxPrice}
+            onChangeText={(maxPrice) => setFilters((f) => ({ ...f, maxPrice }))}
+            keyboardType="number-pad"
+          />
+          <View style={styles.availableRow}>
+            <Text style={styles.availableText}>Available now</Text>
+            <Switch value={filters.available} onValueChange={(v) => setFilters((f) => ({ ...f, available: v }))} trackColor={{ false: colors.brand800, true: colors.success }} thumbColor={colors.white} />
+          </View>
+          <TouchableOpacity style={styles.clearButton} onPress={() => setFilters({ q: '', cuisine: '', maxPrice: '', available: false })}>
+            <Text style={styles.clearText}>Clear filters</Text>
+          </TouchableOpacity>
         </View>
       )}
 
-      {!searchOpen && (
+      {!filtersOpen && (
         <View style={[styles.navWrapper, { top: insets.top + 56 }]}>
           <View style={styles.nav}>
             {tabs.map((t) => (
@@ -195,6 +309,17 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: colors.white },
   tabText: { color: colors.muted, fontSize: fontSizes.sm, fontWeight: '600' },
   tabTextActive: { color: colors.black },
-  searchBar: { position: 'absolute', left: spacing.md, right: spacing.md, alignItems: 'center', zIndex: 25 },
-  searchInput: { backgroundColor: 'rgba(0,0,0,0.6)', color: colors.white, borderRadius: 999, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, width: '100%' },
+  filtersPanel: { position: 'absolute', left: spacing.md, right: spacing.md, backgroundColor: 'rgba(0,0,0,0.85)', borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, zIndex: 25 },
+  input: { backgroundColor: 'rgba(255,255,255,0.08)', color: colors.white, borderRadius: radii.full, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, marginBottom: spacing.sm },
+  cuisines: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm },
+  cuisineChip: { paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radii.full, borderWidth: 1, borderColor: colors.border, backgroundColor: 'rgba(255,255,255,0.05)' },
+  cuisineChipActive: { backgroundColor: colors.success, borderColor: colors.success },
+  cuisineChipText: { color: colors.muted, fontSize: fontSizes.sm },
+  cuisineChipTextActive: { color: colors.black, fontWeight: '700' },
+  availableRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: spacing.sm },
+  availableText: { color: colors.white, fontSize: fontSizes.base },
+  clearButton: { padding: spacing.sm, alignItems: 'center' },
+  clearText: { color: colors.danger, fontWeight: '700' },
+  nearbyHeader: { marginBottom: spacing.md },
+  nearbyTitle: { color: colors.white, fontSize: fontSizes.xl, fontWeight: '800' },
 });
