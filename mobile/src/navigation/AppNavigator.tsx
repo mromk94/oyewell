@@ -59,7 +59,7 @@ function CustomerTabs() {
       <Tabs.Screen
         name="Home"
         component={HomeScreen}
-        options={{ tabBarIcon: ({ color }: { color: string }) => <Home size={20} color={color} /> }}
+        options={{ tabBarIcon: ({ color }: { color: string }) => <Home size={20} color={color} />, tabBarStyle: { display: 'none' } }}
       />
       {user && (
         <Tabs.Screen

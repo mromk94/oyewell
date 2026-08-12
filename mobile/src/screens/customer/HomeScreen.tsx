@@ -152,7 +152,7 @@ export function HomeScreen() {
           food={item}
           onPress={() => navigation.navigate('Food', { slug: item.slug })}
           insets={insets}
-          tabBarHeight={user ? TAB_BAR_HEIGHT : 0}
+          tabBarHeight={0}
         />
       </View>
     );
@@ -164,7 +164,7 @@ export function HomeScreen() {
         <CookListingHero
           listing={item}
           insets={insets}
-          tabBarHeight={user ? TAB_BAR_HEIGHT : 0}
+          tabBarHeight={0}
         />
       </View>
     );
@@ -206,7 +206,7 @@ export function HomeScreen() {
           <TouchableOpacity style={styles.iconButton} onPress={() => setFiltersOpen((s) => !s)}>
             {filtersOpen ? <X size={18} color={colors.white} /> : <Search size={18} color={colors.white} />}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton} onPress={() => user ? navigation.navigate('MainTabs') : navigation.navigate('Auth', { mode: 'signin' })}>
+          <TouchableOpacity style={styles.iconButton} onPress={() => user ? navigation.navigate('MainTabs' as any, { screen: 'Account' } as any) : navigation.navigate('Auth', { mode: 'signin' })}>
             <User size={18} color={colors.white} />
           </TouchableOpacity>
         </View>
