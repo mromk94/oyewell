@@ -49,8 +49,7 @@ export default function AuthModal() {
       if (mode === 'forgot') {
         if (!resetToken) {
           const data = await forgotPassword(email);
-          setResetToken(data.resetToken ?? '');
-          setSuccess(data.message ?? 'Reset code generated.');
+          setSuccess(data.message ?? 'If the account exists, a reset code has been sent.');
         } else {
           await resetPassword(email, resetToken, newPassword);
           setSuccess('Password updated. You can now sign in.');
@@ -237,28 +236,38 @@ export default function AuthModal() {
                   </label>
                 )}
 
-                {mode === 'forgot' && resetToken && (
-                  <>
-                    <div className='rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-3'>
-                      <p className='text-xs text-emerald-200'>Reset code</p>
-                      <p className='mt-1 break-all text-sm font-mono text-white'>{resetToken}</p>
+                {mode === 'forgot' && (
+                  <label className='block'>
+                    <span className='text-xs font-medium text-white/70'>Reset code (if you have one)</span>
+                    <div className='mt-1 flex items-center gap-2 rounded-2xl border border-white/20 bg-white/5 p-3'>
+                      <Lock className='h-4 w-4 text-white/40' />
+                      <input
+                        type='text'
+                        value={resetToken}
+                        onChange={(e) => setResetToken(e.target.value)}
+                        placeholder='Paste the code from your email'
+                        className='w-full bg-transparent text-white outline-none placeholder-white/40'
+                      />
                     </div>
-                    <label className='block'>
-                      <span className='text-xs font-medium text-white/70'>New password</span>
-                      <div className='mt-1 flex items-center gap-2 rounded-2xl border border-white/20 bg-white/5 p-3'>
-                        <Lock className='h-4 w-4 text-white/40' />
-                        <input
-                          type='password'
-                          value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          placeholder='At least 6 characters'
-                          required
-                          minLength={6}
-                          className='w-full bg-transparent text-white outline-none placeholder-white/40'
-                        />
-                      </div>
-                    </label>
-                  </>
+                  </label>
+                )}
+
+                {mode === 'forgot' && resetToken && (
+                  <label className='block'>
+                    <span className='text-xs font-medium text-white/70'>New password</span>
+                    <div className='mt-1 flex items-center gap-2 rounded-2xl border border-white/20 bg-white/5 p-3'>
+                      <Lock className='h-4 w-4 text-white/40' />
+                      <input
+                        type='password'
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder='At least 6 characters'
+                        required
+                        minLength={6}
+                        className='w-full bg-transparent text-white outline-none placeholder-white/40'
+                      />
+                    </div>
+                  </label>
                 )}
 
                 <button

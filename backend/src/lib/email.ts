@@ -54,6 +54,17 @@ export async function sendEmail({ to, subject, text, html }: EmailPayload) {
   return { ok: true, message: 'Email sent' };
 }
 
+export async function sendPasswordResetEmail(email: string, token: string) {
+  const cfg = await getEmailConfig();
+  if (!cfg?.enabled) return { ok: false, message: 'Email service disabled' };
+
+  const subject = 'Reset your OYE Well password';
+  const text = `You requested a password reset for your OYE Well account.\n\nUse the following code within 15 minutes:\n\n${token}\n\nIf you did not request this, you can safely ignore this email.`;
+  const html = `<p>You requested a password reset for your OYE Well account.</p><p>Use the following code within 15 minutes:</p><p style="font-size:1.25rem;font-weight:bold;letter-spacing:0.05em;">${token}</p><p>If you did not request this, you can safely ignore this email.</p>`;
+
+  return sendEmail({ to: email, subject, text, html });
+}
+
 export async function sendOrderStatusEmail(order: any) {
   if (!order.customer?.email) return { ok: false, message: 'No customer email' };
   const cfg = await getEmailConfig();

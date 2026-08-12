@@ -15,6 +15,7 @@ async function main() {
       email: adminEmail,
       password: hashed,
       role: 'ADMIN',
+      roles: ['ADMIN'],
     },
   });
 

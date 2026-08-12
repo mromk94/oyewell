@@ -1,11 +1,13 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { prisma } from '../prisma.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { serializeOrder } from '../lib/order.js';
 import { JWT_SECRET, JWT_EXPIRES_IN } from '../lib/config.js';
 import { adminLoginRateLimit } from '../lib/admin-auth.js';
+import { sendPasswordResetEmail } from '../lib/email.js';
 
 const router = Router();
 
@@ -128,12 +130,15 @@ router.post('/forgot-password', async (req, res, next) => {
       return;
     }
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) {
-      res.status(404).json({ error: 'No account found with this email' });
-      return;
+    if (user) {
+      const token = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+      await prisma.passwordReset.create({
+        data: { email, token, expiresAt },
+      });
+      await sendPasswordResetEmail(email, token);
     }
-    const token = jwt.sign({ email, purpose: 'password-reset' }, JWT_SECRET, { expiresIn: '15m' });
-    res.json({ message: 'Reset token generated. Use it to set a new password.', resetToken: token });
+    res.json({ ok: true, message: 'If the account exists, a reset code has been sent to the email.' });
   } catch (err) {
     next(err);
   }
@@ -161,12 +166,14 @@ router.post('/reset-password', async (req, res, next) => {
   try {
     const { email, resetToken, newPassword } = req.body as Record<string, string>;
     if (!email || !resetToken || !newPassword || newPassword.length < 6) {
-      res.status(400).json({ error: 'Email, reset token and a new password of at least 6 characters are required' });
+      res.status(400).json({ error: 'Email, reset code and a new password of at least 6 characters are required' });
       return;
     }
-    const decoded = jwt.verify(resetToken, JWT_SECRET) as { email: string; purpose: string };
-    if (decoded.purpose !== 'password-reset' || decoded.email !== email) {
-      res.status(400).json({ error: 'Invalid or expired reset token' });
+    const record = await prisma.passwordReset.findFirst({
+      where: { email, token: resetToken, usedAt: null, expiresAt: { gt: new Date() } },
+    });
+    if (!record) {
+      res.status(400).json({ error: 'Invalid or expired reset code' });
       return;
     }
     const user = await prisma.user.findUnique({ where: { email } });
@@ -175,7 +182,10 @@ router.post('/reset-password', async (req, res, next) => {
       return;
     }
     const hashed = bcrypt.hashSync(newPassword, 10);
-    await prisma.user.update({ where: { id: user.id }, data: { password: hashed } });
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: user.id }, data: { password: hashed } }),
+      prisma.passwordReset.update({ where: { id: record.id }, data: { usedAt: new Date() } }),
+    ]);
     res.json({ ok: true, message: 'Password updated. You can now sign in.' });
   } catch (err) {
     next(err);

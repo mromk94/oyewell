@@ -506,7 +506,7 @@ export async function forgotPassword(email: string) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
   });
-  const data = (await res.json()) as { message?: string; resetToken?: string; error?: string };
+  const data = (await res.json()) as { ok?: boolean; message?: string; error?: string };
   if (!res.ok) throw new Error(data.error ?? 'Failed to request reset');
   return data;
 }
