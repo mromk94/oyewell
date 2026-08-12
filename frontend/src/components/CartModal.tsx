@@ -148,8 +148,6 @@ export default function CartModal() {
       .finally(() => setDeliveryLoading(false));
   }, [isOpen, address, phone, items.length, totalKobo]);
 
-  if (!isOpen) return null;
-
   const doPlaceOrder = useCallback(async () => {
     if (!selectedMethod) {
       toast.error('Choose a payment method.');
@@ -222,6 +220,8 @@ export default function CartModal() {
   useEffect(() => {
     doPlaceOrderRef.current = doPlaceOrder;
   }, [doPlaceOrder]);
+
+  if (!isOpen) return null;
 
   async function handlePlaceOrder() {
     if (!isAuthenticated) {
