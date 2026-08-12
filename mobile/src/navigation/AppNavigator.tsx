@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../lib/auth';
@@ -28,6 +28,8 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tabs = createBottomTabNavigator();
+
+export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 function CustomerTabs() {
   const { count } = useCart();
@@ -158,7 +160,7 @@ function RoleTabs() {
 export function AppNavigator() {
   const { user } = useAuth();
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator
         screenOptions={{
           headerStyle: { backgroundColor: colors.brand900 },
