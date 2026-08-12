@@ -13,6 +13,7 @@ import { WalletScreen } from '../screens/customer/WalletScreen';
 import { OrdersScreen } from '../screens/customer/OrdersScreen';
 import { CookDashboardScreen } from '../screens/cook/CookDashboardScreen';
 import { CookListingsScreen } from '../screens/cook/CookListingsScreen';
+import { CookListingFormScreen } from '../screens/cook/CookListingFormScreen';
 import { RiderDashboardScreen } from '../screens/rider/RiderDashboardScreen';
 import { AdminDashboardScreen } from '../screens/management/AdminDashboardScreen';
 import { AuthScreen } from '../screens/AuthScreen';
@@ -20,6 +21,7 @@ import { LandingScreen } from '../screens/LandingScreen';
 import { AccountScreen } from '../screens/customer/AccountScreen';
 import { PaymentProofScreen } from '../screens/customer/PaymentProofScreen';
 import { colors } from '../theme';
+import type { CookListing } from '../lib/cookApi';
 import { Home, User, ShoppingCart, Wallet, Package, ChefHat, Bike, Shield } from 'lucide-react-native';
 
 export type RootStackParamList = {
@@ -28,6 +30,7 @@ export type RootStackParamList = {
   Auth: { mode?: 'signin' | 'register' | 'forgot'; next?: 'Cart' };
   Food: { slug: string };
   CookListing: { id: string };
+  CookListingForm: { listing?: CookListing };
   Track: { orderNumber: string };
   Cart: undefined;
   PaymentProof: { paymentId: string; orderNumber: string; instructions: string };
@@ -191,6 +194,7 @@ export function AppNavigator() {
             <Stack.Screen name="MainTabs" component={RoleTabs} options={{ headerShown: false }} />
             <Stack.Screen name="Food" component={FoodDetailScreen} options={{ headerShown: false }} />
             <Stack.Screen name="CookListing" component={CookListingDetailScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="CookListingForm" component={CookListingFormScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Track" component={TrackOrderScreen} options={{ headerShown: false }} />
             <Stack.Screen name="PaymentProof" component={PaymentProofScreen} options={{ headerShown: false }} />
@@ -202,6 +206,7 @@ export function AppNavigator() {
             <Stack.Screen name="MainTabs" component={RoleTabs} options={{ headerShown: false }} />
             <Stack.Screen name="Food" component={FoodDetailScreen} options={{ headerShown: false }} />
             <Stack.Screen name="CookListing" component={CookListingDetailScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="CookListingForm" component={CookListingFormScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: false }} />
           </>
         )}

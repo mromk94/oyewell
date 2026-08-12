@@ -93,7 +93,7 @@ export function CookDashboardScreen() {
                 <Text style={styles.number}>#{item.orderNumber}</Text>
                 <Text style={styles.status}>{item.status}</Text>
               </View>
-              <Text style={styles.items}>{item.items.map((i) => `${i.quantity}x ${i.name}`).join(', ')}</Text>
+              <Text style={styles.items}>{item.items.map((i) => `${i.quantity}x ${i.foodName}`).join(', ')}</Text>
               <View style={styles.actions}>
                 {item.status === 'PENDING' && <Action onPress={() => updateOrder(item.orderNumber, 'accept')} label="Accept" />}
                 {item.status === 'ACCEPTED' && <Action onPress={() => updateOrder(item.orderNumber, 'preparing')} label="Preparing" />}

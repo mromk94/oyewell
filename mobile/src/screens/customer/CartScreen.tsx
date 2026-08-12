@@ -102,28 +102,44 @@ export function CartScreen() {
       setError('Cannot mix restaurant and cook orders in one checkout.');
       return;
     }
+    const selectedDelivery = deliveryOptions[deliveryType];
+    if (!selectedDelivery?.available) {
+      setError('Delivery is not available for this address.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
-      const cartItems: CartItemPayload[] = items.map((item) => ({
-        foodSlug: item.foodSlug,
-        optionId: item.optionId ?? item.option?.id,
-        quantity: item.quantity,
-        sideIds: item.sideIds ?? item.sides?.map((s) => s.id),
-        cookListingId: item.cookListingId,
-      }));
+      const isCook = items[0].source === 'COOK';
       const selectedDelivery = deliveryOptions[deliveryType];
-      const { order, payment } = await createOrder({
+      const base = {
         address,
         phone,
-        items: cartItems,
         source: items[0].source,
         deliveryType,
         paymentProvider: method.provider,
         paymentCurrency: method.currency,
         lat: selectedDelivery?.lat ?? lat,
         lng: selectedDelivery?.lng ?? lng,
-      });
+      } as const;
+      const { order, payment } = isCook
+        ? await createOrder({
+            ...base,
+            source: 'COOK',
+            cookListingId: items[0].cookListingId!,
+            quantity: items.reduce((sum, i) => sum + i.quantity, 0),
+          })
+        : await createOrder({
+            ...base,
+            source: 'RESTAURANT',
+            items: items.map((item) => ({
+              foodSlug: item.foodSlug,
+              optionId: item.optionId ?? item.option?.id,
+              quantity: item.quantity,
+              sideIds: item.sideIds ?? item.sides?.map((s) => s.id),
+              cookListingId: item.cookListingId,
+            })),
+          });
       clear();
       if (MANUAL_PROVIDERS.has(payment.provider)) {
         navigation.navigate('PaymentProof', { paymentId: payment.id, orderNumber: order.orderNumber, instructions: method.config?.instructions ?? '' });
@@ -145,6 +161,9 @@ export function CartScreen() {
   }
 
   const empty = count === 0;
+  const selectedDelivery = deliveryOptions[deliveryType];
+  const canCheckout = !!user && !!address.trim() && !!phone.trim() && !!selectedMethodId && selectedDelivery?.available && !deliveryLoading;
+  const checkoutLabel = !user ? 'Sign in to place order' : !selectedDelivery?.available ? 'Delivery unavailable' : 'Checkout';
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -262,10 +281,9 @@ export function CartScreen() {
           {error && <Text style={styles.error}>{error}</Text>}
 
           {(() => {
-            const opt = deliveryOptions[deliveryType];
-            const platformFee = opt?.available ? opt.platformFee : null;
-            const deliveryFee = opt?.available ? opt.deliveryFee : null;
-            const grand = opt?.available ? opt.total : formatPrice(totalKobo);
+            const platformFee = selectedDelivery?.available ? selectedDelivery.platformFee : null;
+            const deliveryFee = selectedDelivery?.available ? selectedDelivery.deliveryFee : null;
+            const grand = selectedDelivery?.available ? selectedDelivery.total : formatPrice(totalKobo);
             return (
               <View style={styles.summary}>
                 <View style={styles.summaryRow}>
@@ -292,8 +310,8 @@ export function CartScreen() {
             );
           })()}
 
-          <TouchableOpacity style={styles.checkout} onPress={handleCheckout} disabled={loading}>
-          {loading ? <ActivityIndicator color={colors.brand900} /> : <Text style={styles.checkoutText}>{user ? 'Checkout' : 'Sign in to place order'}</Text>}
+          <TouchableOpacity style={[styles.checkout, !canCheckout && styles.checkoutDisabled]} onPress={handleCheckout} disabled={loading || !canCheckout}>
+          {loading ? <ActivityIndicator color={colors.brand900} /> : <Text style={styles.checkoutText}>{checkoutLabel}</Text>}
         </TouchableOpacity>
         </View>
         ) : null}
@@ -332,6 +350,7 @@ const styles = StyleSheet.create({
   totalLabel: { color: colors.white, fontSize: fontSizes.lg, fontWeight: '600' },
   totalValue: { color: colors.brand100, fontSize: fontSizes.lg, fontWeight: '700' },
   checkout: { backgroundColor: colors.brand100, padding: spacing.md, borderRadius: radii.full, alignItems: 'center' },
+  checkoutDisabled: { backgroundColor: colors.brand800, opacity: 0.5 },
   checkoutText: { color: colors.brand900, fontWeight: '700' },
   section: { color: colors.white, fontSize: fontSizes.base, fontWeight: '600', marginBottom: spacing.sm },
   methodList: { paddingBottom: spacing.md },

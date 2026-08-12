@@ -232,33 +232,101 @@ export async function fetchBalance() {
   return api<{ balanceKobo: number; balance: string }>('/api/payments/balance');
 }
 
-export async function createOrder(payload: {
+export type CreateOrderPayload = {
   address: string;
   phone: string;
+  source: 'RESTAURANT';
   items: CartItemPayload[];
-  source: 'RESTAURANT' | 'COOK';
   deliveryType?: 'NEIGHBORHOOD' | 'PROFESSIONAL';
   paymentProvider?: string;
   paymentCurrency?: string;
   lat?: number;
   lng?: number;
   note?: string;
-}): Promise<OrderResult> {
+} | {
+  address: string;
+  phone: string;
+  source: 'COOK';
+  cookListingId: string;
+  quantity: number;
+  deliveryType?: 'NEIGHBORHOOD' | 'PROFESSIONAL';
+  paymentProvider?: string;
+  paymentCurrency?: string;
+  lat?: number;
+  lng?: number;
+  note?: string;
+};
+
+export async function createOrder(payload: CreateOrderPayload): Promise<OrderResult> {
   return api<OrderResult>('/api/orders', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
 }
 
-export interface FullOrder {
+export interface OrderSummary {
+  id: string;
   orderNumber: string;
   status: string;
+  paymentStatus: string;
+  deliveryType?: 'NEIGHBORHOOD' | 'PROFESSIONAL';
+  subtotal: string;
+  platformFee: string;
+  deliveryFee: string;
+  total: string;
+  address: string;
+  approximateArea: string;
+  phone: string;
   deliveryCode?: string;
-  totalKobo: number;
+  cookId?: string;
+  cookListingId?: string;
+  riderId?: string;
+  riderFee?: string;
+  riderStatus?: string;
+  riderLocation?: { lat: number; lng: number; updatedAt: string } | null;
+  deliveredAt?: string;
   createdAt: string;
-  items: { name: string; quantity: number }[];
+  items: {
+    foodName: string;
+    optionLabel: string;
+    quantity: number;
+    totalKobo: number;
+  }[];
+  sides: {
+    name: string;
+    quantity: number;
+    priceKobo: number;
+    totalKobo: number;
+  }[];
+  payment: {
+    id: string;
+    provider: string;
+    status: string;
+    method: {
+      name: string;
+      provider: string;
+      publicKey?: string;
+      config?: Record<string, any>;
+    } | null;
+    attempts: { id: string; status: string; payload: any; createdAt: string }[];
+  } | null;
+  statusHistory: { status: string; note: string; createdAt: string }[];
 }
 
 export async function fetchOrder(orderNumber: string) {
-  return api<{ order: FullOrder }>(`/api/orders/${orderNumber}`);
+  return api<{ order: OrderSummary }>(`/api/orders/${orderNumber}`);
+}
+
+export async function createReview(payload: { orderNumber: string; rating: number; comment?: string; target: 'cook' | 'rider' }) {
+  return api<{ review: any }>('/api/reviews', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function createReport(payload: { targetId: string; targetType: 'RIDER' | 'COOK'; reason: string }) {
+  return api<{ report: any }>('/api/reports', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
