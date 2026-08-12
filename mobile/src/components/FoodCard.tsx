@@ -23,7 +23,7 @@ export const FoodCard = React.memo(function FoodCard({ food, onPress, insets, ta
   const active = media[index];
 
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.95}>
+    <View style={styles.card}>
       <ImageBackground source={{ uri: active?.url }} style={styles.media} resizeMode="cover" imageStyle={{ backgroundColor: colors.brand800 }}>
         <View style={styles.overlay} />
         <View style={[styles.indicators, { top: insets.top + 108 }]}>
@@ -41,13 +41,13 @@ export const FoodCard = React.memo(function FoodCard({ food, onPress, insets, ta
           {food.description && <Text style={styles.description} numberOfLines={2}>{food.description}</Text>}
           <View style={styles.row}>
             {food.priceFrom && <Text style={styles.price}>{food.priceFrom}</Text>}
-            <View style={styles.orderButton}>
+            <TouchableOpacity style={styles.orderButton} onPress={onPress} activeOpacity={0.8}>
               <Text style={styles.orderText}>Order</Text>
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
       </ImageBackground>
-    </TouchableOpacity>
+    </View>
   );
 });
 

@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, useWindowDimensions, TouchableOpacity } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, useWindowDimensions, TouchableOpacity, TextInput } from 'react-native';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fontSizes, spacing } from '../../theme';
@@ -8,17 +8,27 @@ import { fetchFoods, type FoodItem } from '../../lib/api';
 import { FoodCard } from '../../components/FoodCard';
 import { Logo } from '../../components/Logo';
 import { ScrollHint } from '../../components/ScrollHint';
-import { User, Search } from 'lucide-react-native';
+import { User, Search, X } from 'lucide-react-native';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 
 type ViewTab = 'home' | 'cooks' | 'restaurants' | 'nearby';
-const tabs: { id: Exclude<ViewTab, 'home'>; label: string }[] = [
+const tabs: { id: ViewTab; label: string }[] = [
+  { id: 'home', label: 'Home' },
   { id: 'cooks', label: 'Food' },
   { id: 'restaurants', label: 'Restaurants' },
   { id: 'nearby', label: 'Around Me' },
 ];
 
 const TAB_BAR_HEIGHT = 56;
+
+function filterFoods(list: FoodItem[], q: string) {
+  let base = list;
+  if (q.trim()) {
+    const term = q.toLowerCase();
+    base = base.filter((f) => f.name.toLowerCase().includes(term) || (f.description && f.description.toLowerCase().includes(term)));
+  }
+  return base;
+}
 
 export function HomeScreen() {
   const { user } = useAuth();
@@ -32,6 +42,10 @@ export function HomeScreen() {
   const [reps, setReps] = useState(1);
   const [canScrollUp, setCanScrollUp] = useState(false);
   const [canScrollDown, setCanScrollDown] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [scrollY, setScrollY] = useState(0);
+  const [contentHeight, setContentHeight] = useState(0);
   const isAppending = useRef(false);
   const listRef = useRef<FlatList<FoodItem>>(null);
 
@@ -47,28 +61,40 @@ export function HomeScreen() {
     isAppending.current = false;
   }, [reps]);
 
+  useEffect(() => {
+    setReps(1);
+    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+  }, [active, query]);
+
+  const filteredFoods = useMemo(() => filterFoods(foods, query), [foods, query]);
+
   const visibleFoods = useMemo(() => {
-    return Array.from({ length: reps }).flatMap(() => foods);
-  }, [foods, reps]);
+    return Array.from({ length: reps }).flatMap(() => filteredFoods);
+  }, [filteredFoods, reps]);
 
   const itemHeight = height;
 
-  function handleScroll(e: { nativeEvent: { contentOffset: { y: number }; contentSize: { height: number }; layoutMeasurement: { height: number } } }) {
+  const handleScroll = useCallback((e: { nativeEvent: { contentOffset: { y: number }; contentSize: { height: number }; layoutMeasurement: { height: number } } }) => {
     const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+    setScrollY(contentOffset.y);
+    setContentHeight(contentSize.height);
     setCanScrollUp(contentOffset.y > 10);
     setCanScrollDown(contentOffset.y < contentSize.height - layoutMeasurement.height - 10);
 
-    if (active === 'nearby' || isAppending.current) return;
-    const totalHeight = reps * foods.length * itemHeight;
+    if (isAppending.current || filteredFoods.length === 0) return;
+    const totalHeight = reps * filteredFoods.length * itemHeight;
     if (contentOffset.y + layoutMeasurement.height >= totalHeight - 100) {
       isAppending.current = true;
       setReps((r) => r + 1);
     }
-  }
+  }, [filteredFoods, itemHeight, reps]);
 
   function handleNavigate(direction: 'up' | 'down') {
-    const y = direction === 'down' ? itemHeight : -itemHeight;
-    listRef.current?.scrollToOffset({ offset: Math.max(0, y), animated: true });
+    const currentIndex = Math.round(scrollY / itemHeight);
+    const nextIndex = direction === 'down' ? currentIndex + 1 : currentIndex - 1;
+    const maxIndex = Math.max(0, Math.ceil(contentHeight / itemHeight) - 1);
+    const targetIndex = Math.max(0, Math.min(nextIndex, maxIndex));
+    listRef.current?.scrollToOffset({ offset: targetIndex * itemHeight, animated: true });
   }
 
   if (loading) {
@@ -116,8 +142,8 @@ export function HomeScreen() {
       <View style={[styles.header, { paddingTop: insets.top + spacing.sm }]}>
         <Logo />
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.iconButton} onPress={() => {}}>
-            <Search size={18} color={colors.white} />
+          <TouchableOpacity style={styles.iconButton} onPress={() => setSearchOpen((s) => !s)}>
+            {searchOpen ? <X size={18} color={colors.white} /> : <Search size={18} color={colors.white} />}
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} onPress={() => user ? navigation.navigate('MainTabs' as never) : navigation.navigate('Auth', { mode: 'signin' })}>
             <User size={18} color={colors.white} />
@@ -125,19 +151,34 @@ export function HomeScreen() {
         </View>
       </View>
 
-      <View style={[styles.navWrapper, { top: insets.top + 56 }]}>
-        <View style={styles.nav}>
-          {tabs.map((t) => (
-            <TouchableOpacity
-              key={t.id}
-              onPress={() => setActive(t.id)}
-              style={[styles.tab, active === t.id && styles.tabActive]}
-            >
-              <Text style={[styles.tabText, active === t.id && styles.tabTextActive]}>{t.label}</Text>
-            </TouchableOpacity>
-          ))}
+      {searchOpen && (
+        <View style={[styles.searchBar, { top: insets.top + 56 }]}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search dishes..."
+            placeholderTextColor={colors.muted}
+            value={query}
+            onChangeText={setQuery}
+            autoFocus
+          />
         </View>
-      </View>
+      )}
+
+      {!searchOpen && (
+        <View style={[styles.navWrapper, { top: insets.top + 56 }]}>
+          <View style={styles.nav}>
+            {tabs.map((t) => (
+              <TouchableOpacity
+                key={t.id}
+                onPress={() => setActive(t.id)}
+                style={[styles.tab, active === t.id && styles.tabActive]}
+              >
+                <Text style={[styles.tabText, active === t.id && styles.tabTextActive]}>{t.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -154,4 +195,6 @@ const styles = StyleSheet.create({
   tabActive: { backgroundColor: colors.white },
   tabText: { color: colors.muted, fontSize: fontSizes.sm, fontWeight: '600' },
   tabTextActive: { color: colors.black },
+  searchBar: { position: 'absolute', left: spacing.md, right: spacing.md, alignItems: 'center', zIndex: 25 },
+  searchInput: { backgroundColor: 'rgba(0,0,0,0.6)', color: colors.white, borderRadius: 999, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, width: '100%' },
 });
