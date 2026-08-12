@@ -13,7 +13,7 @@ import {
 import { SafeAreaView as SafeArea } from 'react-native-safe-area-context';
 import { colors, fontSizes, radii, spacing } from '../../theme';
 import { useAuth } from '../../lib/auth';
-import { useInterval } from '../../lib/polling';
+import { useOrderEvents } from '../../lib/events';
 import { formatPrice } from '../../lib/api';
 import {
   fetchRiderMe,
@@ -70,7 +70,6 @@ export function RiderDashboardScreen() {
   }, []);
 
   useEffect(() => { loadRider().finally(() => setLoading(false)); }, [loadRider]);
-  useInterval(() => { loadRider(); }, 15000);
 
   async function toggleAvailability(value: boolean) {
     if (!rider) return;
@@ -229,7 +228,19 @@ function MyOrdersPanel({ rider, onError }: { rider: Rider; onError: (m: string) 
     }
   }
 
+  async function refresh() {
+    try {
+      const { orders } = await fetchRiderOrders();
+      setOrders(orders);
+    } catch {}
+  }
+
   useEffect(() => { load(); }, []);
+  useOrderEvents((event) => {
+    if (['order:status', 'delivery:assigned', 'delivery:completed', 'payment:confirmed', 'payment:proof'].includes(event.type)) {
+      refresh();
+    }
+  });
 
   async function handlePickup(orderNumber: string, code: string) {
     try {
@@ -314,7 +325,19 @@ function AvailableOrdersPanel({ onError }: { onError: (m: string) => void }) {
     }
   }
 
+  async function refresh() {
+    try {
+      const { orders } = await fetchAvailableOrders();
+      setOrders(orders);
+    } catch {}
+  }
+
   useEffect(() => { load(); }, []);
+  useOrderEvents((event) => {
+    if (['delivery:open', 'delivery:assigned', 'order:status', 'payment:confirmed', 'payment:proof'].includes(event.type)) {
+      refresh();
+    }
+  });
 
   async function handleClaim(orderNumber: string) {
     try {
@@ -415,7 +438,20 @@ function EarningsPanel({ onError }: { onError: (m: string) => void }) {
     }
   }
 
+  async function refresh() {
+    try {
+      const [e, p] = await Promise.all([fetchRiderEarnings(), fetchRiderPayouts()]);
+      setEarnings(e);
+      setPayouts(p.payouts);
+    } catch {}
+  }
+
   useEffect(() => { load(); }, []);
+  useOrderEvents((event) => {
+    if (['delivery:completed', 'payment:confirmed'].includes(event.type)) {
+      refresh();
+    }
+  });
 
   async function handleWithdraw() {
     setWithdrawing(true);

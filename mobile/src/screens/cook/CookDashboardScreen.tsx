@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, SafeAreaView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { colors, fontSizes, radii, spacing } from '../../theme';
 import { useAuth } from '../../lib/auth';
-import { useInterval } from '../../lib/polling';
+import { useOrderEvents } from '../../lib/events';
 import { fetchCookOrders, acceptCookOrder, preparingCookOrder, readyCookOrder, fetchCookEarnings, updateKitchenStatus, type CookOrder } from '../../lib/cookApi';
 
 export function CookDashboardScreen() {
@@ -25,8 +25,21 @@ export function CookDashboardScreen() {
       .finally(() => setLoading(false));
   }
 
+  function refresh() {
+    Promise.all([fetchCookOrders(), fetchCookEarnings()])
+      .then(([ordersData, earningsData]) => {
+        setOrders(ordersData.orders);
+        setEarnings({ total: earningsData.earnings.total, available: earningsData.earnings.available });
+      })
+      .catch(() => {});
+  }
+
   useEffect(() => { load(); }, []);
-  useInterval(load, 15000);
+  useOrderEvents((event) => {
+    if (['order:status', 'payment:confirmed', 'payment:proof', 'order:created'].includes(event.type)) {
+      refresh();
+    }
+  });
 
   async function setStatus(status: 'OPEN' | 'CLOSED' | 'PAUSED') {
     try {
