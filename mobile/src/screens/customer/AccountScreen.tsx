@@ -317,19 +317,23 @@ function OrderList({
         <TouchableOpacity
           key={order.id}
           style={styles.orderCard}
-          onPress={() => navigation.navigate('Track', { orderNumber: order.orderNumber })}
+          onPress={() => {
+            const rootNavigation = navigation.getParent() as NativeStackNavigationProp<RootStackParamList> | undefined;
+            rootNavigation?.navigate('Track', { orderNumber: order.orderNumber });
+          }}
+          activeOpacity={0.7}
         >
-          <View style={styles.orderRow}>
-            <View>
+          <View style={[styles.orderRow, { alignItems: 'flex-start' }]}>
+            <View style={{ flex: 1, paddingRight: spacing.sm }}>
               <View style={styles.orderRowInline}>
                 <Package size={14} color={colors.muted} />
-                <Text style={styles.orderNumber}>#{order.orderNumber}</Text>
+                <Text style={styles.orderNumber} numberOfLines={1}>#{order.orderNumber}</Text>
               </View>
               <Text style={styles.meta}>
                 {new Date(order.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
               </Text>
             </View>
-            <View style={styles.badges}>
+            <View style={[styles.badges, { alignItems: 'flex-start' }]}>
               <View style={[styles.badge, { backgroundColor: STATUS_COLORS[order.status]?.bg ?? 'rgba(255,255,255,0.1)' }]}>
                 <Text style={[styles.badgeText, { color: STATUS_COLORS[order.status]?.text ?? colors.white }]}>
                   {order.status.replace(/_/g, ' ')}
@@ -344,20 +348,20 @@ function OrderList({
           </View>
           <View style={styles.items}>
             {order.items.map((item, idx) => (
-              <Text key={idx} style={styles.itemLine}>
+              <Text key={idx} style={styles.itemLine} numberOfLines={2}>
                 {item.quantity}× {item.foodName} — {item.optionLabel}
               </Text>
             ))}
             {order.sides.length > 0 && (
-              <Text style={styles.sidesLine}>
+              <Text style={styles.sidesLine} numberOfLines={2}>
                 + {order.sides.map((s) => `${s.quantity}× ${s.name}`).join(', ')}
               </Text>
             )}
           </View>
-          <View style={[styles.orderRow, { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: spacing.sm, marginTop: spacing.sm }]}>
-            <View style={styles.orderRowInline}>
+          <View style={[styles.orderRow, { borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.1)', paddingTop: spacing.sm, marginTop: spacing.sm, alignItems: 'center' }]}>
+            <View style={[styles.orderRowInline, { flex: 1 }]}>
               <MapPin size={14} color={colors.muted} />
-              <Text style={styles.meta} numberOfLines={1}>{order.address}</Text>
+              <Text style={[styles.meta, { flex: 1 }]} numberOfLines={1}>{order.address}</Text>
             </View>
             <Text style={styles.total}>{order.total}</Text>
           </View>
