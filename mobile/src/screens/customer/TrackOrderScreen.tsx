@@ -69,7 +69,7 @@ export function TrackOrderScreen() {
 
   useEffect(() => { load(); }, [orderNumber]);
   useFocusEffect(React.useCallback(() => { load(true); }, [orderNumber]));
-  useInterval(load, 15000);
+  useInterval(() => load(true), 15000);
 
   async function handlePickProof() {
     const picked = await pickImage();
@@ -208,32 +208,42 @@ export function TrackOrderScreen() {
                   </View>
                 ) : (
                   <View>
-                    {order.payment.method?.provider === 'BANK_TRANSFER' && (
+                    {order.payment.method ? (
                       <View style={styles.methodInfo}>
                         <Text style={styles.methodLabel}>Pay to: {order.payment.method.name}</Text>
-                        {order.payment.method.config?.bankName && (
-                          <Text style={styles.methodText}>Bank: {order.payment.method.config.bankName}</Text>
-                        )}
-                        {order.payment.method.config?.accountName && (
-                          <Text style={styles.methodText}>Account name: {order.payment.method.config.accountName}</Text>
-                        )}
-                        {order.payment.method.publicKey && (
-                          <Text style={styles.methodText}>Account number: {order.payment.method.publicKey}</Text>
-                        )}
-                        {order.payment.method.config?.instructions && (
-                          <Text style={styles.methodInstructions}>{order.payment.method.config.instructions}</Text>
+                        {order.payment.method.provider === 'BANK_TRANSFER' ? (
+                          <View>
+                            {order.payment.method.config?.bankName && (
+                              <Text style={styles.methodText}>Bank: {order.payment.method.config.bankName}</Text>
+                            )}
+                            {order.payment.method.config?.accountName && (
+                              <Text style={styles.methodText}>Account name: {order.payment.method.config.accountName}</Text>
+                            )}
+                            {order.payment.method.publicKey && (
+                              <Text style={styles.methodText}>Account number: {order.payment.method.publicKey}</Text>
+                            )}
+                            {order.payment.method.config?.instructions && (
+                              <Text style={styles.methodInstructions}>{order.payment.method.config.instructions}</Text>
+                            )}
+                          </View>
+                        ) : order.payment.method.provider === 'CRYPTO' ? (
+                          <View>
+                            <Text style={styles.methodText}>Network: {order.payment.method.config?.network ?? '-'}</Text>
+                            <Text style={styles.methodText}>Wallet: {order.payment.method.publicKey ?? '-'}</Text>
+                            {order.payment.method.config?.instructions && (
+                              <Text style={styles.methodInstructions}>{order.payment.method.config.instructions}</Text>
+                            )}
+                          </View>
+                        ) : (
+                          <Text style={styles.methodInstructions}>
+                            Use the selected payment method to complete your order. Send the payment and upload a screenshot or receipt.
+                          </Text>
                         )}
                       </View>
-                    )}
-                    {order.payment.method?.provider === 'CRYPTO' && (
-                      <View style={styles.methodInfo}>
-                        <Text style={styles.methodLabel}>Pay to: {order.payment.method.name}</Text>
-                        <Text style={styles.methodText}>Network: {order.payment.method.config?.network ?? '-'}</Text>
-                        <Text style={styles.methodText}>Wallet: {order.payment.method.publicKey ?? '-'}</Text>
-                        {order.payment.method.config?.instructions && (
-                          <Text style={styles.methodInstructions}>{order.payment.method.config.instructions}</Text>
-                        )}
-                      </View>
+                    ) : (
+                      <Text style={styles.methodInstructions}>
+                        Send the payment and upload a screenshot or receipt. Your order will be confirmed once we verify the payment.
+                      </Text>
                     )}
                     <TouchableOpacity style={styles.imageButton} onPress={handlePickProof}>
                       <Text style={styles.imageButtonText}>{proofImage ? 'Change image' : 'Select proof image'}</Text>
