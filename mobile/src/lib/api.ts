@@ -346,7 +346,7 @@ export async function changePassword(currentPassword: string, newPassword: strin
 }
 
 export async function fetchMyOrders() {
-  return api<{ orders: OrderSummary[] }>('/api/orders/my');
+  return api<{ orders: OrderSummary[] }>('/api/auth/orders');
 }
 
 export interface DeliveryApplication {
@@ -360,4 +360,34 @@ export interface DeliveryApplication {
 
 export async function fetchDeliveryApplication() {
   return api<{ rider: DeliveryApplication | null }>('/api/rider/application');
+}
+
+export interface OnboardingField {
+  id: string;
+  key: string;
+  label: string;
+  type: 'text' | 'textarea' | 'select' | 'file' | 'number' | 'checkbox' | 'phone';
+  required: boolean;
+  active: boolean;
+  order: number;
+  gatingRule?: string;
+  options: string[];
+}
+
+export async function fetchRiderOnboardingFields() {
+  return api<{ fields: OnboardingField[] }>('/api/rider/onboarding/fields');
+}
+
+export async function applyAsDeliveryPartner(payload: {
+  deliveryMode: string;
+  vehicle?: string;
+  operatingArea: string;
+  serviceRadiusMeters: number;
+  kycSubmitted: boolean;
+  onboardingData?: Record<string, any>;
+}) {
+  return api<{ rider: DeliveryApplication }>('/api/rider/apply', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }

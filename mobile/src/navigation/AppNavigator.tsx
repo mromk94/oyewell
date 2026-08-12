@@ -21,6 +21,7 @@ import { AuthScreen } from '../screens/AuthScreen';
 import { LandingScreen } from '../screens/LandingScreen';
 import { AccountScreen } from '../screens/customer/AccountScreen';
 import { PaymentProofScreen } from '../screens/customer/PaymentProofScreen';
+import { RiderApplyScreen } from '../screens/customer/RiderApplyScreen';
 import { colors } from '../theme';
 import type { CookListing } from '../lib/cookApi';
 import type { PaymentMethod } from '../lib/api';
@@ -37,6 +38,7 @@ export type RootStackParamList = {
   Track: { orderNumber: string };
   Cart: undefined;
   PaymentProof: { paymentId: string; orderNumber: string; method: PaymentMethod };
+  RiderApply: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -202,6 +204,7 @@ export function AppNavigator() {
             <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Track" component={TrackOrderScreen} options={{ headerShown: false }} />
             <Stack.Screen name="PaymentProof" component={PaymentProofScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="RiderApply" component={RiderApplyScreen} options={{ headerShown: false }} />
           </>
         ) : (
           <>

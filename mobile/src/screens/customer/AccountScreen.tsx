@@ -223,7 +223,10 @@ export function AccountScreen() {
               <Text style={styles.quickActionText}>{cookProfile ? 'Cook portal' : 'Become a cook'}</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.quickAction} onPress={() => Alert.alert('Apply to deliver', 'Rider applications are handled through the web portal.') }>
+            <TouchableOpacity
+              style={styles.quickAction}
+              onPress={() => navigation.navigate('RiderApply')}
+            >
               <Bike size={18} color={colors.brand900} />
               <Text style={styles.quickActionText}>
                 {deliveryApp
