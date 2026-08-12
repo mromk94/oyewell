@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, SafeAreaView, ActivityIndicator, FlatList } fro
 import { colors, fontSizes, radii, spacing } from '../../theme';
 import { useAuth } from '../../lib/auth';
 import { fetchAdminDashboard, fetchAdminReports, type AdminDashboard, type AdminReports } from '../../lib/adminApi';
-import { formatPrice } from '../../lib/api';
 
 export function AdminDashboardScreen() {
   const { user } = useAuth();
@@ -21,12 +20,21 @@ export function AdminDashboardScreen() {
       .finally(() => setLoading(false));
   }, []);
 
-  const metrics = dashboard
+  const today = dashboard
     ? [
-        { label: 'Today revenue', value: formatPrice(dashboard.todayRevenueKobo) },
-        { label: 'Today orders', value: String(dashboard.todayOrders) },
-        { label: 'Active cooks', value: String(dashboard.activeCooks) },
-        { label: 'Active riders', value: String(dashboard.activeRiders) },
+        { label: 'Today orders', value: dashboard.today.orders },
+        { label: 'New cooks', value: dashboard.today.newCooks },
+        { label: 'New riders', value: dashboard.today.newRiders },
+        { label: 'Active deliveries', value: dashboard.delivery.activeDeliveries },
+      ]
+    : [];
+
+  const attention = dashboard
+    ? [
+        { label: 'Pending approvals', value: dashboard.attention.pendingApprovals },
+        { label: 'Open disputes', value: dashboard.attention.openDisputes },
+        { label: 'Open tickets', value: dashboard.attention.openTickets },
+        { label: 'Open reports', value: dashboard.attention.openReports },
       ]
     : [];
 
@@ -46,9 +54,9 @@ export function AdminDashboardScreen() {
 
       {loading ? <ActivityIndicator color={colors.brand100} /> : (
         <>
-          <Text style={styles.section}>Dashboard</Text>
+          <Text style={styles.section}>Today</Text>
           <FlatList
-            data={metrics}
+            data={today}
             numColumns={2}
             keyExtractor={(item) => item.label}
             contentContainerStyle={styles.grid}
@@ -59,6 +67,14 @@ export function AdminDashboardScreen() {
               </View>
             )}
           />
+
+          <Text style={styles.section}>Needs attention</Text>
+          {attention.map((item) => (
+            <View key={item.label} style={styles.row}>
+              <Text style={styles.body}>{item.label}</Text>
+              <Text style={styles.value}>{item.value}</Text>
+            </View>
+          ))}
 
           <Text style={styles.section}>Operations</Text>
           {reportItems.map((item) => (

@@ -1,10 +1,9 @@
 import { api } from './api';
 
 export interface AdminDashboard {
-  todayRevenueKobo: number;
-  todayOrders: number;
-  activeCooks: number;
-  activeRiders: number;
+  today: { orders: number; newCooks: number; newRiders: number };
+  attention: { pendingApprovals: number; openDisputes: number; openTickets: number; openReports: number };
+  delivery: { activeDeliveries: number };
 }
 
 export interface AdminReports {
