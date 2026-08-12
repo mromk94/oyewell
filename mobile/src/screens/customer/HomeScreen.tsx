@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
   availableText: { color: colors.white, fontSize: fontSizes.base },
   clearButton: { padding: spacing.sm, alignItems: 'center' },
   clearText: { color: colors.danger, fontWeight: '700' },
-  fab: { position: 'absolute', right: spacing.md, width: 56, height: 56, borderRadius: 28, backgroundColor: colors.brand100, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 6, zIndex: 35 },
+  fab: { position: 'absolute', left: spacing.md, width: 56, height: 56, borderRadius: 28, backgroundColor: colors.brand100, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 6, zIndex: 35 },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end', padding: spacing.md },
   modal: { backgroundColor: colors.brand900, borderRadius: radii.lg, padding: spacing.lg, borderWidth: 1, borderColor: colors.border },
   modalTitle: { color: colors.white, fontSize: fontSizes.xl, fontWeight: '800', marginBottom: spacing.sm },
