@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ImageBackground, TouchableOpacity, StyleSheet, Modal, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ImageBackground, TouchableOpacity, StyleSheet, Modal, TextInput, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { colors, radii, spacing, fontSizes } from '../theme';
 import { formatPrice } from '../lib/api';
 import { viewCookListing, likeCookListing } from '../lib/listingsApi';
@@ -9,6 +9,15 @@ import type { CookListing } from '../lib/listingsApi';
 import { ChefHat, Clock, Star, MapPin, Heart, Bookmark, Flag } from 'lucide-react-native';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+
+const COMMON_REASONS = [
+  'Unprofessional behavior',
+  'Food safety concern',
+  'Wrong or missing items',
+  'Harassment or discrimination',
+  'Fraud or scam',
+  'Other',
+];
 
 interface Props {
   listing: CookListing;
@@ -25,7 +34,9 @@ export function CookListingHero({ listing, insets, tabBarHeight }: Props) {
   const [likeLoading, setLikeLoading] = useState(false);
   const [favorited, setFavorited] = useState(false);
   const [showReport, setShowReport] = useState(false);
-  const [reportReason, setReportReason] = useState('');
+  const [reportReason, setReportReason] = useState(COMMON_REASONS[0]);
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportSubmitted, setReportSubmitted] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
   const isAvailable = listing.isActive && listing.stock > 0;
 
@@ -64,10 +75,8 @@ export function CookListingHero({ listing, insets, tabBarHeight }: Props) {
     if (!reportReason.trim()) return;
     setReportLoading(true);
     try {
-      await createReport({ targetId: listing.cook.id, targetType: 'COOK', reason: reportReason.trim() });
-      Alert.alert('Report submitted', 'Thank you for letting us know.');
-      setReportReason('');
-      setShowReport(false);
+      await createReport({ targetId: listing.cook.id, targetType: 'COOK', reason: reportReason.trim(), details: reportDetails.trim() });
+      setReportSubmitted(true);
     } catch (err) {
       Alert.alert('Report failed', err instanceof Error ? err.message : 'Could not submit report');
     } finally {
@@ -148,24 +157,58 @@ export function CookListingHero({ listing, insets, tabBarHeight }: Props) {
 
           <Modal visible={showReport} transparent animationType="fade" onRequestClose={() => setShowReport(false)}>
             <View style={styles.modalBackdrop}>
-              <View style={styles.modal}>
-                <Text style={styles.modalTitle}>Report cook</Text>
-                <Text style={styles.modalBody}>Tell us why you are reporting this cook.</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Reason"
-                  placeholderTextColor={colors.muted}
-                  value={reportReason}
-                  onChangeText={setReportReason}
-                  multiline
-                />
-                <TouchableOpacity style={styles.primaryButton} onPress={handleReport} disabled={reportLoading}>
-                  {reportLoading ? <ActivityIndicator color={colors.brand900} /> : <Text style={styles.primaryButtonText}>Submit report</Text>}
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.secondaryButton} onPress={() => setShowReport(false)}>
-                  <Text style={styles.secondaryButtonText}>Cancel</Text>
-                </TouchableOpacity>
-              </View>
+              <ScrollView contentContainerStyle={styles.modalScroll}>
+                <View style={styles.modal}>
+                  {reportSubmitted ? (
+                    <View style={styles.submitted}>
+                      <Flag size={36} color={colors.success} />
+                      <Text style={styles.modalTitle}>Thank you</Text>
+                      <Text style={styles.modalBody}>Your report has been sent to our moderation team.</Text>
+                      <TouchableOpacity
+                        style={styles.primaryButton}
+                        onPress={() => {
+                          setShowReport(false);
+                          setReportSubmitted(false);
+                          setReportReason(COMMON_REASONS[0]);
+                          setReportDetails('');
+                        }}
+                      >
+                        <Text style={styles.primaryButtonText}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <>
+                      <Text style={styles.modalTitle}>Report cook</Text>
+                      <Text style={styles.modalBody}>Tell us why you are reporting this cook.</Text>
+                      <Text style={styles.label}>Reason</Text>
+                      {COMMON_REASONS.map((r) => (
+                        <TouchableOpacity
+                          key={r}
+                          style={[styles.reasonChip, reportReason === r && styles.reasonChipActive]}
+                          onPress={() => setReportReason(r)}
+                        >
+                          <Text style={[styles.reasonChipText, reportReason === r && styles.reasonChipTextActive]}>{r}</Text>
+                        </TouchableOpacity>
+                      ))}
+                      <Text style={[styles.label, { marginTop: spacing.md }]}>Details</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Tell us more about what happened..."
+                        placeholderTextColor={colors.muted}
+                        value={reportDetails}
+                        onChangeText={setReportDetails}
+                        multiline
+                      />
+                      <TouchableOpacity style={styles.primaryButton} onPress={handleReport} disabled={reportLoading || !reportReason.trim()}>
+                        {reportLoading ? <ActivityIndicator color={colors.brand900} /> : <Text style={styles.primaryButtonText}>Submit report</Text>}
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.secondaryButton} onPress={() => setShowReport(false)}>
+                        <Text style={styles.secondaryButtonText}>Cancel</Text>
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+              </ScrollView>
             </View>
           </Modal>
         </View>
@@ -189,9 +232,9 @@ const styles = StyleSheet.create({
   meta: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginTop: spacing.md },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   metaText: { color: colors.white, fontSize: fontSizes.sm },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, marginTop: spacing.lg },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: spacing.md, marginTop: spacing.lg },
   price: { color: colors.white, fontSize: fontSizes.lg, fontWeight: '600' },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center', gap: spacing.sm, flexShrink: 1 },
   action: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, borderRadius: radii.full, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: 'rgba(0,0,0,0.4)', borderWidth: 1, borderColor: colors.border },
   actionLiked: { backgroundColor: colors.danger },
   actionCount: { color: colors.white, fontSize: fontSizes.sm, fontWeight: '700' },
@@ -201,11 +244,18 @@ const styles = StyleSheet.create({
   actionLabelFavorited: { color: colors.brand900 },
   orderButton: { backgroundColor: colors.white, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radii.full },
   orderText: { color: colors.black, fontSize: fontSizes.base, fontWeight: '700' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: spacing.md },
-  modal: { backgroundColor: colors.brand900, borderRadius: radii.lg, padding: spacing.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)' },
+  modalScroll: { flexGrow: 1, justifyContent: 'center', padding: spacing.md },
+  modal: { backgroundColor: colors.brand900, borderRadius: radii.lg, padding: spacing.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', width: '100%' },
+  submitted: { alignItems: 'center' },
   modalTitle: { color: colors.white, fontSize: fontSizes.xl, fontWeight: '800', marginBottom: spacing.sm },
   modalBody: { color: colors.muted, marginBottom: spacing.md },
   input: { backgroundColor: 'rgba(255,255,255,0.08)', color: colors.white, borderRadius: radii.lg, padding: spacing.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', marginBottom: spacing.md, minHeight: 80, textAlignVertical: 'top' },
+  label: { color: 'rgba(255,255,255,0.7)', fontSize: fontSizes.sm, fontWeight: '600', marginBottom: spacing.sm },
+  reasonChip: { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: radii.full, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, marginBottom: spacing.sm, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  reasonChipActive: { backgroundColor: colors.brand100, borderColor: colors.brand100 },
+  reasonChipText: { color: colors.muted, fontSize: fontSizes.sm, fontWeight: '600' },
+  reasonChipTextActive: { color: colors.brand900 },
   primaryButton: { backgroundColor: colors.brand100, padding: spacing.md, borderRadius: radii.full, alignItems: 'center' },
   primaryButtonText: { color: colors.brand900, fontWeight: '700' },
   secondaryButton: { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', padding: spacing.md, borderRadius: radii.full, alignItems: 'center', marginTop: spacing.sm },
