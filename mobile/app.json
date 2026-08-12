@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "OYE Well",
+    "slug": "oye-well-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "scheme": "oyewell",
+    "ios": {
+      "bundleIdentifier": "com.oyewell.mobile",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "OYE Well uses your location to show nearby food and track deliveries.",
+        "NSCameraUsageDescription": "OYE Well uses the camera to upload payment proofs and KYC documents."
+      }
+    },
+    "android": {
+      "package": "com.oyewell.mobile",
+      "adaptiveIcon": {
+        "backgroundColor": "#0f0f0f",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "data": [
+            { "scheme": "oyewell", "host": "*" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
