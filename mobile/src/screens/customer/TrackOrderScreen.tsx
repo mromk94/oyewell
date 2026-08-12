@@ -4,7 +4,7 @@ import { useRoute, type RouteProp, useNavigation, type NavigationProp, useFocusE
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fontSizes, radii, spacing } from '../../theme';
 import { fetchOrder, formatPrice, createReview, uploadPaymentProof, type OrderSummary } from '../../lib/api';
-import { useInterval } from '../../lib/polling';
+import { useOrderEvents } from '../../lib/events';
 import { useAuth } from '../../lib/auth';
 import { pickImage } from '../../lib/imagePicker';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
@@ -69,7 +69,15 @@ export function TrackOrderScreen() {
 
   useEffect(() => { load(); }, [orderNumber]);
   useFocusEffect(React.useCallback(() => { load(true); }, [orderNumber]));
-  useInterval(() => load(true), 15000);
+  useOrderEvents((event) => {
+    if (!orderNumber) return;
+    if (['order:status', 'payment:confirmed', 'payment:proof'].includes(event.type) && event.payload.orderNumber === orderNumber) {
+      load(true);
+    }
+    if (event.type === 'rider:location' && event.payload.riderId === order?.riderId) {
+      load(true);
+    }
+  });
 
   async function handlePickProof() {
     const picked = await pickImage();

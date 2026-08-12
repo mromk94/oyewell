@@ -5,6 +5,7 @@ import { colors, fontSizes, radii, spacing } from '../../theme';
 import { useAuth } from '../../lib/auth';
 import { formatPrice, fetchMyOrders, updateProfile, changePassword, fetchDeliveryApplication, type OrderSummary, type DeliveryApplication } from '../../lib/api';
 import { fetchCookMe, type CookProfile } from '../../lib/cookApi';
+import { useOrderEvents } from '../../lib/events';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
@@ -82,6 +83,20 @@ export function AccountScreen() {
     load();
     fetchCookMe().then((r) => setCookProfile(r.cook)).catch(() => setCookProfile(null));
   }, [authLoading, user]);
+
+  async function refreshOrders() {
+    if (!user) return;
+    try {
+      const { orders: my } = await fetchMyOrders();
+      setOrders(my);
+    } catch {}
+  }
+
+  useOrderEvents((event) => {
+    if (['order:status', 'payment:confirmed', 'payment:proof', 'order:created'].includes(event.type)) {
+      refreshOrders();
+    }
+  }, !!user);
 
   async function saveProfile() {
     setSaving(true);
