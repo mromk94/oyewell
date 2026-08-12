@@ -196,6 +196,7 @@ export function AppNavigator() {
           <>
             <Stack.Screen name="Landing" component={LandingScreen} options={{ headerShown: false }} />
             <Stack.Screen name="Auth" component={AuthScreen} options={{ title: 'Sign In' }} />
+            <Stack.Screen name="MainTabs" component={RoleTabs} options={{ headerShown: false }} />
           </>
         )}
       </Stack.Navigator>
