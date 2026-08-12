@@ -267,7 +267,7 @@ export function HomeScreen() {
         </View>
       )}
 
-      {active === 'cooks' && (
+      {cookViews.includes(active) && (
         <TouchableOpacity
           style={[styles.fab, { bottom: (user ? 70 : 20) + insets.bottom + spacing.md }]}
           onPress={() => setPostModal(true)}
