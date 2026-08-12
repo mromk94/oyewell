@@ -189,20 +189,20 @@ export function AppNavigator() {
         {user ? (
           <>
             <Stack.Screen name="MainTabs" component={RoleTabs} options={{ headerShown: false }} />
-            <Stack.Screen name="Food" component={FoodDetailScreen} options={{ title: 'Food' }} />
-            <Stack.Screen name="CookListing" component={CookListingDetailScreen} options={{ title: 'Cook Listing' }} />
-            <Stack.Screen name="Cart" component={CartScreen} options={{ title: 'Cart' }} />
-            <Stack.Screen name="Track" component={TrackOrderScreen} options={{ title: 'Track Order' }} />
-            <Stack.Screen name="PaymentProof" component={PaymentProofScreen} options={{ title: 'Payment Proof' }} />
+            <Stack.Screen name="Food" component={FoodDetailScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="CookListing" component={CookListingDetailScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Track" component={TrackOrderScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="PaymentProof" component={PaymentProofScreen} options={{ headerShown: false }} />
           </>
         ) : (
           <>
             <Stack.Screen name="Landing" component={LandingScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="Auth" component={AuthScreen} options={{ title: 'Sign In' }} />
+            <Stack.Screen name="Auth" component={AuthScreen} options={{ headerShown: false }} />
             <Stack.Screen name="MainTabs" component={RoleTabs} options={{ headerShown: false }} />
-            <Stack.Screen name="Food" component={FoodDetailScreen} options={{ title: 'Food' }} />
-            <Stack.Screen name="CookListing" component={CookListingDetailScreen} options={{ title: 'Cook Listing' }} />
-            <Stack.Screen name="Cart" component={CartScreen} options={{ title: 'Cart' }} />
+            <Stack.Screen name="Food" component={FoodDetailScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="CookListing" component={CookListingDetailScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Cart" component={CartScreen} options={{ headerShown: false }} />
           </>
         )}
       </Stack.Navigator>

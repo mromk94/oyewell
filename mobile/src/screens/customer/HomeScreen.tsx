@@ -12,6 +12,7 @@ import { Logo } from '../../components/Logo';
 import { ScrollHint } from '../../components/ScrollHint';
 import { User, X, Search } from 'lucide-react-native';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
+import { Preloader } from '../../components/Preloader';
 
 type ViewTab = 'home' | 'cooks' | 'restaurants' | 'nearby';
 const cookViews: ViewTab[] = ['cooks', 'nearby'];
@@ -168,13 +169,7 @@ export function HomeScreen() {
     );
   }
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container} edges={[]}>
-        <ActivityIndicator color={colors.brand100} />
-      </SafeAreaView>
-    );
-  }
+  if (loading) return <Preloader />;
 
   if (error) {
     return (

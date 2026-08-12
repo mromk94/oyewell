@@ -7,6 +7,7 @@ import { fetchFood, fetchSides, formatPrice, type FoodItem, type FoodOption, typ
 import { useCart } from '../../lib/cart';
 import { ChevronLeft, CheckCircle, ShoppingCart } from 'lucide-react-native';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
+import { Preloader } from '../../components/Preloader';
 
 export function FoodDetailScreen() {
   const { params } = useRoute<RouteProp<RootStackParamList, 'Food'>>();
@@ -66,7 +67,7 @@ export function FoodDetailScreen() {
     setAdded(true);
   }
 
-  if (loading) return <ActivityIndicator color={colors.brand100} style={styles.loader} />;
+  if (loading) return <Preloader />;
   if (error || !food) return <Text style={styles.error}>{error ?? 'Not found'}</Text>;
 
   const canOrder = !!selectedOption && selectedOption.isAvailable && (selectedOption.stock === null || quantity <= selectedOption.stock);

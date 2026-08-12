@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { api, formatPrice } from './api';
 
 export interface CookListing {
@@ -86,8 +87,26 @@ export async function fetchCookListing(id: string) {
   return { ...res.listing, price: formatPrice(res.listing.priceKobo) };
 }
 
+let cachedViewerId: string | null = null;
+async function getOrCreateViewerId() {
+  if (cachedViewerId) return cachedViewerId;
+  const existing = await AsyncStorage.getItem('@oye_viewer_id');
+  if (existing) {
+    cachedViewerId = existing;
+    return existing;
+  }
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+  cachedViewerId = id;
+  await AsyncStorage.setItem('@oye_viewer_id', id);
+  return id;
+}
+
 export async function viewCookListing(id: string) {
-  await api<{ ok: true }>(`/api/listings/${id}/view`, { method: 'POST' });
+  const viewerId = await getOrCreateViewerId();
+  await api<{ ok: boolean; viewCount: number }>(`/api/listings/${id}/view`, {
+    method: 'POST',
+    body: JSON.stringify({ viewerId }),
+  });
 }
 
 export async function likeCookListing(id: string) {

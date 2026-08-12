@@ -8,6 +8,7 @@ import { useCart } from '../../lib/cart';
 import { fetchCookListing, fetchCookReviews, type CookListing } from '../../lib/listingsApi';
 import { ChevronLeft, ShoppingCart, Star, Plus, Minus } from 'lucide-react-native';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
+import { Preloader } from '../../components/Preloader';
 
 export function CookListingDetailScreen() {
   const { params } = useRoute<RouteProp<RootStackParamList, 'CookListing'>>();
@@ -57,7 +58,7 @@ export function CookListingDetailScreen() {
     setAdded(true);
   }
 
-  if (loading) return <ActivityIndicator color={colors.brand100} style={styles.loader} />;
+  if (loading) return <Preloader />;
   if (error || !listing) return <Text style={styles.error}>{error ?? 'Not found'}</Text>;
 
   const subtotal = listing.priceKobo * quantity;
