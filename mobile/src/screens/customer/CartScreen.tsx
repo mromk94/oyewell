@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { colors, fontSizes, radii, spacing } from '../../theme';
 import { useCart } from '../../lib/cart';
 import { useAuth } from '../../lib/auth';
-import { api, formatPrice, createOrder, type CartItemPayload } from '../../lib/api';
+import { formatPrice, createOrder, fetchPaymentMethods, type CartItemPayload, type PaymentMethod } from '../../lib/api';
 import { getCurrentAddress } from '../../lib/location';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
+
+const MANUAL_PROVIDERS = new Set(['BANK_TRANSFER', 'CRYPTO']);
 
 export function CartScreen() {
   const { items, totalKobo, count, updateQuantity, removeItem, clear } = useCart();
@@ -17,8 +19,19 @@ export function CartScreen() {
   const [lat, setLat] = useState<number | undefined>();
   const [lng, setLng] = useState<number | undefined>();
   const [phone, setPhone] = useState(user?.phone ?? '');
+  const [methods, setMethods] = useState<PaymentMethod[]>([]);
+  const [selectedMethodId, setSelectedMethodId] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchPaymentMethods()
+      .then(({ methods }) => {
+        setMethods(methods.filter((m) => m.enabled));
+        if (methods.length > 0) setSelectedMethodId(methods[0].id);
+      })
+      .catch(() => setMethods([]));
+  }, []);
 
   async function detectLocation() {
     setLoading(true);
@@ -43,6 +56,11 @@ export function CartScreen() {
       setError('Address and phone are required');
       return;
     }
+    const method = methods.find((m) => m.id === selectedMethodId);
+    if (!method) {
+      setError('Select a payment method');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -53,9 +71,22 @@ export function CartScreen() {
         sideIds: item.sides?.map((s) => s.id),
         cookListingId: item.cookListingId,
       }));
-      const { order } = await createOrder({ address, phone, items: cartItems, lat, lng });
+      const { order, payment } = await createOrder({
+        address,
+        phone,
+        items: cartItems,
+        source: 'RESTAURANT',
+        paymentProvider: method.provider,
+        paymentCurrency: method.currency,
+        lat,
+        lng,
+      });
       clear();
-      navigation.navigate('Track', { orderNumber: order.orderNumber });
+      if (MANUAL_PROVIDERS.has(payment.provider)) {
+        navigation.navigate('PaymentProof', { paymentId: payment.id, orderNumber: order.orderNumber, instructions: method.config?.instructions ?? '' });
+      } else {
+        navigation.navigate('Track', { orderNumber: order.orderNumber });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Checkout failed');
     } finally {
@@ -122,6 +153,24 @@ export function CartScreen() {
           onChangeText={setPhone}
         />
 
+        <Text style={styles.section}>Payment method</Text>
+        <FlatList
+          data={methods}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.methodList}
+          keyExtractor={(item) => item.id}
+          ListEmptyComponent={<Text style={styles.emptyMethod}>No payment methods available.</Text>}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[styles.method, selectedMethodId === item.id && styles.methodSelected]}
+              onPress={() => setSelectedMethodId(item.id)}
+            >
+              <Text style={styles.methodName}>{item.name}</Text>
+            </TouchableOpacity>
+          )}
+        />
+
         {error && <Text style={styles.error}>{error}</Text>}
 
         <View style={styles.totalRow}>
@@ -161,4 +210,10 @@ const styles = StyleSheet.create({
   totalValue: { color: colors.brand100, fontSize: fontSizes.lg, fontWeight: '700' },
   checkout: { backgroundColor: colors.brand100, padding: spacing.md, borderRadius: radii.full, alignItems: 'center' },
   checkoutText: { color: colors.brand900, fontWeight: '700' },
+  section: { color: colors.white, fontSize: fontSizes.base, fontWeight: '600', marginBottom: spacing.sm },
+  methodList: { paddingBottom: spacing.md },
+  emptyMethod: { color: colors.muted, marginBottom: spacing.md },
+  method: { backgroundColor: colors.brand800, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radii.md, marginRight: spacing.sm, minWidth: 100, alignItems: 'center' },
+  methodSelected: { backgroundColor: colors.brand100 },
+  methodName: { color: colors.muted, fontWeight: '600' },
 });

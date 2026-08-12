@@ -14,7 +14,7 @@ export function WalletScreen() {
     Promise.all([fetchBalance(), fetchPaymentMethods()])
       .then(([balanceData, methodsData]) => {
         setBalanceKobo(balanceData.balanceKobo);
-        setMethods(methodsData.methods.filter((m) => m.isEnabled));
+        setMethods(methodsData.methods.filter((m) => m.enabled));
       })
       .catch(() => setBalanceKobo(user?.balanceKobo ?? 0))
       .finally(() => setLoading(false));

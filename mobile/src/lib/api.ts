@@ -185,18 +185,40 @@ export async function checkDelivery(payload: {
 }
 
 export interface OrderResult {
-  order: { orderNumber: string };
+  order: {
+    id: string;
+    orderNumber: string;
+    status: string;
+    paymentStatus: string;
+    total: string;
+    deliveryCode: string;
+  };
+  payment: {
+    id: string;
+    idempotencyKey?: string;
+    provider: string;
+  };
 }
 
 export interface PaymentMethod {
   id: string;
   name: string;
   provider: string;
-  isEnabled: boolean;
+  enabled: boolean;
+  publicKey?: string;
+  currency: string;
+  config?: Record<string, any>;
 }
 
 export async function fetchPaymentMethods() {
   return api<{ methods: PaymentMethod[] }>('/api/payments/methods');
+}
+
+export async function uploadPaymentProof(paymentId: string, image: string, note?: string) {
+  return api<{ ok: true }>(`/api/payments/${paymentId}/proof`, {
+    method: 'POST',
+    body: JSON.stringify({ image, note }),
+  });
 }
 
 export async function fetchBalance() {
@@ -207,8 +229,10 @@ export async function createOrder(payload: {
   address: string;
   phone: string;
   items: CartItemPayload[];
+  source: 'RESTAURANT';
   deliveryType?: 'NEIGHBORHOOD' | 'PROFESSIONAL';
-  paymentMethod?: string;
+  paymentProvider?: string;
+  paymentCurrency?: string;
   lat?: number;
   lng?: number;
   note?: string;

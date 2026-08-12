@@ -15,6 +15,7 @@ import { RiderDashboardScreen } from '../screens/rider/RiderDashboardScreen';
 import { AdminDashboardScreen } from '../screens/management/AdminDashboardScreen';
 import { AuthScreen } from '../screens/AuthScreen';
 import { AccountScreen } from '../screens/customer/AccountScreen';
+import { PaymentProofScreen } from '../screens/customer/PaymentProofScreen';
 import { colors } from '../theme';
 import { Home, User, ShoppingCart, Wallet, Package, ChefHat, Bike, Shield } from 'lucide-react-native';
 
@@ -24,6 +25,7 @@ export type RootStackParamList = {
   Food: { slug: string };
   Track: { orderNumber: string };
   Cart: undefined;
+  PaymentProof: { paymentId: string; orderNumber: string; instructions: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -173,6 +175,7 @@ export function AppNavigator() {
             <Stack.Screen name="MainTabs" component={RoleTabs} options={{ headerShown: false }} />
             <Stack.Screen name="Food" component={FoodDetailScreen} options={{ title: 'Food' }} />
             <Stack.Screen name="Track" component={TrackOrderScreen} options={{ title: 'Track Order' }} />
+            <Stack.Screen name="PaymentProof" component={PaymentProofScreen} options={{ title: 'Payment Proof' }} />
           </>
         ) : (
           <>
