@@ -7,9 +7,10 @@ interface Props {
   food: FoodItem;
   onPress: () => void;
   insets: { bottom: number; top: number };
+  tabBarHeight: number;
 }
 
-export const FoodCard = React.memo(function FoodCard({ food, onPress, insets }: Props) {
+export const FoodCard = React.memo(function FoodCard({ food, onPress, insets, tabBarHeight }: Props) {
   const media = buildMedia(food);
   const [index, setIndex] = useState(0);
 
@@ -25,12 +26,12 @@ export const FoodCard = React.memo(function FoodCard({ food, onPress, insets }: 
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.95}>
       <ImageBackground source={{ uri: active?.url }} style={styles.media} resizeMode="cover" imageStyle={{ backgroundColor: colors.brand800 }}>
         <View style={styles.overlay} />
-        <View style={[styles.indicators, { top: insets.top + 96 }]}>
+        <View style={[styles.indicators, { top: insets.top + 108 }]}>
           {media.map((_, i) => (
             <View key={i} style={[styles.dot, i === index && styles.dotActive]} />
           ))}
         </View>
-        <View style={[styles.content, { paddingBottom: insets.bottom + spacing.lg }]}>
+        <View style={[styles.content, { paddingBottom: insets.bottom + tabBarHeight + spacing.lg }]}>
           <View style={[styles.badge, { backgroundColor: food.isAvailable ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)' }]}>
             <Text style={[styles.badgeText, { color: food.isAvailable ? '#86efac' : '#fca5a5' }]}>
               {food.isAvailable ? 'Available today' : 'Unavailable'}
