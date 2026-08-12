@@ -166,6 +166,10 @@ export interface LocationResult {
   postalCode?: string;
 }
 
+export async function reverseGeocode(lat: number, lng: number): Promise<LocationResult> {
+  return api<LocationResult>(`/api/location/reverse?lat=${lat}&lng=${lng}`);
+}
+
 export async function checkDelivery(payload: {
   address: string;
   phone: string;

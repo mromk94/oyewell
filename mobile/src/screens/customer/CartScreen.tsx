@@ -5,7 +5,8 @@ import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { colors, fontSizes, radii, spacing } from '../../theme';
 import { useCart } from '../../lib/cart';
 import { useAuth } from '../../lib/auth';
-import { formatPrice, createOrder, type CartItemPayload } from '../../lib/api';
+import { api, formatPrice, createOrder, type CartItemPayload } from '../../lib/api';
+import { getCurrentAddress } from '../../lib/location';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 
 export function CartScreen() {
@@ -13,9 +14,29 @@ export function CartScreen() {
   const { user } = useAuth();
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [address, setAddress] = useState('');
+  const [lat, setLat] = useState<number | undefined>();
+  const [lng, setLng] = useState<number | undefined>();
   const [phone, setPhone] = useState(user?.phone ?? '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function detectLocation() {
+    setLoading(true);
+    try {
+      const result = await getCurrentAddress();
+      if (result) {
+        setAddress(result.address);
+        setLat(result.lat);
+        setLng(result.lng);
+      } else {
+        setError('Location permission denied');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Location lookup failed');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   async function handleCheckout() {
     if (!address || !phone) {
@@ -32,7 +53,7 @@ export function CartScreen() {
         sideIds: item.sides?.map((s) => s.id),
         cookListingId: item.cookListingId,
       }));
-      const { order } = await createOrder({ address, phone, items: cartItems });
+      const { order } = await createOrder({ address, phone, items: cartItems, lat, lng });
       clear();
       navigation.navigate('Track', { orderNumber: order.orderNumber });
     } catch (err) {
@@ -90,6 +111,9 @@ export function CartScreen() {
           value={address}
           onChangeText={setAddress}
         />
+        <TouchableOpacity style={styles.locationButton} onPress={detectLocation} disabled={loading}>
+          <Text style={styles.locationButtonText}>Use my current location</Text>
+        </TouchableOpacity>
         <TextInput
           style={styles.input}
           placeholder="Phone number"
@@ -129,6 +153,8 @@ const styles = StyleSheet.create({
   remove: { color: colors.danger },
   footer: { marginTop: 'auto' },
   input: { backgroundColor: colors.brand800, color: colors.white, padding: spacing.md, borderRadius: radii.lg, marginBottom: spacing.md },
+  locationButton: { backgroundColor: colors.brand800, padding: spacing.md, borderRadius: radii.full, alignItems: 'center', marginBottom: spacing.md },
+  locationButtonText: { color: colors.brand100, fontWeight: '600' },
   error: { color: colors.danger, marginBottom: spacing.sm },
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.md },
   totalLabel: { color: colors.white, fontSize: fontSizes.lg, fontWeight: '600' },
