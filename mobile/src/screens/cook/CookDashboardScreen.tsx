@@ -2,19 +2,35 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, FlatList, StyleSheet, SafeAreaView, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { colors, fontSizes, radii, spacing } from '../../theme';
 import { useAuth } from '../../lib/auth';
-import { fetchCookOrders, acceptCookOrder, preparingCookOrder, readyCookOrder, type CookOrder } from '../../lib/cookApi';
+import { fetchCookOrders, acceptCookOrder, preparingCookOrder, readyCookOrder, fetchCookEarnings, updateKitchenStatus, type CookOrder } from '../../lib/cookApi';
 
 export function CookDashboardScreen() {
   const { user } = useAuth();
   const [orders, setOrders] = useState<CookOrder[]>([]);
+  const [earnings, setEarnings] = useState<{ total: string; available: string } | null>(null);
+  const [kitchenStatus, setKitchenStatus] = useState<'OPEN' | 'CLOSED' | 'PAUSED'>('OPEN');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchCookOrders()
-      .then(({ orders }) => setOrders(orders))
-      .catch(() => setOrders([]))
+    Promise.all([fetchCookOrders(), fetchCookEarnings()])
+      .then(([ordersData, earningsData]) => {
+        setOrders(ordersData.orders);
+        setEarnings({ total: earningsData.earnings.total, available: earningsData.earnings.available });
+      })
+      .catch(() => {
+        setOrders([]);
+      })
       .finally(() => setLoading(false));
   }, []);
+
+  async function setStatus(status: 'OPEN' | 'CLOSED' | 'PAUSED') {
+    try {
+      const { kitchenStatus: next } = await updateKitchenStatus(status);
+      setKitchenStatus(next as 'OPEN' | 'CLOSED' | 'PAUSED');
+    } catch (err) {
+      console.error(err);
+    }
+  }
 
   async function updateOrder(orderNumber: string, action: 'accept' | 'preparing' | 'ready') {
     try {
@@ -32,6 +48,33 @@ export function CookDashboardScreen() {
     <SafeAreaView style={styles.container}>
       <Text style={styles.title}>Cook Dashboard</Text>
       <Text style={styles.body}>Welcome, {user?.firstName || user?.email}.</Text>
+
+      {earnings && (
+        <View style={styles.earnings}>
+          <View style={styles.row}>
+            <View>
+              <Text style={styles.earningsLabel}>Available</Text>
+              <Text style={styles.earningsValue}>{earnings.available}</Text>
+            </View>
+            <View>
+              <Text style={styles.earningsLabel}>Total</Text>
+              <Text style={styles.earningsValue}>{earnings.total}</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      <View style={styles.row}>
+        {(['OPEN', 'PAUSED', 'CLOSED'] as const).map((s) => (
+          <TouchableOpacity
+            key={s}
+            style={[styles.statusButton, kitchenStatus === s && styles.statusButtonActive]}
+            onPress={() => setStatus(s)}
+          >
+            <Text style={[styles.statusText, kitchenStatus === s && styles.statusTextActive]}>{s}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       {loading ? <ActivityIndicator color={colors.brand100} /> : (
         <FlatList
@@ -74,7 +117,14 @@ const styles = StyleSheet.create({
   list: { paddingBottom: spacing.md },
   empty: { color: colors.muted, textAlign: 'center', marginTop: spacing.lg },
   order: { backgroundColor: colors.brand800, padding: spacing.md, borderRadius: radii.lg, marginBottom: spacing.md },
-  row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.xs },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm },
+  earnings: { backgroundColor: colors.brand800, padding: spacing.md, borderRadius: radii.lg, marginBottom: spacing.md },
+  earningsLabel: { color: colors.muted, marginBottom: spacing.xs },
+  earningsValue: { color: colors.white, fontSize: fontSizes.lg, fontWeight: '700' },
+  statusButton: { backgroundColor: colors.brand800, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radii.md },
+  statusButtonActive: { backgroundColor: colors.brand100 },
+  statusText: { color: colors.muted },
+  statusTextActive: { color: colors.brand900, fontWeight: '700' },
   number: { color: colors.white, fontWeight: '600' },
   status: { color: colors.brand100 },
   items: { color: colors.muted, marginBottom: spacing.sm },

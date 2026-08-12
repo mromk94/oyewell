@@ -11,6 +11,7 @@ import { TrackOrderScreen } from '../screens/customer/TrackOrderScreen';
 import { WalletScreen } from '../screens/customer/WalletScreen';
 import { OrdersScreen } from '../screens/customer/OrdersScreen';
 import { CookDashboardScreen } from '../screens/cook/CookDashboardScreen';
+import { CookListingsScreen } from '../screens/cook/CookListingsScreen';
 import { RiderDashboardScreen } from '../screens/rider/RiderDashboardScreen';
 import { AdminDashboardScreen } from '../screens/management/AdminDashboardScreen';
 import { AuthScreen } from '../screens/AuthScreen';
@@ -89,6 +90,11 @@ function CookTabs() {
         name="Dashboard"
         component={CookDashboardScreen}
         options={{ tabBarIcon: ({ color }: { color: string }) => <ChefHat size={20} color={color} /> }}
+      />
+      <Tabs.Screen
+        name="Listings"
+        component={CookListingsScreen}
+        options={{ tabBarIcon: ({ color }: { color: string }) => <Package size={20} color={color} /> }}
       />
       <Tabs.Screen
         name="Account"
