@@ -54,7 +54,13 @@ export function TrackOrderScreen() {
   const MAX_PROOF_LENGTH = 2_000_000;
 
   function load(silent = false) {
+    if (!orderNumber) {
+      setError('No order number provided');
+      if (!silent) setLoading(false);
+      return;
+    }
     if (!silent) setLoading(true);
+    setError(null);
     fetchOrder(orderNumber)
       .then(({ order }) => setOrder(order))
       .catch((e) => setError(e instanceof Error ? e.message : 'Order not found'))

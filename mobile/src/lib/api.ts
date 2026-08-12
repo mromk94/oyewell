@@ -314,7 +314,7 @@ export interface OrderSummary {
 }
 
 export async function fetchOrder(orderNumber: string) {
-  return api<{ order: OrderSummary }>(`/api/orders/${orderNumber}`);
+  return api<{ order: OrderSummary }>(`/api/orders/${encodeURIComponent(orderNumber)}`);
 }
 
 export async function createReview(payload: { orderNumber: string; rating: number; comment?: string; target: 'cook' | 'rider' }) {
