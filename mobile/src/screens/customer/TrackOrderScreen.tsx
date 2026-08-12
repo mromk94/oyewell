@@ -29,8 +29,8 @@ function isManualPayment(provider?: string | null) {
 }
 
 export function TrackOrderScreen() {
-  const { params } = useRoute<RouteProp<RootStackParamList, 'Track'>>();
-  const { orderNumber } = params!;
+  const route = useRoute<RouteProp<RootStackParamList, 'Track'>>();
+  const orderNumber = route.params?.orderNumber;
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { user, register } = useAuth();
   const [order, setOrder] = useState<OrderSummary | null>(null);

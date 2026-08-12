@@ -317,10 +317,7 @@ function OrderList({
         <TouchableOpacity
           key={order.id}
           style={styles.orderCard}
-          onPress={() => {
-            const rootNavigation = navigation.getParent() as NativeStackNavigationProp<RootStackParamList> | undefined;
-            rootNavigation?.navigate('Track', { orderNumber: order.orderNumber });
-          }}
+          onPress={() => navigation.navigate('Track', { orderNumber: order.orderNumber })}
           activeOpacity={0.7}
         >
           <View style={[styles.orderRow, { alignItems: 'flex-start' }]}>
