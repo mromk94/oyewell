@@ -93,6 +93,7 @@ export function CookListingHero({ listing, insets, tabBarHeight }: Props) {
                     unitLabel: listing.portionDescription ?? 'portion',
                     priceKobo: listing.priceKobo,
                     quantity: 1,
+                    sideIds: [],
                   })
                 }
               >

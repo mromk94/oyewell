@@ -1,11 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Image, ImageBackground, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet, Animated } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Image, ImageBackground, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, type RouteProp, useNavigation } from '@react-navigation/native';
 import { colors, fontSizes, radii, spacing } from '../../theme';
 import { fetchFood, fetchSides, formatPrice, type FoodItem, type FoodOption, type Side } from '../../lib/api';
 import { useCart } from '../../lib/cart';
-import { ChevronLeft, CheckCircle } from 'lucide-react-native';
+import { ChevronLeft, CheckCircle, ShoppingCart } from 'lucide-react-native';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 
 export function FoodDetailScreen() {
@@ -13,7 +13,7 @@ export function FoodDetailScreen() {
   const slug = params?.slug;
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const { addItem } = useCart();
+  const { addItem, count } = useCart();
   const [food, setFood] = useState<FoodItem | null>(null);
   const [sides, setSides] = useState<Side[]>([]);
   const [selectedOption, setSelectedOption] = useState<FoodOption | null>(null);
@@ -22,16 +22,6 @@ export function FoodDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [added, setAdded] = useState(false);
-  const bounce = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(bounce, { toValue: 1, duration: 1500, useNativeDriver: true }),
-        Animated.timing(bounce, { toValue: 0, duration: 1500, useNativeDriver: true }),
-      ])
-    ).start();
-  }, [bounce]);
 
   useEffect(() => {
     if (!slug) {
@@ -64,7 +54,9 @@ export function FoodDetailScreen() {
       foodName: food.name,
       foodImage: food.heroImage,
       option: selectedOption,
+      optionId: selectedOption.id,
       sides: selectedSides,
+      sideIds: selectedSides.map((s) => s.id),
       priceKobo: selectedOption.priceKobo,
       quantity,
     });
@@ -74,11 +66,9 @@ export function FoodDetailScreen() {
   if (loading) return <ActivityIndicator color={colors.brand100} style={styles.loader} />;
   if (error || !food) return <Text style={styles.error}>{error ?? 'Not found'}</Text>;
 
-  const translateY = bounce.interpolate({ inputRange: [0, 1], outputRange: [0, -6] });
-
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView>
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}>
         <View style={styles.hero}>
           {food.heroImage ? (
             <ImageBackground source={{ uri: food.heroImage }} style={styles.image} resizeMode="cover" imageStyle={{ backgroundColor: colors.brand800 }}>
@@ -90,6 +80,16 @@ export function FoodDetailScreen() {
           <TouchableOpacity style={[styles.back, { top: insets.top + spacing.sm }]} onPress={() => navigation.goBack()}>
             <ChevronLeft size={24} color={colors.white} />
             <Text style={styles.backText}>Menu</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.cart, { top: insets.top + spacing.sm }]} onPress={() => navigation.navigate('Cart' as never)}
+          >
+            <ShoppingCart size={20} color={colors.white} />
+            {count > 0 && (
+              <View style={styles.badgeDot}>
+                <Text style={styles.badgeCount}>{count}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 
@@ -151,16 +151,14 @@ export function FoodDetailScreen() {
           </View>
 
           {added ? (
-            <View style={styles.added}>
+            <TouchableOpacity style={styles.added} onPress={() => navigation.navigate('Cart' as never)}>
               <CheckCircle size={40} color={colors.success} />
-              <Text style={styles.addedText}>Added to cart</Text>
-            </View>
+              <Text style={styles.addedText}>Added — view cart</Text>
+            </TouchableOpacity>
           ) : (
-            <Animated.View style={{ transform: [{ translateY }], marginBottom: spacing.lg }}>
-              <TouchableOpacity style={styles.addButton} onPress={handleAddToCart} activeOpacity={0.8}>
-                <Text style={styles.addText}>Order now — {formatPrice(((selectedOption?.priceKobo ?? 0) * quantity) + selectedSides.reduce((s, x) => s + x.priceKobo * quantity, 0))}</Text>
-              </TouchableOpacity>
-            </Animated.View>
+            <TouchableOpacity style={styles.addButton} onPress={handleAddToCart} activeOpacity={0.8}>
+              <Text style={styles.addText}>Order now — {formatPrice(((selectedOption?.priceKobo ?? 0) * quantity) + selectedSides.reduce((s, x) => s + x.priceKobo * quantity, 0))}</Text>
+            </TouchableOpacity>
           )}
         </View>
       </ScrollView>
@@ -178,6 +176,9 @@ const styles = StyleSheet.create({
   placeholder: { backgroundColor: colors.brand900 },
   back: { position: 'absolute', left: spacing.md, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.4)', padding: spacing.sm, borderRadius: radii.full },
   backText: { color: colors.white, fontSize: fontSizes.sm, fontWeight: '600', marginLeft: -spacing.xs },
+  cart: { position: 'absolute', right: spacing.md, backgroundColor: 'rgba(0,0,0,0.4)', padding: spacing.sm, borderRadius: radii.full, justifyContent: 'center', alignItems: 'center' },
+  badgeDot: { position: 'absolute', top: -6, right: -6, backgroundColor: colors.success, minWidth: 20, height: 20, borderRadius: 999, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 },
+  badgeCount: { color: colors.white, fontSize: fontSizes.xs, fontWeight: '800' },
   body: { padding: spacing.lg, marginTop: -spacing.xxl },
   name: { color: colors.white, fontSize: fontSizes.hero, fontWeight: '800', marginBottom: spacing.sm },
   badge: { alignSelf: 'flex-start', paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radii.full, marginBottom: spacing.md },

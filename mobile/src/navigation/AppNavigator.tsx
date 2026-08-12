@@ -188,6 +188,7 @@ export function AppNavigator() {
           <>
             <Stack.Screen name="MainTabs" component={RoleTabs} options={{ headerShown: false }} />
             <Stack.Screen name="Food" component={FoodDetailScreen} options={{ title: 'Food' }} />
+            <Stack.Screen name="Cart" component={CartScreen} options={{ title: 'Cart' }} />
             <Stack.Screen name="Track" component={TrackOrderScreen} options={{ title: 'Track Order' }} />
             <Stack.Screen name="PaymentProof" component={PaymentProofScreen} options={{ title: 'Payment Proof' }} />
           </>
@@ -197,6 +198,7 @@ export function AppNavigator() {
             <Stack.Screen name="Auth" component={AuthScreen} options={{ title: 'Sign In' }} />
             <Stack.Screen name="MainTabs" component={RoleTabs} options={{ headerShown: false }} />
             <Stack.Screen name="Food" component={FoodDetailScreen} options={{ title: 'Food' }} />
+            <Stack.Screen name="Cart" component={CartScreen} options={{ title: 'Cart' }} />
           </>
         )}
       </Stack.Navigator>

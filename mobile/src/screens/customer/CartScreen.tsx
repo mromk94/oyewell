@@ -66,9 +66,9 @@ export function CartScreen() {
     try {
       const cartItems: CartItemPayload[] = items.map((item) => ({
         foodSlug: item.foodSlug,
-        optionId: item.option?.id,
+        optionId: item.optionId ?? item.option?.id,
         quantity: item.quantity,
-        sideIds: item.sides?.map((s) => s.id),
+        sideIds: item.sideIds ?? item.sides?.map((s) => s.id),
         cookListingId: item.cookListingId,
       }));
       const { order, payment } = await createOrder({

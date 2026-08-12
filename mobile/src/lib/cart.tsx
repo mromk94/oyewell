@@ -11,7 +11,9 @@ export interface CartItem {
   foodName?: string;
   foodImage?: string | null;
   option?: FoodOption;
+  optionId?: string;
   sides?: Side[];
+  sideIds?: string[];
   cookListingId?: string;
   cookName?: string;
   unitLabel?: string;
@@ -46,7 +48,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    SecureStore.setItemAsync(CART_KEY, JSON.stringify(items)).catch(() => {});
+    const minimal = items.map(({ option, sides, ...rest }) => rest);
+    SecureStore.setItemAsync(CART_KEY, JSON.stringify(minimal)).catch(() => {});
   }, [items]);
 
   const totalKobo = useMemo(
