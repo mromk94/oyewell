@@ -110,11 +110,11 @@ export function FoodDetailScreen() {
               onPress={() => option.isAvailable && setSelectedOption(option)}
               activeOpacity={option.isAvailable ? 0.7 : 1}
             >
-              <View>
-                <Text style={[styles.optionText, !option.isAvailable && styles.optionTextDisabled]}>{option.label}</Text>
+              <View style={styles.optionMain}>
+                <Text style={[styles.optionText, !option.isAvailable && styles.optionTextDisabled]} numberOfLines={2}>{option.label}</Text>
                 {option.stock !== null && <Text style={styles.optionStock}>{option.stock} left</Text>}
               </View>
-              <Text style={styles.optionPrice}>{formatPrice(option.priceKobo)}</Text>
+              <Text style={styles.optionPrice} numberOfLines={1}>{formatPrice(option.priceKobo)}</Text>
             </TouchableOpacity>
           ))}
 
@@ -188,10 +188,11 @@ const styles = StyleSheet.create({
   option: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', padding: spacing.md, borderRadius: radii.md, marginBottom: spacing.sm, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   optionActive: { borderColor: colors.success, backgroundColor: 'rgba(34,197,94,0.08)' },
   optionDisabled: { opacity: 0.5 },
+  optionMain: { flex: 1, marginRight: spacing.md },
   optionText: { color: colors.white, fontSize: fontSizes.base, fontWeight: '600' },
   optionTextDisabled: { color: colors.muted },
   optionStock: { color: colors.muted, fontSize: fontSizes.sm, marginTop: spacing.xs },
-  optionPrice: { color: colors.white, fontSize: fontSizes.lg, fontWeight: '700' },
+  optionPrice: { color: colors.white, fontSize: fontSizes.lg, fontWeight: '700', flexShrink: 0 },
   side: { padding: spacing.md, borderRadius: radii.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', marginBottom: spacing.sm },
   sideActive: { borderColor: colors.success, backgroundColor: 'rgba(34,197,94,0.08)' },
   sideText: { color: colors.white, fontSize: fontSizes.base },
