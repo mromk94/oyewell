@@ -28,7 +28,7 @@ Then press `i` for iOS or `a` for Android (requires simulator/emulator).
 
 ## Environment
 
-Set `EXPO_PUBLIC_API_URL` in `.env` to point at your backend. Defaults to `http://localhost:4000`.
+Set `EXPO_PUBLIC_API_URL` in `.env` to point at your backend. Production is `https://oyewell.onrender.com`; local is `http://<your-lan-ip>:4000`.
 
 ## Roles
 
