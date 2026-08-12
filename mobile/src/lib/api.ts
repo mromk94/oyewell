@@ -330,3 +330,34 @@ export async function createReport(payload: { targetId: string; targetType: 'RID
     body: JSON.stringify(payload),
   });
 }
+
+export async function updateProfile(payload: { firstName?: string | null; lastName?: string | null; phone?: string | null }) {
+  return api<{ user: User }>('/api/users/me', {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function changePassword(currentPassword: string, newPassword: string) {
+  return api<{ ok: boolean }>('/api/users/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+}
+
+export async function fetchMyOrders() {
+  return api<{ orders: OrderSummary[] }>('/api/orders/my');
+}
+
+export interface DeliveryApplication {
+  id: string;
+  userId: string;
+  isApproved: boolean;
+  neighborhoodApproval: 'NOT_APPLIED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+  professionalApproval: 'NOT_APPLIED' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+  onboardingData?: any;
+}
+
+export async function fetchDeliveryApplication() {
+  return api<{ rider: DeliveryApplication | null }>('/api/rider/application');
+}

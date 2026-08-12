@@ -162,3 +162,7 @@ export function preparingCookOrder(orderNumber: string) {
 export function readyCookOrder(orderNumber: string) {
   return api<{ order: CookOrder }>(`/api/cooks/me/orders/${orderNumber}/ready`, { method: 'POST' });
 }
+
+export function fetchCookMe() {
+  return api<{ cook: CookProfile | null }>('/api/cooks/me');
+}

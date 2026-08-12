@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ImageBackground, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ImageBackground, TouchableOpacity, StyleSheet, Modal, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { colors, radii, spacing, fontSizes } from '../theme';
 import { formatPrice } from '../lib/api';
-import { viewCookListing } from '../lib/listingsApi';
+import { viewCookListing, likeCookListing } from '../lib/listingsApi';
+import { isFavoriteCook, toggleFavoriteCook } from '../lib/favorites';
+import { createReport } from '../lib/reports';
 import type { CookListing } from '../lib/listingsApi';
 import { ChefHat, Clock, Star, MapPin, Heart, Bookmark, Flag } from 'lucide-react-native';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
@@ -18,14 +20,60 @@ export function CookListingHero({ listing, insets, tabBarHeight }: Props) {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const media = listing.media?.length ? listing.media : [{ url: '', type: 'IMAGE' as const }];
   const [index, setIndex] = useState(0);
+  const [liked, setLiked] = useState(listing.liked ?? false);
+  const [likeCount, setLikeCount] = useState(listing.likeCount ?? 0);
+  const [likeLoading, setLikeLoading] = useState(false);
+  const [favorited, setFavorited] = useState(false);
+  const [showReport, setShowReport] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportLoading, setReportLoading] = useState(false);
   const isAvailable = listing.isActive && listing.stock > 0;
 
   useEffect(() => {
     viewCookListing(listing.id).catch(() => {});
+    isFavoriteCook(listing.cook.id).then(setFavorited).catch(() => {});
     if (media.length <= 1) return;
     const interval = setInterval(() => setIndex((prev) => (prev + 1) % media.length), 6000);
     return () => clearInterval(interval);
-  }, [media, listing.id]);
+  }, [media, listing.id, listing.cook.id]);
+
+  async function handleLike() {
+    setLikeLoading(true);
+    try {
+      const res = await likeCookListing(listing.id);
+      setLiked(res.liked);
+      setLikeCount(res.likeCount);
+    } catch (err) {
+      Alert.alert('Like failed', err instanceof Error ? err.message : 'Sign in to like');
+    } finally {
+      setLikeLoading(false);
+    }
+  }
+
+  async function handleFavorite() {
+    const res = await toggleFavoriteCook({
+      id: listing.cook.id,
+      displayName: listing.cook.displayName,
+      profilePhoto: listing.cook.profilePhoto,
+    });
+    setFavorited(res.favorited);
+    Alert.alert(res.favorited ? 'Added to favorite cooks' : 'Removed from favorites');
+  }
+
+  async function handleReport() {
+    if (!reportReason.trim()) return;
+    setReportLoading(true);
+    try {
+      await createReport({ targetId: listing.cook.id, targetType: 'COOK', reason: reportReason.trim() });
+      Alert.alert('Report submitted', 'Thank you for letting us know.');
+      setReportReason('');
+      setShowReport(false);
+    } catch (err) {
+      Alert.alert('Report failed', err instanceof Error ? err.message : 'Could not submit report');
+    } finally {
+      setReportLoading(false);
+    }
+  }
 
   const active = media[index];
 
@@ -73,13 +121,19 @@ export function CookListingHero({ listing, insets, tabBarHeight }: Props) {
           <View style={styles.row}>
             <Text style={styles.price}>{formatPrice(listing.priceKobo)}</Text>
             <View style={styles.actions}>
-              <TouchableOpacity style={styles.action} activeOpacity={0.8}>
-                <Heart size={18} color={colors.white} />
+              <TouchableOpacity style={[styles.action, liked && styles.actionLiked]} activeOpacity={0.8} onPress={handleLike} disabled={likeLoading}>
+                {likeLoading ? <ActivityIndicator color={liked ? colors.white : colors.white} size="small" /> : (
+                  <>
+                    <Heart size={18} color={liked ? colors.danger : colors.white} fill={liked ? colors.danger : 'transparent'} />
+                    {likeCount > 0 && <Text style={[styles.actionCount, liked && styles.actionCountLiked]}>{likeCount}</Text>}
+                  </>
+                )}
               </TouchableOpacity>
-              <TouchableOpacity style={styles.action} activeOpacity={0.8}>
-                <Bookmark size={18} color={colors.white} />
+              <TouchableOpacity style={[styles.action, favorited && styles.actionFavorited]} activeOpacity={0.8} onPress={handleFavorite}>
+                <Bookmark size={18} color={favorited ? colors.brand900 : colors.white} fill={favorited ? colors.brand900 : 'transparent'} />
+                <Text style={[styles.actionLabel, favorited && styles.actionLabelFavorited]}>{favorited ? 'Favorited' : 'Favorite'}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.action} activeOpacity={0.8}>
+              <TouchableOpacity style={styles.action} activeOpacity={0.8} onPress={() => setShowReport(true)}>
                 <Flag size={18} color={colors.white} />
               </TouchableOpacity>
               <TouchableOpacity
@@ -91,6 +145,29 @@ export function CookListingHero({ listing, insets, tabBarHeight }: Props) {
               </TouchableOpacity>
             </View>
           </View>
+
+          <Modal visible={showReport} transparent animationType="fade" onRequestClose={() => setShowReport(false)}>
+            <View style={styles.modalBackdrop}>
+              <View style={styles.modal}>
+                <Text style={styles.modalTitle}>Report cook</Text>
+                <Text style={styles.modalBody}>Tell us why you are reporting this cook.</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Reason"
+                  placeholderTextColor={colors.muted}
+                  value={reportReason}
+                  onChangeText={setReportReason}
+                  multiline
+                />
+                <TouchableOpacity style={styles.primaryButton} onPress={handleReport} disabled={reportLoading}>
+                  {reportLoading ? <ActivityIndicator color={colors.brand900} /> : <Text style={styles.primaryButtonText}>Submit report</Text>}
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.secondaryButton} onPress={() => setShowReport(false)}>
+                  <Text style={styles.secondaryButtonText}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
         </View>
       </ImageBackground>
     </View>
@@ -115,7 +192,22 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md, marginTop: spacing.lg },
   price: { color: colors.white, fontSize: fontSizes.lg, fontWeight: '600' },
   actions: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  action: { width: 38, height: 38, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.4)', borderWidth: 1, borderColor: colors.border, justifyContent: 'center', alignItems: 'center' },
+  action: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, borderRadius: radii.full, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, backgroundColor: 'rgba(0,0,0,0.4)', borderWidth: 1, borderColor: colors.border },
+  actionLiked: { backgroundColor: colors.danger },
+  actionCount: { color: colors.white, fontSize: fontSizes.sm, fontWeight: '700' },
+  actionCountLiked: { color: colors.white },
+  actionFavorited: { backgroundColor: '#facc15' },
+  actionLabel: { color: colors.white, fontSize: fontSizes.sm, fontWeight: '700' },
+  actionLabelFavorited: { color: colors.brand900 },
   orderButton: { backgroundColor: colors.white, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radii.full },
   orderText: { color: colors.black, fontSize: fontSizes.base, fontWeight: '700' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: spacing.md },
+  modal: { backgroundColor: colors.brand900, borderRadius: radii.lg, padding: spacing.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  modalTitle: { color: colors.white, fontSize: fontSizes.xl, fontWeight: '800', marginBottom: spacing.sm },
+  modalBody: { color: colors.muted, marginBottom: spacing.md },
+  input: { backgroundColor: 'rgba(255,255,255,0.08)', color: colors.white, borderRadius: radii.lg, padding: spacing.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', marginBottom: spacing.md, minHeight: 80, textAlignVertical: 'top' },
+  primaryButton: { backgroundColor: colors.brand100, padding: spacing.md, borderRadius: radii.full, alignItems: 'center' },
+  primaryButtonText: { color: colors.brand900, fontWeight: '700' },
+  secondaryButton: { backgroundColor: 'transparent', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', padding: spacing.md, borderRadius: radii.full, alignItems: 'center', marginTop: spacing.sm },
+  secondaryButtonText: { color: colors.white, fontWeight: '700' },
 });
