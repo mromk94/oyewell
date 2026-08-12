@@ -35,9 +35,10 @@ export async function registerForPushNotificationsAsync() {
 
 export async function sendPushTokenToServer(token: string) {
   try {
-    await api('/api/user/push-token', {
+    const platform = Platform.OS;
+    await api('/api/auth/push-token', {
       method: 'POST',
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({ token, platform }),
     });
   } catch {
     // fail silently; token will be retried on next startup

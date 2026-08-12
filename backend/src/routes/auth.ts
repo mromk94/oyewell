@@ -192,5 +192,23 @@ router.post('/reset-password', async (req, res, next) => {
   }
 });
 
+router.post('/push-token', requireAuth, async (req: AuthRequest, res, next) => {
+  try {
+    const { token, platform } = req.body as { token?: string; platform?: string };
+    if (!token) {
+      res.status(400).json({ error: 'Token is required' });
+      return;
+    }
+    await prisma.pushToken.upsert({
+      where: { token },
+      create: { token, platform: platform ?? 'unknown', userId: req.user!.id },
+      update: { platform: platform ?? 'unknown', userId: req.user!.id },
+    });
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
 
 export default router;
