@@ -164,7 +164,7 @@ export function HomeScreen() {
         <CookListingHero
           listing={item}
           insets={insets}
-          tabBarHeight={0}
+          tabBarHeight={cookViews.includes(active) ? 80 : 0}
         />
       </View>
     );

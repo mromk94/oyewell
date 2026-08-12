@@ -8,7 +8,7 @@ import { useInterval } from '../../lib/polling';
 import { useAuth } from '../../lib/auth';
 import { pickImage } from '../../lib/imagePicker';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
-import { Star, ChevronLeft, Package, CheckCircle, XCircle, Clock, Truck, Home, Utensils, Upload, Flag } from 'lucide-react-native';
+import { Star, ChevronLeft, Package, CheckCircle, XCircle, Clock, Truck, Home, Utensils, Upload, Flag, UserPlus, Check } from 'lucide-react-native';
 
 const TRACK_STATUSES = [
   { key: 'PENDING_PAYMENT', label: 'Order placed', description: 'We received your order and are waiting for payment confirmation.', Icon: Package },
@@ -32,7 +32,7 @@ export function TrackOrderScreen() {
   const { params } = useRoute<RouteProp<RootStackParamList, 'Track'>>();
   const { orderNumber } = params!;
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
-  const { user } = useAuth();
+  const { user, register } = useAuth();
   const [order, setOrder] = useState<OrderSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,6 +45,12 @@ export function TrackOrderScreen() {
   const [comment, setComment] = useState('');
   const [submittingReview, setSubmittingReview] = useState(false);
   const [submittedReview, setSubmittedReview] = useState(false);
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [accepted, setAccepted] = useState(false);
+  const [registering, setRegistering] = useState(false);
 
   function load() {
     setLoading(true);
@@ -66,6 +72,7 @@ export function TrackOrderScreen() {
     if (!proofImage || !order?.payment) return;
     setUploading(true);
     try {
+      setError(null);
       await uploadPaymentProof(order.payment.id, proofImage);
       setJustUploaded(true);
       load();
@@ -90,6 +97,46 @@ export function TrackOrderScreen() {
     }
   }
 
+  async function handleRegister() {
+    if (!order) return;
+    setError(null);
+    if (!email.trim()) {
+      setError('Email is required.');
+      return;
+    }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+    if (password !== confirm) {
+      setError('Passwords do not match.');
+      return;
+    }
+    if (!accepted) {
+      setError('Please accept the Terms of Service to continue.');
+      return;
+    }
+    setRegistering(true);
+    try {
+      await register({
+        email: email.trim(),
+        password,
+        firstName: 'OYE',
+        lastName: 'Customer',
+        phone: order.phone ?? '',
+      });
+      setEmail('');
+      setPassword('');
+      setConfirm('');
+      setAccepted(false);
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not create account.');
+    } finally {
+      setRegistering(false);
+    }
+  }
+
   if (loading) return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ActivityIndicator color={colors.brand100} style={styles.loader} />
@@ -108,6 +155,7 @@ export function TrackOrderScreen() {
   const currentIndex = TRACK_STATUSES.findIndex((s) => s.key === order.status);
   const manual = isManualPayment(order.payment?.provider);
   const proofUrl = order.payment?.attempts?.[0]?.payload?.image as string | undefined;
+  const needsOnboarding = !user && (order.paymentStatus === 'PAID' || order.paymentStatus === 'PENDING' || justUploaded);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -135,7 +183,7 @@ export function TrackOrderScreen() {
             </View>
             <Text style={styles.body}>{order.payment.provider}</Text>
 
-            {manual && order.paymentStatus === 'PENDING' && (
+            {manual && (order.paymentStatus === 'PENDING' || order.paymentStatus === 'UNDER_REVIEW') && (
               <View style={styles.manualBox}>
                 {(proofUrl || justUploaded) ? (
                   <View>
@@ -193,6 +241,56 @@ export function TrackOrderScreen() {
                 <Text style={styles.code}>{order.deliveryCode}</Text>
               </View>
             )}
+          </View>
+        )}
+
+        {needsOnboarding && (
+          <View style={[styles.card, styles.onboardingCard]}>
+            <View style={styles.onboardingHeader}>
+              <View style={styles.userPlusIcon}>
+                <UserPlus size={20} color={colors.brand900} />
+              </View>
+              <Text style={styles.section}>Create your tracking account</Text>
+            </View>
+            <Text style={styles.onboardingBody}>
+              Create a free account to make tracking this order easy and safe. You will always be able to look up your order history and receive updates.
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Email (username)"
+              placeholderTextColor={colors.muted}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <View style={styles.passwordRow}>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                placeholder="Password"
+                placeholderTextColor={colors.muted}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                placeholder="Confirm password"
+                placeholderTextColor={colors.muted}
+                value={confirm}
+                onChangeText={setConfirm}
+                secureTextEntry
+              />
+            </View>
+            <TouchableOpacity style={styles.termsRow} onPress={() => setAccepted((s) => !s)}>
+              <View style={[styles.checkBox, accepted && styles.checkBoxActive]}>
+                {accepted && <Check size={14} color={colors.brand900} />}
+              </View>
+              <Text style={styles.termsText}>I agree to the Terms of Service and understand this keeps my order safe and easy to track.</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.onboardingButton} onPress={handleRegister} disabled={registering}>
+              {registering ? <ActivityIndicator color={colors.brand900} /> : <Text style={styles.onboardingButtonText}>Create account & continue</Text>}
+            </TouchableOpacity>
           </View>
         )}
 
@@ -303,6 +401,7 @@ export function TrackOrderScreen() {
 function StatusPill({ status }: { status: string }) {
   if (status === 'PAID') return <View style={styles.pill}><CheckCircle size={14} color={colors.success} /><Text style={[styles.pillText, { color: colors.success }]}>Paid</Text></View>;
   if (status === 'FAILED') return <View style={styles.pill}><XCircle size={14} color={colors.danger} /><Text style={[styles.pillText, { color: colors.danger }]}>Rejected</Text></View>;
+  if (status === 'UNDER_REVIEW') return <View style={styles.pill}><Clock size={14} color={colors.warning} /><Text style={[styles.pillText, { color: colors.warning }]}>Under review</Text></View>;
   return <View style={styles.pill}><Clock size={14} color={colors.warning} /><Text style={[styles.pillText, { color: colors.warning }]}>Pending</Text></View>;
 }
 
@@ -373,4 +472,16 @@ const styles = StyleSheet.create({
   timelineDescActive: { color: colors.brand100 },
   timelineDescDone: { color: colors.muted },
   timelineDescPending: { color: 'rgba(255,255,255,0.4)' },
+  onboardingCard: { backgroundColor: 'rgba(16,185,129,0.1)', borderColor: 'rgba(16,185,129,0.3)' },
+  onboardingHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.sm },
+  userPlusIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.success, justifyContent: 'center', alignItems: 'center', marginRight: spacing.sm },
+  onboardingBody: { color: '#a7f3d0', marginBottom: spacing.md, lineHeight: 20 },
+  input: { backgroundColor: 'rgba(255,255,255,0.08)', color: colors.white, borderRadius: radii.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, marginBottom: spacing.sm },
+  passwordRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm },
+  termsRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing.sm },
+  checkBox: { width: 20, height: 20, borderRadius: radii.sm, borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', backgroundColor: 'rgba(255,255,255,0.05)', justifyContent: 'center', alignItems: 'center', marginTop: spacing.xs },
+  checkBoxActive: { backgroundColor: colors.white, borderColor: colors.white },
+  termsText: { color: 'rgba(255,255,255,0.7)', fontSize: fontSizes.sm, flex: 1, lineHeight: 18 },
+  onboardingButton: { backgroundColor: colors.success, padding: spacing.md, borderRadius: radii.full, alignItems: 'center' },
+  onboardingButtonText: { color: colors.brand900, fontWeight: '700' },
 });
