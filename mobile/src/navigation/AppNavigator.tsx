@@ -42,9 +42,8 @@ function CustomerTabs() {
   return (
     <Tabs.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: colors.brand900 },
-        headerTintColor: colors.white,
-        tabBarStyle: { backgroundColor: colors.brand900, borderTopWidth: 0 },
+        headerShown: false,
+        tabBarStyle: { display: user ? 'flex' : 'none', backgroundColor: colors.brand900, borderTopWidth: 0 },
         tabBarActiveTintColor: colors.brand100,
         tabBarInactiveTintColor: colors.muted,
       }}

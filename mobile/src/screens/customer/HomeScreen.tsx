@@ -12,8 +12,7 @@ import { User, Search } from 'lucide-react-native';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 
 type ViewTab = 'home' | 'cooks' | 'restaurants' | 'nearby';
-const tabs: { id: ViewTab; label: string }[] = [
-  { id: 'home', label: 'Home' },
+const tabs: { id: Exclude<ViewTab, 'home'>; label: string }[] = [
   { id: 'cooks', label: 'Food' },
   { id: 'restaurants', label: 'Restaurants' },
   { id: 'nearby', label: 'Around Me' },
@@ -74,7 +73,7 @@ export function HomeScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <SafeAreaView style={styles.container} edges={[]}>
         <ActivityIndicator color={colors.brand100} />
       </SafeAreaView>
     );
@@ -82,14 +81,14 @@ export function HomeScreen() {
 
   if (error) {
     return (
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <SafeAreaView style={styles.container} edges={[]}>
         <Text style={styles.error}>{error}</Text>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <SafeAreaView style={styles.container} edges={[]}>
       <FlatList
         ref={listRef}
         data={visibleFoods}
@@ -106,7 +105,7 @@ export function HomeScreen() {
               food={item}
               onPress={() => navigation.navigate('Food', { slug: item.slug })}
               insets={insets}
-              tabBarHeight={TAB_BAR_HEIGHT}
+              tabBarHeight={user ? TAB_BAR_HEIGHT : 0}
             />
           </View>
         )}
