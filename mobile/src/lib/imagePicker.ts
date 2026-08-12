@@ -12,5 +12,11 @@ export async function pickImage(): Promise<string | null> {
   });
 
   if (result.canceled) return null;
-  return result.assets[0]?.base64 ?? result.assets[0]?.uri ?? null;
+  const asset = result.assets[0];
+  if (!asset) return null;
+  if (asset.base64) {
+    const mime = asset.type === 'video' ? 'video/mp4' : 'image/jpeg';
+    return `data:${mime};base64,${asset.base64}`;
+  }
+  return asset.uri ?? null;
 }

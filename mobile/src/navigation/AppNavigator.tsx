@@ -23,6 +23,7 @@ import { AccountScreen } from '../screens/customer/AccountScreen';
 import { PaymentProofScreen } from '../screens/customer/PaymentProofScreen';
 import { colors } from '../theme';
 import type { CookListing } from '../lib/cookApi';
+import type { PaymentMethod } from '../lib/api';
 import { Home, User, ShoppingCart, Wallet, Package, ChefHat, Bike, Shield } from 'lucide-react-native';
 
 export type RootStackParamList = {
@@ -35,7 +36,7 @@ export type RootStackParamList = {
   CookApply: undefined;
   Track: { orderNumber: string };
   Cart: undefined;
-  PaymentProof: { paymentId: string; orderNumber: string; instructions: string };
+  PaymentProof: { paymentId: string; orderNumber: string; method: PaymentMethod };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();

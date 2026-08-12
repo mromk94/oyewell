@@ -142,7 +142,7 @@ export function CartScreen() {
           });
       clear();
       if (MANUAL_PROVIDERS.has(payment.provider)) {
-        navigation.navigate('PaymentProof', { paymentId: payment.id, orderNumber: order.orderNumber, instructions: method.config?.instructions ?? '' });
+        navigation.navigate('PaymentProof', { paymentId: payment.id, orderNumber: order.orderNumber, method: method! });
       } else {
         if (payment.idempotencyKey) {
           try {
