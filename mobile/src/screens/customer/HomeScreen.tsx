@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, useWindowDimensions, TouchableOpacity, TextInput, Switch, Modal } from 'react-native';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, useWindowDimensions, TouchableOpacity, TextInput, Switch, Modal, PanResponder } from 'react-native';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fontSizes, radii, spacing } from '../../theme';
@@ -85,6 +85,20 @@ export function HomeScreen() {
   const [contentHeight, setContentHeight] = useState(0);
   const isAppending = useRef(false);
   const listRef = useRef<FlatList<FoodItem | CookListing>>(null);
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => false,
+        onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 15 && Math.abs(g.dx) > Math.abs(g.dy),
+        onPanResponderRelease: (_, g) => {
+          if (Math.abs(g.dx) < 50 || Math.abs(g.dy) > Math.abs(g.dx)) return;
+          const idx = tabs.findIndex((t) => t.id === active);
+          if (g.dx < 0 && idx < tabs.length - 1) setActive(tabs[idx + 1].id);
+          if (g.dx > 0 && idx > 0) setActive(tabs[idx - 1].id);
+        },
+      }),
+    [active]
+  );
 
   useEffect(() => {
     Promise.all([
@@ -185,18 +199,20 @@ export function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
-      <FlatList
-        ref={listRef}
-        data={data as any}
-        keyExtractor={(item: any, i: number) => `${item.id ?? item.slug}-${i}`}
-        pagingEnabled
-        decelerationRate="fast"
-        snapToInterval={itemHeight}
-        showsVerticalScrollIndicator={false}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-        renderItem={renderItem}
-      />
+      <View style={{ flex: 1 }} {...panResponder.panHandlers}>
+        <FlatList
+          ref={listRef}
+          data={data as any}
+          keyExtractor={(item: any, i: number) => `${item.id ?? item.slug}-${i}`}
+          pagingEnabled
+          decelerationRate="fast"
+          snapToInterval={itemHeight}
+          showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          renderItem={renderItem}
+        />
+      </View>
 
       <ScrollHint canScrollUp={canScrollUp} canScrollDown={canScrollDown} onNavigate={handleNavigate} />
 
