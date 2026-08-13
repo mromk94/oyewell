@@ -72,6 +72,7 @@ export function HomeScreen() {
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
+  const isCook = user?.role === 'COOK' || user?.roles?.includes('COOK');
   const [foods, setFoods] = useState<FoodItem[]>([]);
   const [cookListings, setCookListings] = useState<CookListing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -288,7 +289,13 @@ export function HomeScreen() {
       {cookViews.includes(active) && (
         <TouchableOpacity
           style={[styles.fab, { bottom: (user ? 70 : 20) + insets.bottom + spacing.md }]}
-          onPress={() => setPostModal(true)}
+          onPress={() => {
+            if (isCook) {
+              navigation.navigate('CookListingForm', {});
+            } else {
+              setPostModal(true);
+            }
+          }}
         >
           <Plus size={28} color={colors.black} />
         </TouchableOpacity>
@@ -299,7 +306,7 @@ export function HomeScreen() {
           <View style={styles.modal}>
             <Text style={styles.modalTitle}>Post your food</Text>
             <Text style={styles.modalBody}>Cooks can list dishes for neighbors to order. Apply if you haven't yet.</Text>
-            {user?.role === 'COOK' ? (
+            {isCook ? (
               <TouchableOpacity
                 style={styles.modalPrimary}
                 onPress={() => { setPostModal(false); navigation.navigate('CookListingForm', {}); }}
