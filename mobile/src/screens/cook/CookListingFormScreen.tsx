@@ -108,7 +108,7 @@ export function CookListingFormScreen() {
       } else {
         await createCookListing(body);
       }
-      navigation.goBack();
+      navigation.navigate('MainTabs', { screen: 'Listings' });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
     } finally {

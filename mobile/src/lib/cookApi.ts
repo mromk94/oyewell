@@ -123,7 +123,7 @@ export function createCookListing(body: CookListingInput) {
   return api<{ listing: CookListing }>('/api/cooks/me/listings', { method: 'POST', body: JSON.stringify(body) });
 }
 
-export function updateCookListing(id: string, body: Partial<CookListingInput>) {
+export function updateCookListing(id: string, body: Partial<CookListingInput> & { status?: string; isActive?: boolean }) {
   return api<{ listing: CookListing }>(`/api/cooks/me/listings/${id}`, { method: 'PATCH', body: JSON.stringify(body) });
 }
 
