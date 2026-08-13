@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fontSizes, radii, spacing } from '../../theme';
 import { fetchOrder, formatPrice, createReview, uploadPaymentProof, type OrderSummary } from '../../lib/api';
 import { useOrderEvents } from '../../lib/events';
+import { ensureOrderActivity } from '../../lib/liveActivity';
 import { useAuth } from '../../lib/auth';
 import { pickImage } from '../../lib/imagePicker';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
@@ -79,6 +80,10 @@ export function TrackOrderScreen() {
       load(true);
     }
   });
+
+  useEffect(() => {
+    if (order) ensureOrderActivity(order);
+  }, [order?.orderNumber, order?.status, order?.estimatedMinutes]);
 
   async function handlePickProof() {
     const picked = await pickImage();

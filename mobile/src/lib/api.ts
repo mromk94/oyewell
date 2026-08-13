@@ -280,6 +280,8 @@ export interface OrderSummary {
   deliveryCode?: string;
   cookId?: string;
   cookListingId?: string;
+  cookName: string;
+  estimatedMinutes?: number | null;
   riderId?: string;
   riderFee?: string;
   riderStatus?: string;

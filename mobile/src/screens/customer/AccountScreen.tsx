@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert, AppState } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fontSizes, radii, spacing } from '../../theme';
 import { useAuth } from '../../lib/auth';
@@ -95,6 +96,19 @@ export function AccountScreen() {
   useOrderEvents((event) => {
     if (['order:status', 'payment:confirmed', 'payment:proof', 'order:created'].includes(event.type)) {
       refreshOrders();
+      const payload = event.payload as { orderNumber?: string; status?: string };
+      if (payload.orderNumber && payload.status && orders.some((o) => o.orderNumber === payload.orderNumber)) {
+        if (AppState.currentState !== 'active') {
+          Notifications.scheduleNotificationAsync({
+            content: {
+              title: 'Order update',
+              body: `Order #${payload.orderNumber} is now ${payload.status.replace(/_/g, ' ')}`,
+              data: { orderNumber: payload.orderNumber },
+            },
+            trigger: null,
+          });
+        }
+      }
     }
   }, !!user);
 
