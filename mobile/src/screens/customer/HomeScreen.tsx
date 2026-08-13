@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, ActivityIndicator, useWindowDimensions, TouchableOpacity, TextInput, Switch, Modal, PanResponder } from 'react-native';
 import { useNavigation, type NavigationProp } from '@react-navigation/native';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fontSizes, radii, spacing } from '../../theme';
 import { useAuth } from '../../lib/auth';
@@ -70,6 +71,7 @@ export function HomeScreen() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const tabBarHeight = useBottomTabBarHeight();
   const [foods, setFoods] = useState<FoodItem[]>([]);
   const [cookListings, setCookListings] = useState<CookListing[]>([]);
   const [loading, setLoading] = useState(true);
@@ -166,7 +168,7 @@ export function HomeScreen() {
           food={item}
           onPress={() => navigation.navigate('Food', { slug: item.slug })}
           insets={insets}
-          tabBarHeight={0}
+          tabBarHeight={tabBarHeight}
         />
       </View>
     );
@@ -178,7 +180,7 @@ export function HomeScreen() {
         <CookListingHero
           listing={item}
           insets={insets}
-          tabBarHeight={cookViews.includes(active) ? 80 : 0}
+          tabBarHeight={tabBarHeight}
         />
       </View>
     );
