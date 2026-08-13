@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert, AppState } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, TextInput, ActivityIndicator, Alert, AppState, Animated, Easing, Modal } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, fontSizes, radii, spacing } from '../../theme';
@@ -49,6 +49,8 @@ export function AccountScreen() {
   const [cookProfile, setCookProfile] = useState<CookProfile | null>(null);
   const [deliveryApp, setDeliveryApp] = useState<DeliveryApplication | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [slowModal, setSlowModal] = useState(false);
+  const slowTimer = useRef<NodeJS.Timeout | null>(null);
   const [editing, setEditing] = useState(false);
   const [firstName, setFirstName] = useState(user?.firstName ?? '');
   const [lastName, setLastName] = useState(user?.lastName ?? '');
@@ -69,6 +71,9 @@ export function AccountScreen() {
     setPhone(currentUser.phone ?? '');
     async function load() {
       setOrdersLoading(true);
+      setSlowModal(false);
+      if (slowTimer.current) clearTimeout(slowTimer.current);
+      slowTimer.current = setTimeout(() => setSlowModal(true), 8000);
       try {
         const [my, app] = await Promise.all([fetchMyOrders(), fetchDeliveryApplication()]);
         setOrders(my.orders);
@@ -76,11 +81,22 @@ export function AccountScreen() {
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load account');
       } finally {
+        if (slowTimer.current) {
+          clearTimeout(slowTimer.current);
+          slowTimer.current = null;
+        }
+        setSlowModal(false);
         setOrdersLoading(false);
       }
     }
     load();
     fetchCookMe().then((r) => setCookProfile(r.cook)).catch(() => setCookProfile(null));
+    return () => {
+      if (slowTimer.current) {
+        clearTimeout(slowTimer.current);
+        slowTimer.current = null;
+      }
+    };
   }, [authLoading, user]);
 
   async function refreshOrders() {
@@ -201,7 +217,7 @@ export function AccountScreen() {
                 <Package size={16} color={colors.muted} />
                 <Text style={styles.profileLabel}>Total orders</Text>
               </View>
-              <Text style={styles.profileValue}>{ordersLoading ? '—' : orders.length}</Text>
+              {ordersLoading ? <Skeleton width={32} height={fontSizes.lg} style={{ marginTop: spacing.xs }} /> : <Text style={styles.profileValue}>{orders.length}</Text>}
               <TouchableOpacity style={styles.secondaryButton} onPress={() => setEditing(true)}>
                 <Pencil size={16} color={colors.white} />
                 <Text style={styles.secondaryButtonText}>Edit profile</Text>
@@ -278,9 +294,9 @@ export function AccountScreen() {
         </View>
 
         <View style={styles.stats}>
-          <StatBox label="Active" count={ordersLoading ? '—' : currentOrders.length} color="rgba(234,179,8,0.2)" textColor="#fde047" />
-          <StatBox label="Delivered" count={ordersLoading ? '—' : previousOrders.length} color="rgba(34,197,94,0.2)" textColor="#86efac" />
-          <StatBox label="All time" count={ordersLoading ? '—' : orders.length} color="rgba(59,130,246,0.2)" textColor="#93c5fd" />
+          <StatBox label="Active" count={currentOrders.length} color="rgba(234,179,8,0.2)" textColor="#fde047" loading={ordersLoading} />
+          <StatBox label="Delivered" count={previousOrders.length} color="rgba(34,197,94,0.2)" textColor="#86efac" loading={ordersLoading} />
+          <StatBox label="All time" count={orders.length} color="rgba(59,130,246,0.2)" textColor="#93c5fd" loading={ordersLoading} />
         </View>
 
         <View style={styles.panel}>
@@ -313,14 +329,15 @@ export function AccountScreen() {
           <Text style={styles.logoutText}>Sign out</Text>
         </TouchableOpacity>
       </ScrollView>
+      <SlowPollModal visible={slowModal} onClose={() => setSlowModal(false)} />
     </SafeAreaView>
   );
 }
 
-function StatBox({ label, count, color, textColor }: { label: string; count: number | string; color: string; textColor: string }) {
+function StatBox({ label, count, color, textColor, loading }: { label: string; count: number | string; color: string; textColor: string; loading?: boolean }) {
   return (
     <View style={[styles.statBox, { backgroundColor: color }]}>
-      <Text style={[styles.statValue, { color: textColor }]}>{count}</Text>
+      {loading ? <Skeleton width={32} height={fontSizes.xxl} style={{ marginBottom: spacing.xs, alignSelf: 'center' }} /> : <Text style={[styles.statValue, { color: textColor }]}>{count}</Text>}
       <Text style={[styles.statLabel, { color: textColor }]}>{label}</Text>
     </View>
   );
@@ -338,7 +355,12 @@ function OrderList({
   loading?: boolean;
 }) {
   if (loading) {
-    return <ActivityIndicator color={colors.brand100} style={{ marginVertical: spacing.md }} />;
+    return (
+      <View>
+        <OrderCardSkeleton />
+        <OrderCardSkeleton />
+      </View>
+    );
   }
   if (orders.length === 0) {
     return <Text style={styles.emptyText}>{empty}</Text>;
@@ -400,6 +422,59 @@ function OrderList({
   );
 }
 
+function Skeleton({ width, height, style }: { width: number | string; height: number; style?: object }) {
+  const opacity = useRef(new Animated.Value(0.4)).current;
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.4, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    );
+    animation.start();
+    return () => { animation.stop(); };
+  }, [opacity]);
+  return <Animated.View style={[styles.skeleton, { width, height, opacity }, style]} />;
+}
+
+function OrderCardSkeleton() {
+  return (
+    <View style={styles.orderCard}>
+      <View style={styles.orderRow}>
+        <View style={styles.orderRowInline}>
+          <Skeleton width={80} height={14} />
+        </View>
+        <View style={styles.orderRowInline}>
+          <Skeleton width={70} height={22} />
+          <Skeleton width={70} height={22} style={{ marginLeft: spacing.xs }} />
+        </View>
+      </View>
+      <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+        <Skeleton width="60%" height={12} />
+        <Skeleton width="80%" height={12} />
+      </View>
+    </View>
+  );
+}
+
+function SlowPollModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modal}>
+          <Text style={styles.modalTitle}>Taking a little longer</Text>
+          <Text style={styles.modalBody}>
+            Your latest data is taking a while to load. This usually means a slow connection or that the server is busy. We're still trying in the background.
+          </Text>
+          <TouchableOpacity style={styles.primaryButton} onPress={onClose}>
+            <Text style={styles.primaryButtonText}>Got it</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.brand900, padding: spacing.md },
   scroll: { paddingBottom: spacing.xl },
@@ -446,4 +521,9 @@ const styles = StyleSheet.create({
   sidesLine: { color: 'rgba(255,255,255,0.5)', fontSize: fontSizes.sm },
   total: { color: colors.white, fontSize: fontSizes.lg, fontWeight: '700' },
   emptyText: { color: colors.muted, fontSize: fontSizes.sm, marginTop: spacing.sm },
+  skeleton: { backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: radii.sm },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'center', padding: spacing.md },
+  modal: { backgroundColor: colors.brand900, borderRadius: radii.lg, padding: spacing.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+  modalTitle: { color: colors.white, fontSize: fontSizes.xl, fontWeight: '800', marginBottom: spacing.sm },
+  modalBody: { color: colors.muted, marginBottom: spacing.md },
 });

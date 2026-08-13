@@ -34,7 +34,7 @@ import {
   type RiderEarnings,
   type RiderPayout,
 } from '../../lib/riderApi';
-import { Bike, Package, ClipboardList, ShieldCheck, Banknote, MapPin, Phone, Navigation, Shield, LogOut } from 'lucide-react-native';
+import { Bike, Package, ClipboardList, ShieldCheck, Banknote, MapPin, Phone, Navigation, Shield, LogOut, Wallet, Info } from 'lucide-react-native';
 
 type TabId = 'orders' | 'available' | 'verify' | 'earnings' | 'profile';
 
@@ -52,6 +52,7 @@ export function RiderDashboardScreen() {
   const [tab, setTab] = useState<TabId>('orders');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [onlineInfo, setOnlineInfo] = useState(false);
   const [profile, setProfile] = useState({ vehicle: '', bankName: '', bankAccountName: '', bankAccountNumber: '' });
 
   const loadRider = useCallback(async () => {
@@ -123,26 +124,38 @@ export function RiderDashboardScreen() {
         </View>
 
         <View style={styles.profileCard}>
-          <View>
+          <View style={styles.profileLeft}>
             <Text style={styles.welcomeBack}>Welcome back</Text>
             <Text style={styles.riderName}>{rider.user?.firstName || 'Rider'} {rider.user?.lastName}</Text>
             <Text style={styles.riderEmail}>{rider.user?.email}</Text>
             <View style={styles.tags}>
-              <View style={styles.tag}>
-                <Text style={styles.tagText}>{formatPrice(rider.user?.balanceKobo ?? 0)}</Text>
+              <View style={styles.balancePill}>
+                <Wallet size={14} color="#86efac" />
+                <Text style={styles.balancePillText}>{formatPrice(rider.user?.balanceKobo ?? 0)}</Text>
               </View>
-              <View style={styles.tag}>
-                <Text style={styles.tagText}>{rider.professionalApproval === 'APPROVED' ? 'Professional' : 'Neighborhood'}</Text>
+              <View style={styles.approvalTag}>
+                {rider.professionalApproval === 'APPROVED' ? <Shield size={14} color="#93c5fd" /> : <MapPin size={14} color="#93c5fd" />}
+                <Text style={styles.approvalTagText}>{rider.professionalApproval === 'APPROVED' ? 'Professional' : 'Neighborhood'}</Text>
               </View>
             </View>
           </View>
           <View style={styles.profileRight}>
-            <OnlineToggle rider={rider} onToggle={toggleAvailability} />
+            <OnlineToggle rider={rider} onShowInfo={() => setOnlineInfo(true)} />
             {rider.professionalApproval === 'NOT_APPLIED' && (
               <UpgradeButton onOpen={() => setTab('profile')} />
             )}
           </View>
         </View>
+
+        <OnlineInfoModal
+          visible={onlineInfo}
+          rider={rider}
+          onClose={() => setOnlineInfo(false)}
+          onSet={(value) => {
+            setOnlineInfo(false);
+            toggleAvailability(value);
+          }}
+        />
 
         {error && (
           <View style={styles.errorBox}>
@@ -182,7 +195,7 @@ export function RiderDashboardScreen() {
   );
 }
 
-function OnlineToggle({ rider, onToggle }: { rider: Rider; onToggle: (v: boolean) => void }) {
+function OnlineToggle({ rider, onShowInfo }: { rider: Rider; onShowInfo: () => void }) {
   if (!rider.isApproved || !rider.isActive) {
     return (
       <View style={[styles.onlineButton, { backgroundColor: 'rgba(239,68,68,0.2)' }]}>
@@ -192,11 +205,14 @@ function OnlineToggle({ rider, onToggle }: { rider: Rider; onToggle: (v: boolean
   }
   return (
     <TouchableOpacity
-      style={[styles.onlineButton, rider.available ? { backgroundColor: colors.brand100 } : { backgroundColor: 'rgba(255,255,255,0.1)' }]}
-      onPress={() => onToggle(!rider.available)}
+      style={[
+        styles.onlineButton,
+        rider.available ? { backgroundColor: colors.brand100 } : { backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
+      ]}
+      onPress={onShowInfo}
     >
-      <View style={[styles.dot, { backgroundColor: rider.available ? colors.brand900 : '#fca5a5' }]} />
-      <Text style={rider.available ? styles.onlineTextActive : styles.onlineText}>{rider.available ? 'Online' : 'Offline'}</Text>
+      <Info size={14} color={rider.available ? colors.brand900 : colors.muted} />
+      <Text style={rider.available ? styles.onlineTextActive : styles.onlineText}>{rider.available ? 'Active' : 'Resting'}</Text>
     </TouchableOpacity>
   );
 }
@@ -207,6 +223,58 @@ function UpgradeButton({ onOpen }: { onOpen: () => void }) {
       <Shield size={16} color={colors.white} />
       <Text style={styles.upgradeText}>Upgrade to professional</Text>
     </TouchableOpacity>
+  );
+}
+
+function OnlineInfoModal({
+  visible,
+  rider,
+  onClose,
+  onSet,
+}: {
+  visible: boolean;
+  rider: Rider;
+  onClose: () => void;
+  onSet: (value: boolean) => void;
+}) {
+  const isActive = rider.available;
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modal}>
+          <Text style={styles.modalTitle}>Availability</Text>
+          <Text style={styles.modalBody}>
+            Active means you are accepting delivery requests right now. Resting keeps you logged in but pauses new requests, so you can take a break without going offline.
+          </Text>
+
+          <TouchableOpacity
+            style={[styles.onlineOption, isActive && styles.onlineOptionActive]}
+            onPress={() => onSet(true)}
+          >
+            <View style={[styles.dot, { backgroundColor: colors.brand900 }]} />
+            <View style={styles.onlineOptionText}>
+              <Text style={isActive ? styles.onlineOptionLabelActive : styles.onlineOptionLabel}>Active</Text>
+              <Text style={styles.onlineOptionSub}>Receive delivery requests</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.onlineOption, !isActive && styles.onlineOptionActive]}
+            onPress={() => onSet(false)}
+          >
+            <View style={[styles.dot, { backgroundColor: '#fca5a5' }]} />
+            <View style={styles.onlineOptionText}>
+              <Text style={!isActive ? styles.onlineOptionLabelActive : styles.onlineOptionLabel}>Resting</Text>
+              <Text style={styles.onlineOptionSub}>Stay logged in, no new requests</Text>
+            </View>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.secondaryButton} onPress={onClose}>
+            <Text style={styles.secondaryButtonText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -755,15 +823,18 @@ const styles = StyleSheet.create({
   title: { color: colors.white, fontSize: fontSizes.xxl, fontWeight: '800' },
   logout: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radii.full },
   logoutText: { color: colors.muted, fontSize: fontSizes.sm },
-  profileCard: { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: radii.lg, padding: spacing.md, marginBottom: spacing.md },
+  profileCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: radii.lg, padding: spacing.md, marginBottom: spacing.md },
+  profileLeft: { flex: 1, marginRight: spacing.md },
   welcomeBack: { color: colors.muted, fontSize: fontSizes.sm },
   riderName: { color: colors.white, fontSize: fontSizes.xl, fontWeight: '800' },
-  riderEmail: { color: colors.muted, fontSize: fontSizes.sm },
-  tags: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm, flexWrap: 'wrap' },
-  tag: { backgroundColor: 'rgba(34,197,94,0.2)', borderRadius: radii.full, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
-  tagText: { color: '#86efac', fontSize: fontSizes.xs, fontWeight: '700' },
-  profileRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  onlineButton: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radii.full },
+  riderEmail: { color: colors.muted, fontSize: fontSizes.sm, marginBottom: spacing.xs },
+  tags: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.sm, flexWrap: 'wrap', alignItems: 'center' },
+  balancePill: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, backgroundColor: 'rgba(34,197,94,0.2)', borderRadius: radii.full, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
+  balancePillText: { color: '#86efac', fontSize: fontSizes.xs, fontWeight: '700' },
+  approvalTag: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, backgroundColor: 'rgba(59,130,246,0.2)', borderRadius: radii.full, paddingHorizontal: spacing.md, paddingVertical: spacing.xs },
+  approvalTagText: { color: '#93c5fd', fontSize: fontSizes.xs, fontWeight: '700' },
+  profileRight: { alignItems: 'flex-end', gap: spacing.sm },
+  onlineButton: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radii.full, minWidth: 100 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   onlineText: { color: colors.white, fontWeight: '700' },
   onlineTextActive: { color: colors.brand900, fontWeight: '700' },
@@ -812,4 +883,10 @@ const styles = StyleSheet.create({
   modal: { backgroundColor: colors.brand900, borderRadius: radii.lg, padding: spacing.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   modalTitle: { color: colors.white, fontSize: fontSizes.xl, fontWeight: '800', marginBottom: spacing.sm },
   modalBody: { color: colors.muted, marginBottom: spacing.md },
+  onlineOption: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: radii.lg, padding: spacing.md, marginBottom: spacing.sm },
+  onlineOptionActive: { backgroundColor: colors.brand100 },
+  onlineOptionText: { flex: 1 },
+  onlineOptionLabel: { color: colors.white, fontWeight: '700', fontSize: fontSizes.sm },
+  onlineOptionLabelActive: { color: colors.brand900, fontWeight: '700', fontSize: fontSizes.sm },
+  onlineOptionSub: { color: colors.muted, fontSize: fontSizes.xs },
 });
