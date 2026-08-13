@@ -6,7 +6,7 @@ import { colors, fontSizes, radii, spacing } from '../../theme';
 import { applyAsCook } from '../../lib/cookApi';
 import { pickImage } from '../../lib/imagePicker';
 import { getCurrentAddress } from '../../lib/location';
-import { ChefHat, Camera, MapPin, ArrowLeft, ArrowRight } from 'lucide-react-native';
+import { ChefHat, Camera, MapPin, ArrowLeft, ArrowRight, X } from 'lucide-react-native';
 
 type Safety = {
   hygiene: boolean;
@@ -100,6 +100,11 @@ export function CookApplyScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
+        <View style={styles.closeRow}>
+          <TouchableOpacity style={styles.close} onPress={() => navigation.goBack()}>
+            <X size={24} color={colors.white} />
+          </TouchableOpacity>
+        </View>
         <View style={styles.icon}>
           <ChefHat size={40} color={colors.brand900} />
         </View>
@@ -188,6 +193,8 @@ export function CookApplyScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.brand900 },
   content: { padding: spacing.md, paddingBottom: spacing.xl },
+  closeRow: { alignItems: 'flex-end', marginBottom: spacing.sm },
+  close: { padding: spacing.sm },
   icon: { backgroundColor: colors.brand100, width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: spacing.md },
   title: { color: colors.white, fontSize: fontSizes.xxl, fontWeight: '800', textAlign: 'center', marginBottom: spacing.sm },
   body: { color: colors.muted, textAlign: 'center', marginBottom: spacing.md },

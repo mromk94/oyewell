@@ -150,7 +150,7 @@ export function RiderDashboardScreen() {
           </View>
         )}
 
-        <View style={styles.tabNav}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabNav}>
           {TABS.map((t) => (
             <TouchableOpacity
               key={t.id}
@@ -161,7 +161,7 @@ export function RiderDashboardScreen() {
               <Text style={[styles.tabText, tab === t.id && styles.tabTextActive]}>{t.label}</Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
 
         {tab === 'orders' && <MyOrdersPanel rider={rider} onError={setError} />}
         {tab === 'available' && <AvailableOrdersPanel onError={setError} />}
@@ -771,7 +771,7 @@ const styles = StyleSheet.create({
   upgradeText: { color: colors.white, fontSize: fontSizes.sm, fontWeight: '600' },
   errorBox: { backgroundColor: 'rgba(239,68,68,0.2)', padding: spacing.md, borderRadius: radii.lg, marginBottom: spacing.md },
   errorText: { color: '#fca5a5' },
-  tabNav: { flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md, flexWrap: 'wrap' },
+  tabNav: { flexDirection: 'row', gap: spacing.xs, paddingBottom: spacing.md },
   tab: { alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: radii.lg, padding: spacing.sm, minWidth: 70 },
   tabActive: { backgroundColor: colors.brand100 },
   tabText: { color: colors.muted, fontSize: fontSizes.xs, fontWeight: '700', marginTop: spacing.xs },

@@ -127,13 +127,17 @@ function RiderTabs() {
   return (
     <Tabs.Navigator
       screenOptions={{
-        headerStyle: { backgroundColor: colors.brand900 },
-        headerTintColor: colors.white,
+        headerShown: false,
         tabBarStyle: { backgroundColor: colors.brand900, borderTopWidth: 0 },
         tabBarActiveTintColor: colors.brand100,
         tabBarInactiveTintColor: colors.muted,
       }}
     >
+      <Tabs.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{ tabBarIcon: ({ color }: { color: string }) => <Home size={20} color={color} /> }}
+      />
       <Tabs.Screen
         name="Dashboard"
         component={RiderDashboardScreen}
