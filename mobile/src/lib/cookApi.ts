@@ -69,10 +69,12 @@ export interface CookListingInput {
   prepTimeMinutesMin?: number;
   prepTimeMinutesMax?: number;
   stock: number;
+  quantity: number;
   ingredients?: string;
   allergens?: string;
   cuisine?: string;
   media: { id?: string; type: 'IMAGE' | 'VIDEO'; url: string }[];
+  resubmit?: boolean;
 }
 
 export interface CookEarnings {
