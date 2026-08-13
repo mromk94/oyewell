@@ -332,7 +332,7 @@ function OrderList({
         <TouchableOpacity
           key={order.id}
           style={styles.orderCard}
-          onPress={() => navigation.navigate('Track', { orderNumber: order.orderNumber })}
+          onPress={() => navigation.navigate('Track', { orderNumber: order.orderNumber, initialOrder: order })}
           activeOpacity={0.7}
         >
           <View style={[styles.orderRow, { alignItems: 'flex-start' }]}>

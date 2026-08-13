@@ -24,7 +24,7 @@ import { PaymentProofScreen } from '../screens/customer/PaymentProofScreen';
 import { RiderApplyScreen } from '../screens/customer/RiderApplyScreen';
 import { colors } from '../theme';
 import type { CookListing } from '../lib/cookApi';
-import type { PaymentMethod } from '../lib/api';
+import type { PaymentMethod, OrderSummary } from '../lib/api';
 import { Home, User, ShoppingCart, Wallet, Package, ChefHat, Bike, Shield } from 'lucide-react-native';
 
 export type RootStackParamList = {
@@ -35,7 +35,7 @@ export type RootStackParamList = {
   CookListing: { id: string };
   CookListingForm: { listing?: CookListing };
   CookApply: undefined;
-  Track: { orderNumber: string };
+  Track: { orderNumber: string; initialOrder?: OrderSummary };
   Cart: undefined;
   PaymentProof: { paymentId: string; orderNumber: string; method: PaymentMethod };
   RiderApply: undefined;

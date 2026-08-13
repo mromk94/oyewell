@@ -31,10 +31,11 @@ function isManualPayment(provider?: string | null) {
 export function TrackOrderScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'Track'>>();
   const orderNumber = route.params?.orderNumber;
+  const initialOrder = route.params?.initialOrder ?? null;
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { user, register } = useAuth();
-  const [order, setOrder] = useState<OrderSummary | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [order, setOrder] = useState<OrderSummary | null>(initialOrder);
+  const [loading, setLoading] = useState(!initialOrder);
   const [error, setError] = useState<string | null>(null);
 
   const [proofImage, setProofImage] = useState<string | null>(null);
@@ -67,7 +68,7 @@ export function TrackOrderScreen() {
       .finally(() => { if (!silent) setLoading(false); });
   }
 
-  useEffect(() => { load(); }, [orderNumber]);
+  useEffect(() => { load(!!initialOrder); }, [orderNumber]);
   useFocusEffect(React.useCallback(() => { load(true); }, [orderNumber]));
   useOrderEvents((event) => {
     if (!orderNumber) return;
