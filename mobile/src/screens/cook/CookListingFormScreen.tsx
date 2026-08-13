@@ -80,8 +80,8 @@ export function CookListingFormScreen() {
       const finalMedia: { id?: string; type: 'IMAGE' | 'VIDEO'; url: string }[] = [];
       for (const m of media) {
         if (m.isUpload) {
-          const { media: uploaded } = await uploadCookMedia(m.url, m.type);
-          finalMedia.push({ id: uploaded.id, type: m.type, url: uploaded.url });
+          const uploaded = await uploadCookMedia(m.url, m.type);
+          finalMedia.push({ type: uploaded.type, url: uploaded.url });
         } else {
           finalMedia.push({ id: m.id, type: m.type, url: m.url });
         }

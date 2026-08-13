@@ -112,7 +112,7 @@ export function updateCookMe(body: Partial<CookProfile>) {
 }
 
 export function uploadCookMedia(file: string, type: 'IMAGE' | 'VIDEO') {
-  return api<{ media: { id: string; url: string; thumbnailUrl?: string | null } }>('/api/media/upload', { method: 'POST', body: JSON.stringify({ file, type }) });
+  return api<{ url: string; type: 'IMAGE' | 'VIDEO'; thumbnailUrl?: string | null }>('/api/media/upload', { method: 'POST', body: JSON.stringify({ file, type }) });
 }
 
 export function fetchCookListings() {
