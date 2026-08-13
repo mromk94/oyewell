@@ -45,9 +45,9 @@ export function AccountScreen() {
   const { user, logout, loading: authLoading } = useAuth();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [orders, setOrders] = useState<OrderSummary[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
   const [cookProfile, setCookProfile] = useState<CookProfile | null>(null);
   const [deliveryApp, setDeliveryApp] = useState<DeliveryApplication | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [firstName, setFirstName] = useState(user?.firstName ?? '');
@@ -62,23 +62,21 @@ export function AccountScreen() {
   const [passSaving, setPassSaving] = useState(false);
 
   useEffect(() => {
-    if (authLoading || !user) {
-      setLoading(false);
-      return;
-    }
+    if (authLoading || !user) return;
     const currentUser = user;
+    setFirstName(currentUser.firstName ?? '');
+    setLastName(currentUser.lastName ?? '');
+    setPhone(currentUser.phone ?? '');
     async function load() {
+      setOrdersLoading(true);
       try {
         const [my, app] = await Promise.all([fetchMyOrders(), fetchDeliveryApplication()]);
         setOrders(my.orders);
         setDeliveryApp(app.rider);
-        setFirstName(currentUser.firstName ?? '');
-        setLastName(currentUser.lastName ?? '');
-        setPhone(currentUser.phone ?? '');
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to load account');
       } finally {
-        setLoading(false);
+        setOrdersLoading(false);
       }
     }
     load();
@@ -142,7 +140,7 @@ export function AccountScreen() {
     }
   }
 
-  if (authLoading || loading) {
+  if (authLoading) {
     return (
       <SafeAreaView style={styles.container} edges={['top']}>
         <ActivityIndicator color={colors.brand100} style={{ marginTop: spacing.xl }} />
@@ -203,7 +201,7 @@ export function AccountScreen() {
                 <Package size={16} color={colors.muted} />
                 <Text style={styles.profileLabel}>Total orders</Text>
               </View>
-              <Text style={styles.profileValue}>{orders.length}</Text>
+              <Text style={styles.profileValue}>{ordersLoading ? '—' : orders.length}</Text>
               <TouchableOpacity style={styles.secondaryButton} onPress={() => setEditing(true)}>
                 <Pencil size={16} color={colors.white} />
                 <Text style={styles.secondaryButtonText}>Edit profile</Text>
@@ -280,21 +278,21 @@ export function AccountScreen() {
         </View>
 
         <View style={styles.stats}>
-          <StatBox label="Active" count={currentOrders.length} color="rgba(234,179,8,0.2)" textColor="#fde047" />
-          <StatBox label="Delivered" count={previousOrders.length} color="rgba(34,197,94,0.2)" textColor="#86efac" />
-          <StatBox label="All time" count={orders.length} color="rgba(59,130,246,0.2)" textColor="#93c5fd" />
+          <StatBox label="Active" count={ordersLoading ? '—' : currentOrders.length} color="rgba(234,179,8,0.2)" textColor="#fde047" />
+          <StatBox label="Delivered" count={ordersLoading ? '—' : previousOrders.length} color="rgba(34,197,94,0.2)" textColor="#86efac" />
+          <StatBox label="All time" count={ordersLoading ? '—' : orders.length} color="rgba(59,130,246,0.2)" textColor="#93c5fd" />
         </View>
 
         <View style={styles.panel}>
           <Text style={styles.panelTitle}>Active orders</Text>
           <Text style={styles.panelBody}>Orders that are being prepared or on their way to you.</Text>
-          <OrderList orders={currentOrders} navigation={navigation} empty="No active orders." />
+          <OrderList orders={currentOrders} navigation={navigation} empty="No active orders." loading={ordersLoading} />
         </View>
 
         <View style={styles.panel}>
           <Text style={styles.panelTitle}>Order history</Text>
           <Text style={styles.panelBody}>Completed and delivered orders.</Text>
-          <OrderList orders={previousOrders} navigation={navigation} empty="No completed orders." />
+          <OrderList orders={previousOrders} navigation={navigation} empty="No completed orders." loading={ordersLoading} />
         </View>
 
         <View style={styles.panel}>
@@ -319,7 +317,7 @@ export function AccountScreen() {
   );
 }
 
-function StatBox({ label, count, color, textColor }: { label: string; count: number; color: string; textColor: string }) {
+function StatBox({ label, count, color, textColor }: { label: string; count: number | string; color: string; textColor: string }) {
   return (
     <View style={[styles.statBox, { backgroundColor: color }]}>
       <Text style={[styles.statValue, { color: textColor }]}>{count}</Text>
@@ -332,11 +330,16 @@ function OrderList({
   orders,
   navigation,
   empty,
+  loading,
 }: {
   orders: OrderSummary[];
   navigation: NativeStackNavigationProp<RootStackParamList>;
   empty: string;
+  loading?: boolean;
 }) {
+  if (loading) {
+    return <ActivityIndicator color={colors.brand100} style={{ marginVertical: spacing.md }} />;
+  }
   if (orders.length === 0) {
     return <Text style={styles.emptyText}>{empty}</Text>;
   }
