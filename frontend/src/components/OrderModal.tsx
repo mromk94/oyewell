@@ -103,9 +103,9 @@ export default function OrderModal({ food, open, onClose }: OrderModalProps) {
         exit={{ y: '100%' }}
         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
         onClick={(e) => e.stopPropagation()}
-        className='relative w-full max-w-2xl overflow-hidden rounded-t-3xl bg-brand-900 shadow-2xl sm:rounded-3xl'
+        className='relative flex h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-brand-900 shadow-2xl sm:h-auto sm:max-h-[85vh] sm:rounded-3xl'
       >
-        <div className='flex items-center justify-between border-b border-white/10 px-6 py-4'>
+        <div className='flex shrink-0 items-center justify-between border-b border-white/10 px-6 py-4'>
           <div>
             <h2 className='text-xl font-bold text-white'>{food.name}</h2>
             <p className='text-sm text-white/60'>Choose an option, quantity and sides</p>
@@ -115,14 +115,15 @@ export default function OrderModal({ food, open, onClose }: OrderModalProps) {
           </button>
         </div>
 
-        {error && <p className='px-6 py-3 text-sm text-red-300'>{error}</p>}
+        {error && <p className='shrink-0 px-6 py-3 text-sm text-red-300'>{error}</p>}
 
-        <AnimatePresence mode='wait'>
+        <div className='flex min-h-0 flex-1 overflow-hidden'>
+          <AnimatePresence mode='wait'>
           {added ? (
             <motion.div
               initial={{ opacity: 0, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
-              className='px-6 py-12 text-center'
+              className='flex h-full w-full items-center justify-center overflow-y-auto px-6 py-12 text-center'
             >
               <div className='mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300'>
                 <CheckCircle className='h-8 w-8' />
@@ -134,32 +135,33 @@ export default function OrderModal({ food, open, onClose }: OrderModalProps) {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className='px-6 py-6 sm:px-8 sm:py-8'
+              className='flex h-full w-full flex-col'
             >
-              <div className='max-h-48 space-y-3 overflow-y-auto pr-2'>
-                {options.map((option) => (
-                  <button
-                    key={option.id}
-                    type='button'
-                    onClick={() => {
-                      setSelectedOption(option);
-                      setQuantity(1);
-                    }}
-                    disabled={!option.isAvailable}
-                    className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left transition ${
-                      selectedOption?.id === option.id
-                        ? 'border-emerald-400 bg-emerald-500/10'
-                        : 'border-white/10 bg-white/5'
-                    } ${!option.isAvailable ? 'cursor-not-allowed opacity-50' : 'hover:border-white/30'}`}
-                  >
-                    <div>
-                      <p className='font-semibold text-white'>{option.label}</p>
-                      {option.stock !== null && <p className='text-sm text-white/60'>{option.stock} left</p>}
-                    </div>
-                    <p className='text-lg font-bold text-white'>{formatPrice(option.priceKobo)}</p>
-                  </button>
-                ))}
-              </div>
+              <div className='flex-1 space-y-3 overflow-y-auto px-6 py-6 sm:px-8 sm:py-8'>
+                <div className='space-y-3'>
+                  {options.map((option) => (
+                    <button
+                      key={option.id}
+                      type='button'
+                      onClick={() => {
+                        setSelectedOption(option);
+                        setQuantity(1);
+                      }}
+                      disabled={!option.isAvailable}
+                      className={`flex w-full items-center justify-between rounded-2xl border p-4 text-left transition ${
+                        selectedOption?.id === option.id
+                          ? 'border-emerald-400 bg-emerald-500/10'
+                          : 'border-white/10 bg-white/5'
+                      } ${!option.isAvailable ? 'cursor-not-allowed opacity-50' : 'hover:border-white/30'}`}
+                    >
+                      <div>
+                        <p className='font-semibold text-white'>{option.label}</p>
+                        {option.stock !== null && <p className='text-sm text-white/60'>{option.stock} left</p>}
+                      </div>
+                      <p className='text-lg font-bold text-white'>{formatPrice(option.priceKobo)}</p>
+                    </button>
+                  ))}
+                </div>
 
               <div className='mt-6 flex items-center gap-4'>
                 <span className='text-white/80'>Quantity</span>
@@ -231,7 +233,7 @@ export default function OrderModal({ food, open, onClose }: OrderModalProps) {
                     />
                   </div>
 
-                  <div className='max-h-64 overflow-y-auto pr-2'>
+                  <div>
                     <div className='grid gap-3 sm:grid-cols-2'>
                       {filteredSides.map((side) => (
                         <label
@@ -261,32 +263,36 @@ export default function OrderModal({ food, open, onClose }: OrderModalProps) {
                   </div>
                 </div>
               )}
+              </div>
 
-              <div className='mt-8 flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center'>
-                <div>
-                  <p className='text-sm text-white/60'>Subtotal</p>
-                  <p className='text-3xl font-bold text-white'>
-                    {selectedOption
-                      ? formatPrice(
-                          (selectedOption.priceKobo * quantity) +
-                            sides
-                              .filter((s) => selectedSideIds.has(s.id))
-                              .reduce((sum, s) => sum + s.priceKobo, 0)
-                        )
-                      : '—'}
-                  </p>
+              <div className='shrink-0 border-t border-white/10 px-6 py-4 sm:px-8'>
+                <div className='flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center'>
+                  <div>
+                    <p className='text-sm text-white/60'>Subtotal</p>
+                    <p className='text-3xl font-bold text-white'>
+                      {selectedOption
+                        ? formatPrice(
+                            (selectedOption.priceKobo * quantity) +
+                              sides
+                                .filter((s) => selectedSideIds.has(s.id))
+                                .reduce((sum, s) => sum + s.priceKobo, 0)
+                          )
+                        : '—'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleAdd}
+                    disabled={!selectedOption || loading}
+                    className='w-full rounded-full bg-white px-8 py-3 text-lg font-bold text-black shadow-lg transition hover:bg-white/90 disabled:opacity-50 sm:w-auto'
+                  >
+                    Add to cart
+                  </button>
                 </div>
-                <button
-                  onClick={handleAdd}
-                  disabled={!selectedOption || loading}
-                  className='w-full rounded-full bg-white px-8 py-3 text-lg font-bold text-black shadow-lg transition hover:bg-white/90 disabled:opacity-50 sm:w-auto'
-                >
-                  Add to cart
-                </button>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
       </motion.div>
     </div>,
     document.body,
