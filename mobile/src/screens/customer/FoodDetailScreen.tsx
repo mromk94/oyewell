@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Image, ImageBackground, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet, useWindowDimensions } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, Image, ImageBackground, ScrollView, TouchableOpacity, ActivityIndicator, StyleSheet, useWindowDimensions, TextInput } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRoute, type RouteProp, useNavigation, type NavigationProp } from '@react-navigation/native';
 import { colors, fontSizes, radii, spacing } from '../../theme';
@@ -20,6 +20,7 @@ export function FoodDetailScreen() {
   const { addItem, count } = useCart();
   const [food, setFood] = useState<FoodItem | null>(null);
   const [sides, setSides] = useState<Side[]>([]);
+  const [sideSearch, setSideSearch] = useState('');
   const [selectedOption, setSelectedOption] = useState<FoodOption | null>(null);
   const [selectedSides, setSelectedSides] = useState<Side[]>([]);
   const [quantity, setQuantity] = useState(1);
@@ -71,6 +72,11 @@ export function FoodDetailScreen() {
   if (error || !food) return <Text style={styles.error}>{error ?? 'Not found'}</Text>;
 
   const canOrder = !!selectedOption && selectedOption.isAvailable && (selectedOption.stock === null || quantity <= selectedOption.stock);
+
+  const filteredSides = useMemo(
+    () => sides.filter((s) => s.name.toLowerCase().includes(sideSearch.toLowerCase())),
+    [sides, sideSearch]
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -127,11 +133,48 @@ export function FoodDetailScreen() {
           {sides.length > 0 && (
             <>
               <Text style={styles.section}>Add sides</Text>
-              {sides.map((side) => (
-                <TouchableOpacity key={side.id} style={[styles.side, selectedSides.find((s) => s.id === side.id) && styles.sideActive]} onPress={() => toggleSide(side)}>
-                  <Text style={styles.sideText}>{side.name} — {formatPrice(side.priceKobo)}</Text>
-                </TouchableOpacity>
-              ))}
+              {selectedSides.length > 0 && (
+                <View style={styles.selectedChips}>
+                  {selectedSides.map((side) => (
+                    <TouchableOpacity
+                      key={side.id}
+                      style={styles.selectedChip}
+                      onPress={() => toggleSide(side)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.selectedChipText} numberOfLines={1}>{side.name}</Text>
+                      <Text style={styles.selectedChipText}> ×</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search sides…"
+                placeholderTextColor={colors.muted}
+                value={sideSearch}
+                onChangeText={setSideSearch}
+              />
+              <View style={styles.sideContainer}>
+                <ScrollView nestedScrollEnabled showsVerticalScrollIndicator={false}>
+                  <View style={styles.sideGrid}>
+                    {filteredSides.map((side) => (
+                      <TouchableOpacity
+                        key={side.id}
+                        style={[styles.side, selectedSides.find((s) => s.id === side.id) && styles.sideActive]}
+                        onPress={() => toggleSide(side)}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.sideText} numberOfLines={2}>{side.name}</Text>
+                        <Text style={styles.sidePrice}>{formatPrice(side.priceKobo)}</Text>
+                      </TouchableOpacity>
+                    ))}
+                    {filteredSides.length === 0 && (
+                      <Text style={styles.emptySides}>No sides match your search.</Text>
+                    )}
+                  </View>
+                </ScrollView>
+              </View>
             </>
           )}
 
@@ -201,9 +244,17 @@ const styles = StyleSheet.create({
   optionTextDisabled: { color: colors.muted },
   optionStock: { color: colors.muted, fontSize: fontSizes.sm, marginTop: spacing.xs },
   optionPrice: { color: colors.white, fontSize: fontSizes.lg, fontWeight: '700', flexShrink: 0 },
-  side: { padding: spacing.md, borderRadius: radii.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', marginBottom: spacing.sm },
+  side: { flex: 1, minWidth: '46%', padding: spacing.md, borderRadius: radii.md, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)', marginBottom: spacing.sm },
   sideActive: { borderColor: colors.success, backgroundColor: 'rgba(34,197,94,0.08)' },
-  sideText: { color: colors.white, fontSize: fontSizes.base },
+  sideText: { color: colors.white, fontSize: fontSizes.sm, fontWeight: '600' },
+  sidePrice: { color: colors.muted, fontSize: fontSizes.xs, marginTop: spacing.xs },
+  sideContainer: { maxHeight: 220, borderRadius: radii.lg, backgroundColor: 'rgba(255,255,255,0.03)', padding: spacing.sm, overflow: 'hidden' },
+  sideGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: spacing.sm },
+  searchInput: { backgroundColor: 'rgba(255,255,255,0.05)', color: colors.white, padding: spacing.md, borderRadius: radii.lg, marginBottom: spacing.sm, marginTop: spacing.sm },
+  selectedChips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.sm },
+  selectedChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(34,197,94,0.15)', paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radii.full },
+  selectedChipText: { color: colors.success, fontWeight: '700', fontSize: fontSizes.sm },
+  emptySides: { color: colors.muted, fontSize: fontSizes.sm, padding: spacing.md, width: '100%' },
   quantity: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: spacing.lg },
   quantityLabel: { color: colors.white, fontSize: fontSizes.base, fontWeight: '600' },
   quantityPill: { flexDirection: 'row', alignItems: 'center', borderRadius: radii.full, borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)', backgroundColor: 'rgba(255,255,255,0.05)', padding: spacing.xs },

@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, X, CheckCircle } from 'lucide-react';
+import { Plus, Minus, X, CheckCircle, Search } from 'lucide-react';
 import { fetchSides, formatPrice, type FoodItem, type FoodOption, type Side } from '../lib/api';
 import { useCart } from '../lib/cart';
 import { toast } from '../lib/toast';
@@ -19,6 +19,7 @@ export default function OrderModal({ food, open, onClose }: OrderModalProps) {
   const [quantity, setQuantity] = useState(1);
   const [sides, setSides] = useState<Side[]>([]);
   const [selectedSideIds, setSelectedSideIds] = useState<Set<string>>(new Set());
+  const [sideSearch, setSideSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [added, setAdded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +38,16 @@ export default function OrderModal({ food, open, onClose }: OrderModalProps) {
       .catch(() => setError('Failed to load sides'))
       .finally(() => setLoading(false));
   }, [open, food]);
+
+  const filteredSides = useMemo(
+    () => sides.filter((s) => s.name.toLowerCase().includes(sideSearch.toLowerCase())),
+    [sides, sideSearch]
+  );
+
+  const selectedSideChips = useMemo(
+    () => sides.filter((s) => selectedSideIds.has(s.id)),
+    [sides, selectedSideIds]
+  );
 
   function toggleSide(id: string) {
     setSelectedSideIds((prev) => {
@@ -125,7 +136,7 @@ export default function OrderModal({ food, open, onClose }: OrderModalProps) {
               animate={{ opacity: 1 }}
               className='px-6 py-6 sm:px-8 sm:py-8'
             >
-              <div className='space-y-3'>
+              <div className='max-h-48 space-y-3 overflow-y-auto pr-2'>
                 {options.map((option) => (
                   <button
                     key={option.id}
@@ -179,29 +190,74 @@ export default function OrderModal({ food, open, onClose }: OrderModalProps) {
 
               {sides.length > 0 && (
                 <div className='mt-6'>
-                  <h3 className='text-sm font-medium text-white/80'>Add sides</h3>
-                  <div className='mt-3 grid gap-3 sm:grid-cols-2'>
-                    {sides.map((side) => (
-                      <label
-                        key={side.id}
-                        className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-4 transition ${
-                          selectedSideIds.has(side.id)
-                            ? 'border-emerald-400 bg-emerald-500/10'
-                            : 'border-white/10 bg-white/5'
-                        }`}
-                      >
-                        <input
-                          type='checkbox'
-                          checked={selectedSideIds.has(side.id)}
-                          onChange={() => toggleSide(side.id)}
-                          className='h-5 w-5 rounded border-white/30 bg-white/5 text-emerald-500'
-                        />
-                        <div className='flex-1'>
-                          <p className='font-medium text-white'>{side.name}</p>
-                          <p className='text-sm text-white/60'>{formatPrice(side.priceKobo)}</p>
-                        </div>
-                      </label>
-                    ))}
+                  <div className='mb-3 flex items-center justify-between'>
+                    <h3 className='text-sm font-medium text-white/80'>Add sides</h3>
+                    {selectedSideChips.length > 0 && (
+                      <span className='text-xs font-bold text-emerald-300'>
+                        {selectedSideChips.length} selected
+                      </span>
+                    )}
+                  </div>
+
+                  {selectedSideChips.length > 0 && (
+                    <div className='mb-3 flex flex-wrap gap-2'>
+                      {selectedSideChips.map((side) => (
+                        <span
+                          key={side.id}
+                          className='inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-1 text-xs font-semibold text-emerald-300'
+                        >
+                          {side.name}
+                          <button
+                            type='button'
+                            onClick={() => toggleSide(side.id)}
+                            className='rounded-full p-0.5 hover:bg-emerald-500/30'
+                            aria-label={`Remove ${side.name}`}
+                          >
+                            <X className='h-3 w-3' />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className='relative mb-3'>
+                    <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/40' />
+                    <input
+                      type='text'
+                      placeholder='Search sides…'
+                      value={sideSearch}
+                      onChange={(e) => setSideSearch(e.target.value)}
+                      className='w-full rounded-full border border-white/10 bg-white/5 py-2 pl-9 pr-4 text-sm text-white placeholder-white/40 outline-none focus:border-white/30'
+                    />
+                  </div>
+
+                  <div className='max-h-64 overflow-y-auto pr-2'>
+                    <div className='grid gap-3 sm:grid-cols-2'>
+                      {filteredSides.map((side) => (
+                        <label
+                          key={side.id}
+                          className={`flex cursor-pointer items-center gap-3 rounded-2xl border p-4 transition ${
+                            selectedSideIds.has(side.id)
+                              ? 'border-emerald-400 bg-emerald-500/10'
+                              : 'border-white/10 bg-white/5'
+                          }`}
+                        >
+                          <input
+                            type='checkbox'
+                            checked={selectedSideIds.has(side.id)}
+                            onChange={() => toggleSide(side.id)}
+                            className='h-5 w-5 rounded border-white/30 bg-white/5 text-emerald-500'
+                          />
+                          <div className='flex-1'>
+                            <p className='font-medium text-white'>{side.name}</p>
+                            <p className='text-sm text-white/60'>{formatPrice(side.priceKobo)}</p>
+                          </div>
+                        </label>
+                      ))}
+                      {filteredSides.length === 0 && (
+                        <p className='col-span-full text-sm text-white/50'>No sides match your search.</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

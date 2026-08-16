@@ -166,7 +166,11 @@ export function CookListingFormScreen() {
           <Text style={styles.mediaTitle}>Food photos or videos</Text>
 
           {media.length > 0 && (
-            <View style={styles.mediaGrid}>
+            <ScrollView
+              nestedScrollEnabled
+              style={styles.mediaGrid}
+              contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}
+            >
               {media.map((m, i) => (
                 <View key={`${m.url}-${i}`} style={styles.mediaThumb}>
                   {m.type === 'VIDEO' ? (
@@ -181,7 +185,7 @@ export function CookListingFormScreen() {
                   </TouchableOpacity>
                 </View>
               ))}
-            </View>
+            </ScrollView>
           )}
 
           <TouchableOpacity style={styles.uploadButton} onPress={handlePickImage}>
@@ -233,7 +237,7 @@ const styles = StyleSheet.create({
   input: { backgroundColor: colors.brand800, color: colors.white, padding: spacing.md, borderRadius: radii.lg, marginBottom: spacing.md },
   mediaPanel: { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: radii.lg, padding: spacing.md, marginBottom: spacing.md },
   mediaTitle: { color: colors.muted, fontSize: fontSizes.sm, marginBottom: spacing.md },
-  mediaGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md },
+  mediaGrid: { maxHeight: 180, marginBottom: spacing.md },
   mediaThumb: { width: 80, height: 80, borderRadius: radii.md, overflow: 'hidden' },
   mediaImage: { width: '100%', height: '100%' },
   videoPlaceholder: { width: '100%', height: '100%', backgroundColor: colors.brand800, justifyContent: 'center', alignItems: 'center' },

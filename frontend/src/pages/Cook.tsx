@@ -717,7 +717,7 @@ function AddFoodPanel({
           <p className='text-sm text-white/60'>Food photos or videos</p>
 
           {media.length > 0 && (
-            <div className='grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3'>
+            <div className='grid max-h-64 min-w-0 grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3'>
               {media.map((m, i) => (
                 <div key={i} className='relative aspect-square min-w-0 overflow-hidden rounded-xl'>
                   {m.type === 'VIDEO' ? (
