@@ -102,16 +102,16 @@ export default function CookListingHero({ listing }: Props) {
         >
           {isAvailable ? 'Available now' : listing.status === 'PAUSED' ? 'Paused' : 'Unavailable'}
         </p>
-        <h2 className='max-w-3xl text-4xl font-black leading-tight tracking-tight text-white md:text-6xl lg:text-7xl'>
+        <h2 className='max-w-3xl text-3xl font-black leading-tight tracking-tight text-white md:text-4xl lg:text-5xl'>
           {listing.title}
         </h2>
         {listing.description && (
-          <p className='mt-4 max-w-xl text-lg font-light leading-relaxed text-white/80 md:text-2xl'>
+          <p className='mt-2 line-clamp-2 max-w-xl text-sm font-light leading-relaxed text-white/80 md:text-base'>
             {listing.description}
           </p>
         )}
 
-        <div className='mt-6 flex flex-wrap items-center gap-4 text-sm text-white/80'>
+        <div className='mt-4 flex flex-wrap items-center gap-3 text-sm text-white/80'>
           <span className='inline-flex items-center gap-1.5'>
             <ChefHat className='h-4 w-4 text-emerald-400' />
             {listing.cook.displayName}
@@ -136,8 +136,8 @@ export default function CookListingHero({ listing }: Props) {
           )}
         </div>
 
-        <div className='mt-8 flex flex-wrap items-center gap-4 sm:gap-6'>
-          <p className='text-2xl font-semibold text-white md:text-3xl'>{formatPrice(listing.priceKobo)}</p>
+        <div className='mt-5 flex flex-wrap items-center gap-3 sm:gap-4'>
+          <p className='text-lg font-semibold text-white md:text-xl'>{formatPrice(listing.priceKobo)}</p>
           <Link to={`/cook-listing/${listing.id}`}>
             <OrderButton label='Order' />
           </Link>
@@ -145,29 +145,29 @@ export default function CookListingHero({ listing }: Props) {
             type='button'
             onClick={handleLike}
             disabled={likeLoading}
-            className={`inline-flex items-center gap-2 rounded-full px-5 py-3 font-bold transition ${
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold transition ${
               liked ? 'bg-red-500 text-white' : 'bg-white/10 text-white hover:bg-white/20'
             }`}
           >
-            <Heart className={`h-5 w-5 ${liked ? 'fill-current' : ''}`} />
+            <Heart className={`h-4 w-4 ${liked ? 'fill-current' : ''}`} />
             {likeCount}
           </button>
           <button
             type='button'
             onClick={handleFavorite}
-            className={`inline-flex items-center gap-2 rounded-full px-5 py-3 font-bold transition ${
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-bold transition ${
               favorited ? 'bg-yellow-500 text-black' : 'bg-white/10 text-white hover:bg-white/20'
             }`}
           >
-            <Bookmark className={`h-5 w-5 ${favorited ? 'fill-current' : ''}`} />
+            <Bookmark className={`h-4 w-4 ${favorited ? 'fill-current' : ''}`} />
             {favorited ? 'Favorited' : 'Favorite'}
           </button>
           <button
             type='button'
             onClick={() => setShowReport(true)}
-            className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-3 font-bold text-white transition hover:bg-white/20'
+            className='inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-white/20'
           >
-            <Flag className='h-5 w-5' /> Report
+            <Flag className='h-4 w-4' /> Report
           </button>
         </div>
         {showReport && (

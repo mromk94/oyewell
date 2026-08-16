@@ -69,11 +69,11 @@ const styles = StyleSheet.create({
   content: { padding: spacing.lg },
   badge: { alignSelf: 'flex-start', paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: radii.full, marginBottom: spacing.md },
   badgeText: { fontSize: fontSizes.xs, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  name: { color: colors.white, fontSize: fontSizes.hero, fontWeight: '800', lineHeight: fontSizes.hero + 4 },
-  description: { color: 'rgba(255,255,255,0.8)', fontSize: fontSizes.base, marginTop: spacing.sm, lineHeight: 22 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, marginTop: spacing.lg },
-  price: { color: colors.white, fontSize: fontSizes.lg, fontWeight: '600' },
-  orderButton: { backgroundColor: colors.white, paddingHorizontal: spacing.lg, paddingVertical: spacing.md, borderRadius: radii.full },
-  orderText: { color: colors.black, fontSize: fontSizes.base, fontWeight: '700' },
+  name: { color: colors.white, fontSize: fontSizes.xxl, fontWeight: '800', lineHeight: fontSizes.xxl + 4 },
+  description: { color: 'rgba(255,255,255,0.8)', fontSize: fontSizes.sm, marginTop: spacing.xs, lineHeight: 20 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.md },
+  price: { color: colors.white, fontSize: fontSizes.base, fontWeight: '600' },
+  orderButton: { backgroundColor: colors.white, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radii.full },
+  orderText: { color: colors.black, fontSize: fontSizes.sm, fontWeight: '700' },
 });
 

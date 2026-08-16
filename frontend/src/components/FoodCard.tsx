@@ -61,14 +61,14 @@ export default function FoodCard({ food }: Props) {
         >
           {food.isAvailable ? 'Available today' : 'Unavailable'}
         </p>
-        <h2 className="max-w-3xl text-5xl font-black leading-tight tracking-tight text-white md:text-7xl lg:text-8xl">
+        <h2 className="max-w-3xl text-3xl font-black leading-tight tracking-tight text-white md:text-4xl lg:text-5xl">
           {food.name}
         </h2>
-        <p className="mt-4 max-w-xl text-lg font-light leading-relaxed text-white/80 md:text-2xl">
+        <p className="mt-2 line-clamp-2 max-w-xl text-sm font-light leading-relaxed text-white/80 md:text-base">
           {food.description}
         </p>
-        <div className="mt-8 flex items-center gap-6">
-          <p className="text-2xl font-semibold text-white md:text-3xl">
+        <div className="mt-4 flex flex-wrap items-center gap-4">
+          <p className="text-lg font-semibold text-white md:text-xl">
             {food.priceFrom ? `From ${food.priceFrom}` : ''}
           </p>
           <Link to={`/food/${food.slug}`}>
