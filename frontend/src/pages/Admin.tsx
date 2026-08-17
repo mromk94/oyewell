@@ -37,6 +37,7 @@ import DeliveryTab from '../components/admin/DeliveryTab';
 import RidersTab from '../components/admin/RidersTab';
 import ModeratorsTab from '../components/admin/ModeratorsTab';
 import SettingsTab from '../components/admin/SettingsTab';
+import { useConfirm } from '../lib/useConfirm';
 import {
   adminLogin,
   fetchDashboard,
@@ -486,6 +487,7 @@ function CooksTab({ cooks, onRefresh }: { cooks: any[]; onRefresh: () => void })
   const [moreInfoFields, setMoreInfoFields] = useState('');
   const [packagingNote, setPackagingNote] = useState('');
   const [banReason, setBanReason] = useState('');
+  const { showConfirm, Modal } = useConfirm();
 
   async function call<T>(fn: () => Promise<T>) {
     setProcessing(selected?.id ?? 'global');
@@ -503,24 +505,37 @@ function CooksTab({ cooks, onRefresh }: { cooks: any[]; onRefresh: () => void })
     }
   }
 
-  async function handleApprove(id: string) {
-    if (!confirm('Approve this cook?')) return;
-    await call(() => approveCook(id));
+  function handleApprove(id: string) {
+    showConfirm({
+      title: 'Approve cook',
+      message: 'Are you sure you want to approve this cook?',
+      onConfirm: () => void call(() => approveCook(id)),
+    });
   }
 
-  async function handleGrantVisibility(id: string) {
-    if (!confirm('Grant full visibility to this cook and approve all pending listings?')) return;
-    await call(() => grantCookVisibility(id));
+  function handleGrantVisibility(id: string) {
+    showConfirm({
+      title: 'Grant visibility',
+      message: 'Grant full visibility to this cook and approve all pending listings?',
+      onConfirm: () => void call(() => grantCookVisibility(id)),
+    });
   }
 
-  async function handleBoost(id: string, featured: boolean) {
-    if (!confirm(featured ? 'Boost this cook by featuring all approved listings?' : 'Remove boost from this cook?')) return;
-    await call(() => boostCook(id, featured));
+  function handleBoost(id: string, featured: boolean) {
+    showConfirm({
+      title: featured ? 'Boost cook' : 'Remove boost',
+      message: featured ? 'Boost this cook by featuring all approved listings?' : 'Remove boost from this cook?',
+      onConfirm: () => void call(() => boostCook(id, featured)),
+    });
   }
 
-  async function handleReject(id: string) {
-    if (!confirm('Reject this cook?')) return;
-    await call(() => rejectCook(id));
+  function handleReject(id: string) {
+    showConfirm({
+      title: 'Reject cook',
+      message: 'Are you sure you want to reject this cook?',
+      danger: true,
+      onConfirm: () => void call(() => rejectCook(id)),
+    });
   }
 
   async function handleRequestMoreInfo(id: string) {
@@ -531,26 +546,45 @@ function CooksTab({ cooks, onRefresh }: { cooks: any[]; onRefresh: () => void })
     setMoreInfoFields('');
   }
 
-  async function handlePackagingReview(id: string, approved: boolean) {
-    await call(() => approveCookPackaging(id, approved, packagingNote));
-    setPackagingNote('');
+  function handlePackagingReview(id: string, approved: boolean) {
+    showConfirm({
+      title: approved ? 'Approve packaging' : 'Reject packaging',
+      message: approved ? 'Approve this packaging?' : 'Reject this packaging?',
+      onConfirm: () => {
+        void call(() => approveCookPackaging(id, approved, packagingNote));
+        setPackagingNote('');
+      },
+    });
   }
 
-  async function handleBan(id: string) {
+  function handleBan(id: string) {
     if (!banReason.trim()) return;
-    if (!confirm(`Ban this cook? ${banReason}`)) return;
-    await call(() => banCook(id, banReason));
-    setBanReason('');
+    showConfirm({
+      title: 'Ban cook',
+      message: `Ban this cook? Reason: ${banReason}`,
+      danger: true,
+      onConfirm: () => {
+        void call(() => banCook(id, banReason));
+        setBanReason('');
+      },
+    });
   }
 
-  async function handleRestore(id: string) {
-    if (!confirm('Restore this cook?')) return;
-    await call(() => restoreCook(id));
+  function handleRestore(id: string) {
+    showConfirm({
+      title: 'Restore cook',
+      message: 'Restore this cook?',
+      onConfirm: () => void call(() => restoreCook(id)),
+    });
   }
 
-  async function handleDeleteCook(id: string) {
-    if (!confirm('Permanently delete this cook application and all linked listings?')) return;
-    await call(() => deleteCook(id));
+  function handleDeleteCook(id: string) {
+    showConfirm({
+      title: 'Delete cook',
+      message: 'Permanently delete this cook application and all linked listings?',
+      danger: true,
+      onConfirm: () => void call(() => deleteCook(id)),
+    });
   }
 
   function open(cook: any) {
@@ -856,6 +890,7 @@ function CooksTab({ cooks, onRefresh }: { cooks: any[]; onRefresh: () => void })
           </div>
         </div>
       )}
+      {Modal}
     </div>
   );
 }
@@ -864,6 +899,7 @@ function CookListingsTab() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [selected, setSelected] = useState<any | null>(null);
   const [mediaIndex, setMediaIndex] = useState(0);
+  const { showConfirm, Modal } = useConfirm();
 
   const [listings, setListings] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -894,42 +930,59 @@ function CookListingsTab() {
     }
   }
 
-  async function handleApprove(id: string) {
-    if (!confirm('Approve this listing?')) return;
-    setProcessing(id);
-    try {
-      await approveCookListing(id);
-      await load();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : 'Approval failed');
-    } finally {
-      setProcessing(null);
-    }
+  function handleApprove(id: string) {
+    showConfirm({
+      title: 'Approve listing',
+      message: 'Are you sure you want to approve this listing?',
+      onConfirm: async () => {
+        setProcessing(id);
+        try {
+          await approveCookListing(id);
+          await load();
+        } catch (e) {
+          alert(e instanceof Error ? e.message : 'Approval failed');
+        } finally {
+          setProcessing(null);
+        }
+      },
+    });
   }
 
-  async function handleReject(id: string) {
-    if (!confirm('Reject this listing?')) return;
-    setProcessing(id);
-    try {
-      await rejectCookListing(id);
-      await load();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : 'Rejection failed');
-    } finally {
-      setProcessing(null);
-    }
+  function handleReject(id: string) {
+    showConfirm({
+      title: 'Reject listing',
+      message: 'Are you sure you want to reject this listing?',
+      danger: true,
+      onConfirm: async () => {
+        setProcessing(id);
+        try {
+          await rejectCookListing(id);
+          await load();
+        } catch (e) {
+          alert(e instanceof Error ? e.message : 'Rejection failed');
+        } finally {
+          setProcessing(null);
+        }
+      },
+    });
   }
 
-  async function handleFeature(id: string, featured: boolean) {
-    setProcessing(id);
-    try {
-      await featureCookListing(id, featured);
-      await load();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : 'Update failed');
-    } finally {
-      setProcessing(null);
-    }
+  function handleFeature(id: string, featured: boolean) {
+    showConfirm({
+      title: featured ? 'Feature listing' : 'Unfeature listing',
+      message: featured ? 'Feature this listing?' : 'Unfeature this listing?',
+      onConfirm: async () => {
+        setProcessing(id);
+        try {
+          await featureCookListing(id, featured);
+          await load();
+        } catch (e) {
+          alert(e instanceof Error ? e.message : 'Update failed');
+        } finally {
+          setProcessing(null);
+        }
+      },
+    });
   }
 
   function open(listing: any) {
@@ -1253,6 +1306,7 @@ function CookListingsTab() {
           </div>
         </div>
       )}
+      {Modal}
     </div>
   );
 }
