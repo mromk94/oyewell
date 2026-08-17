@@ -53,6 +53,37 @@ export async function deleteModerator(id: string) {
   return res.json();
 }
 
+export interface ModeratorAudit {
+  logs: any[];
+  stats: { joinedAt: string; lastLoginAt: string | null; cooksApproved: number; foodsApproved: number; listingsApproved: number; balanceKobo: number };
+}
+
+export async function fetchModeratorAudit(id: string) {
+  const res = await fetch(`${API_BASE}/api/admin/moderators/${id}/audit`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load audit');
+  return res.json() as Promise<ModeratorAudit>;
+}
+
+export async function updateModeratorBalance(id: string, payload: { type: 'credit' | 'debit'; amountKobo: number; note?: string }) {
+  const res = await fetch(`${API_BASE}/api/admin/moderators/${id}/balance`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error('Balance update failed');
+  return res.json() as Promise<{ moderator: ModeratorRecord }>;
+}
+
+export async function updateModeratorBank(id: string, payload: { bankName: string; bankAccountNumber: string; bankAccountName: string }) {
+  const res = await fetch(`${API_BASE}/api/admin/moderators/${id}/bank`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error('Bank update failed');
+  return res.json() as Promise<{ moderator: ModeratorRecord }>;
+}
+
 export async function addModeratorArea(employeeId: string, area: { scope: string; country?: string; region?: string; city?: string; district?: string; area?: string }) {
   const res = await fetch(`${API_BASE}/api/management/employees/${employeeId}/areas`, {
     method: 'POST',

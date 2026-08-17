@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Shield, Plus, Loader2, MapPin, Trash } from 'lucide-react';
-import { fetchModerators, createModerator, updateModerator, deleteModerator, addModeratorArea, type ModeratorRecord } from '../../lib/moderatorAdmin';
+import { Shield, Plus, Loader2, MapPin, Trash, History, Coins, Landmark } from 'lucide-react';
+import { fetchModerators, createModerator, updateModerator, deleteModerator, addModeratorArea, fetchModeratorAudit, updateModeratorBalance, updateModeratorBank, type ModeratorRecord } from '../../lib/moderatorAdmin';
 
 export default function ModeratorsTab() {
   const [moderators, setModerators] = useState<ModeratorRecord[]>([]);
@@ -10,6 +10,7 @@ export default function ModeratorsTab() {
   const [form, setForm] = useState({ email: '', firstName: '', lastName: '', employeeId: '', department: '' });
   const [temp, setTemp] = useState<string | null>(null);
   const [areaForm, setAreaForm] = useState<{ employeeId: string; country: string; region: string; city: string; district: string; area: string } | null>(null);
+  const [detail, setDetail] = useState<{ type: 'audit' | 'balance' | 'bank'; id: string } | null>(null);
 
   async function load() {
     setLoading(true);
@@ -133,7 +134,7 @@ export default function ModeratorsTab() {
                     </div>
                   </div>
                 </div>
-                <div className='flex items-center gap-2'>
+                <div className='flex flex-wrap items-center gap-2'>
                   <select value={m.status} onChange={(e) => setStatus(m.id, e.target.value)} className='rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white'>
                     <option value='ACTIVE'>Active</option>
                     <option value='INACTIVE'>Inactive</option>
@@ -142,6 +143,15 @@ export default function ModeratorsTab() {
                   </select>
                   <button onClick={() => setAreaForm({ employeeId: m.id, country: '', region: '', city: '', district: '', area: '' })} className='rounded-lg bg-white/10 p-2 text-white/70 hover:bg-white/20' title='Add area'>
                     <MapPin className='h-4 w-4' />
+                  </button>
+                  <button onClick={() => setDetail({ type: 'audit', id: m.id })} className='rounded-lg bg-white/10 p-2 text-white/70 hover:bg-white/20' title='Audit'>
+                    <History className='h-4 w-4' />
+                  </button>
+                  <button onClick={() => setDetail({ type: 'balance', id: m.id })} className='rounded-lg bg-white/10 p-2 text-white/70 hover:bg-white/20' title='Balance'>
+                    <Coins className='h-4 w-4' />
+                  </button>
+                  <button onClick={() => setDetail({ type: 'bank', id: m.id })} className='rounded-lg bg-white/10 p-2 text-white/70 hover:bg-white/20' title='Bank'>
+                    <Landmark className='h-4 w-4' />
                   </button>
                   <button onClick={() => remove(m.id)} className='rounded-lg bg-red-500/10 p-2 text-red-300 hover:bg-red-500/20' title='Remove'>
                     <Trash className='h-4 w-4' />
@@ -170,6 +180,117 @@ export default function ModeratorsTab() {
           </form>
         </div>
       )}
+
+      {detail && <ModeratorDetail moderator={moderators.find((m) => m.id === detail.id)!} type={detail.type} onClose={() => setDetail(null)} onUpdated={load} onError={setError} />}
+    </div>
+  );
+}
+
+function ModeratorDetail({ moderator, type, onClose, onUpdated, onError }: { moderator: ModeratorRecord; type: 'audit' | 'balance' | 'bank'; onClose: () => void; onUpdated: () => void; onError: (e: string) => void }) {
+  const [audit, setAudit] = useState<any>(null);
+  const [balance, setBalance] = useState({ type: 'credit' as 'credit' | 'debit', amount: '', note: '' });
+  const [bank, setBank] = useState({ bankName: (moderator as any).bankName ?? '', bankAccountNumber: (moderator as any).bankAccountNumber ?? '', bankAccountName: (moderator as any).bankAccountName ?? '' });
+  const [busy, setBusy] = useState(false);
+  const expectedName = `${moderator.user.firstName ?? ''} ${moderator.user.lastName ?? ''}`.trim();
+
+  useEffect(() => {
+    if (type !== 'audit') return;
+    fetchModeratorAudit(moderator.id).then(setAudit).catch((e) => onError(e.message));
+  }, [type, moderator.id]);
+
+  async function submitBalance(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await updateModeratorBalance(moderator.id, { type: balance.type, amountKobo: Number(balance.amount) * 100, note: balance.note });
+      onUpdated();
+      onClose();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : 'Failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitBank(e: React.FormEvent) {
+    e.preventDefault();
+    if (bank.bankAccountName !== expectedName) {
+      onError(`Bank account name must match ${expectedName}`);
+      return;
+    }
+    setBusy(true);
+    try {
+      await updateModeratorBank(moderator.id, { bankName: bank.bankName, bankAccountNumber: bank.bankAccountNumber, bankAccountName: bank.bankAccountName });
+      onUpdated();
+      onClose();
+    } catch (e) {
+      onError(e instanceof Error ? e.message : 'Failed');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className='fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4'>
+      <div className='w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-2xl border border-white/10 bg-brand-900 p-5'>
+        <div className='mb-4 flex items-center justify-between'>
+          <h3 className='font-bold text-white'>
+            {type === 'audit' && 'Moderator audit'}
+            {type === 'balance' && 'Credit / Debit'}
+            {type === 'bank' && 'Bank details'}
+          </h3>
+          <button onClick={onClose} className='rounded-lg bg-white/10 px-3 py-1.5 text-sm font-bold text-white'>Close</button>
+        </div>
+
+        {type === 'audit' && (
+          <>
+            {audit ? (
+              <div className='space-y-3'>
+                <div className='grid grid-cols-3 gap-2 text-center text-sm'>
+                  <div className='rounded-lg bg-white/5 p-2'><div className='text-lg font-black text-emerald-400'>{audit.stats.cooksApproved}</div><div className='text-white/60'>Cooks</div></div>
+                  <div className='rounded-lg bg-white/5 p-2'><div className='text-lg font-black text-emerald-400'>{audit.stats.foodsApproved}</div><div className='text-white/60'>Foods</div></div>
+                  <div className='rounded-lg bg-white/5 p-2'><div className='text-lg font-black text-emerald-400'>{audit.stats.listingsApproved}</div><div className='text-white/60'>Listings</div></div>
+                </div>
+                <p className='text-sm text-white/60'>Balance: <span className='font-bold text-white'>₦{(audit.stats.balanceKobo / 100).toLocaleString()}</span></p>
+                <p className='text-sm text-white/60'>Joined: {new Date(audit.stats.joinedAt).toLocaleDateString()} {audit.stats.lastLoginAt ? `• Last login ${new Date(audit.stats.lastLoginAt).toLocaleString()}` : ''}</p>
+                <div className='space-y-2'>
+                  {audit.logs.map((log: any) => (
+                    <div key={log.id} className='rounded-lg bg-white/5 p-2 text-sm'>
+                      <p className='font-semibold text-white'>{log.action}</p>
+                      <p className='text-xs text-white/50'>{new Date(log.createdAt).toLocaleString()} {log.targetType && `• ${log.targetType}`}</p>
+                      {log.reason && <p className='text-xs text-white/40'>{log.reason}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <Loader2 className='h-5 w-5 animate-spin text-white/50' />
+            )}
+          </>
+        )}
+
+        {type === 'balance' && (
+          <form onSubmit={submitBalance} className='space-y-3'>
+            <div className='rounded-lg bg-white/5 p-3 text-sm text-white/70'>Current balance: ₦{((moderator as any).balanceKobo ?? 0) / 100}</div>
+            <select value={balance.type} onChange={(e) => setBalance({ ...balance, type: e.target.value as 'credit' | 'debit' })} className='w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white'>
+              <option value='credit'>Credit</option>
+              <option value='debit'>Debit</option>
+            </select>
+            <input type='number' value={balance.amount} onChange={(e) => setBalance({ ...balance, amount: e.target.value })} placeholder='Amount (₦)' className='w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white' />
+            <input value={balance.note} onChange={(e) => setBalance({ ...balance, note: e.target.value })} placeholder='Note' className='w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white' />
+            <button disabled={busy} className='rounded-lg bg-emerald-500 px-4 py-2 text-sm font-bold text-white disabled:opacity-50'>Update balance</button>
+          </form>
+        )}
+
+        {type === 'bank' && (
+          <form onSubmit={submitBank} className='space-y-3'>
+            <input value={bank.bankName} onChange={(e) => setBank({ ...bank, bankName: e.target.value })} placeholder='Bank name' className='w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white' />
+            <input value={bank.bankAccountNumber} onChange={(e) => setBank({ ...bank, bankAccountNumber: e.target.value })} placeholder='Account number' className='w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white' />
+            <input value={bank.bankAccountName} onChange={(e) => setBank({ ...bank, bankAccountName: e.target.value })} placeholder={`Account name (must be ${expectedName})`} className='w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white' />
+            <button disabled={busy} className='rounded-lg bg-emerald-500 px-4 py-2 text-sm font-bold text-white disabled:opacity-50'>Save bank details</button>
+          </form>
+        )}
+      </div>
     </div>
   );
 }
