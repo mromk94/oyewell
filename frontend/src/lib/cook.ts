@@ -34,6 +34,7 @@ export interface CookListing {
   title: string;
   description?: string | null;
   priceKobo: number;
+  packagingCostKobo: number;
   price: string;
   currency: string;
   portionDescription?: string | null;
