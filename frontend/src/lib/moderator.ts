@@ -8,6 +8,17 @@ function authHeaders(): Record<string, string> {
   };
 }
 
+export async function moderatorApply(payload: { city?: string; district?: string; area?: string; employeeId?: string; department?: string }) {
+  const res = await fetch(`${API_BASE}/api/moderator/apply`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify(payload),
+  });
+  const data = (await res.json()) as { ok?: boolean; error?: string; employee?: any };
+  if (!res.ok) throw new Error(data.error ?? 'Application failed');
+  return data;
+}
+
 export interface ModeratorMe {
   employee: {
     id: string;

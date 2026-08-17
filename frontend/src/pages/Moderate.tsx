@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, Check, X, Loader2, AlertCircle, LogOut, Home, Utensils, ChefHat, Bike, MessageSquare, AlertTriangle, Inbox, Package } from 'lucide-react';
 import { login as apiLogin, setCustomerToken, getCustomerToken, removeCustomerToken, fetchMe, type User, hasRole } from '../lib/api';
-import { fetchModeratorMe, fetchModeratorDashboard, fetchModeratorTickets, updateModeratorTicket, fetchModeratorDisputes, updateModeratorDispute, fetchModeratorReports, updateModeratorReport, fetchModeratorCooks, decideCookApproval, fetchModeratorFoods, decideFoodApproval, fetchModeratorListings, decideListingApproval, fetchModeratorRiders, decideRiderApproval } from '../lib/moderator';
+import { fetchModeratorMe, fetchModeratorDashboard, fetchModeratorTickets, updateModeratorTicket, fetchModeratorDisputes, updateModeratorDispute, fetchModeratorReports, updateModeratorReport, fetchModeratorCooks, decideCookApproval, fetchModeratorFoods, decideFoodApproval, fetchModeratorListings, decideListingApproval, fetchModeratorRiders, decideRiderApproval, moderatorApply } from '../lib/moderator';
 import ConfirmModal from '../components/ConfirmModal';
 import Logo from '../components/Logo';
 import ModeratorHierarchy from '../components/moderator/ModeratorHierarchy';
@@ -27,6 +27,12 @@ export default function Moderate() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [applyMode, setApplyMode] = useState(false);
+  const [applyCity, setApplyCity] = useState('');
+  const [applyDistrict, setApplyDistrict] = useState('');
+  const [applyArea, setApplyArea] = useState('');
+  const [applyDepartment, setApplyDepartment] = useState('Community');
+  const [applyEmployeeId, setApplyEmployeeId] = useState('');
 
   async function check() {
     const token = getCustomerToken();
@@ -126,6 +132,30 @@ export default function Moderate() {
     }
   }
 
+  async function handleApply(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await apiLogin(email, password);
+      if (!res.token) throw new Error('Login failed');
+      setCustomerToken(res.token);
+      await moderatorApply({
+        city: applyCity,
+        district: applyDistrict,
+        area: applyArea,
+        department: applyDepartment,
+        employeeId: applyEmployeeId,
+      });
+      setError('Application submitted. An admin will review it.');
+      setApplyMode(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Application failed');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function logout() {
     removeCustomerToken();
     setCustomer(null);
@@ -146,26 +176,82 @@ export default function Moderate() {
         <div className='mx-auto max-w-md rounded-3xl border border-white/10 bg-white/5 p-8'>
           <div className='mb-6 flex items-center gap-3'>
             <Shield className='h-8 w-8 text-emerald-400' />
-            <h1 className='text-2xl font-black'>Community Moderator</h1>
+            <h1 className='text-2xl font-black'>{applyMode ? 'Apply to be a moderator' : 'Community Moderator'}</h1>
           </div>
           {error && (
-            <div className='mb-4 rounded-xl bg-red-500/10 p-3 text-sm text-red-300'>
+            <div className={`mb-4 rounded-xl p-3 text-sm ${error.includes('submitted') ? 'bg-emerald-500/10 text-emerald-300' : 'bg-red-500/10 text-red-300'}`}>
               <AlertCircle className='inline h-4 w-4' /> {error}
             </div>
           )}
-          <form onSubmit={handleLogin} className='space-y-4'>
-            <div>
-              <label className='mb-1 block text-sm text-white/60'>Email</label>
-              <input value={email} onChange={(e) => setEmail(e.target.value)} type='email' required className='w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-emerald-400' />
-            </div>
-            <div>
-              <label className='mb-1 block text-sm text-white/60'>Password</label>
-              <input value={password} onChange={(e) => setPassword(e.target.value)} type='password' required className='w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-emerald-400' />
-            </div>
-            <button type='submit' disabled={loading} className='w-full rounded-xl bg-emerald-500 py-3 font-bold text-white transition hover:bg-emerald-400 disabled:opacity-50'>
-              {loading ? <Loader2 className='mx-auto h-5 w-5 animate-spin' /> : 'Sign in to /moderate'}
-            </button>
-          </form>
+          {!applyMode ? (
+            <form onSubmit={handleLogin} className='space-y-4'>
+              <div>
+                <label className='mb-1 block text-sm text-white/60'>Email</label>
+                <input value={email} onChange={(e) => setEmail(e.target.value)} type='email' required className='w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-emerald-400' />
+              </div>
+              <div>
+                <label className='mb-1 block text-sm text-white/60'>Password</label>
+                <input value={password} onChange={(e) => setPassword(e.target.value)} type='password' required className='w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-emerald-400' />
+              </div>
+              <button type='submit' disabled={loading} className='w-full rounded-xl bg-emerald-500 py-3 font-bold text-white transition hover:bg-emerald-400 disabled:opacity-50'>
+                {loading ? <Loader2 className='mx-auto h-5 w-5 animate-spin' /> : 'Sign in to /moderate'}
+              </button>
+              <div className='text-center'>
+                <button
+                  type='button'
+                  onClick={() => setApplyMode(true)}
+                  className='text-sm font-bold text-emerald-300 transition hover:text-emerald-200'
+                >
+                  Want to be a moderator? Apply here
+                </button>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={handleApply} className='space-y-4'>
+              <div>
+                <label className='mb-1 block text-sm text-white/60'>Email</label>
+                <input value={email} onChange={(e) => setEmail(e.target.value)} type='email' required className='w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-emerald-400' />
+              </div>
+              <div>
+                <label className='mb-1 block text-sm text-white/60'>Password</label>
+                <input value={password} onChange={(e) => setPassword(e.target.value)} type='password' required className='w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-emerald-400' />
+              </div>
+              <div className='grid grid-cols-2 gap-3'>
+                <div>
+                  <label className='mb-1 block text-sm text-white/60'>City</label>
+                  <input value={applyCity} onChange={(e) => setApplyCity(e.target.value)} required className='w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-emerald-400' />
+                </div>
+                <div>
+                  <label className='mb-1 block text-sm text-white/60'>District</label>
+                  <input value={applyDistrict} onChange={(e) => setApplyDistrict(e.target.value)} required className='w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-emerald-400' />
+                </div>
+              </div>
+              <div>
+                <label className='mb-1 block text-sm text-white/60'>Area / Neighborhood</label>
+                <input value={applyArea} onChange={(e) => setApplyArea(e.target.value)} required className='w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-emerald-400' />
+              </div>
+              <div>
+                <label className='mb-1 block text-sm text-white/60'>Department</label>
+                <input value={applyDepartment} onChange={(e) => setApplyDepartment(e.target.value)} className='w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-emerald-400' />
+              </div>
+              <div>
+                <label className='mb-1 block text-sm text-white/60'>Employee ID (optional)</label>
+                <input value={applyEmployeeId} onChange={(e) => setApplyEmployeeId(e.target.value)} className='w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-emerald-400' />
+              </div>
+              <button type='submit' disabled={loading} className='w-full rounded-xl bg-emerald-500 py-3 font-bold text-white transition hover:bg-emerald-400 disabled:opacity-50'>
+                {loading ? <Loader2 className='mx-auto h-5 w-5 animate-spin' /> : 'Apply as moderator'}
+              </button>
+              <div className='text-center'>
+                <button
+                  type='button'
+                  onClick={() => setApplyMode(false)}
+                  className='text-sm text-white/60 transition hover:text-white'
+                >
+                  Already have access? Sign in
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     );
