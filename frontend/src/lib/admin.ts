@@ -344,6 +344,67 @@ export async function fetchCustomerOrders(customerId: string) {
   return res.json() as Promise<{ orders: any[] }>;
 }
 
+export async function fetchCustomerAudit(customerId: string) {
+  const res = await fetch(`${API_BASE}/api/admin/customers/${customerId}/audit`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load audit logs');
+  return res.json() as Promise<{ logs: any[] }>;
+}
+
+export async function searchCustomers(params?: { q?: string; role?: string; status?: string; skip?: number; limit?: number }) {
+  const qs = new URLSearchParams();
+  if (params?.q) qs.set('q', params.q);
+  if (params?.role) qs.set('role', params.role);
+  if (params?.status) qs.set('status', params.status);
+  if (params?.skip !== undefined) qs.set('skip', String(params.skip));
+  if (params?.limit !== undefined) qs.set('limit', String(params.limit));
+  const res = await fetch(`${API_BASE}/api/admin/customers?${qs.toString()}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error('Failed to load customers');
+  return res.json() as Promise<{ customers: any[]; total: number; skip: number; limit: number }>;
+}
+
+export async function banCustomer(id: string, reason?: string) {
+  const res = await fetch(`${API_BASE}/api/admin/customers/${id}/ban`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ reason }),
+  });
+  const data = (await res.json()) as { user?: any; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to ban user');
+  return data;
+}
+
+export async function suspendCustomer(id: string, reason?: string) {
+  const res = await fetch(`${API_BASE}/api/admin/customers/${id}/suspend`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ reason }),
+  });
+  const data = (await res.json()) as { user?: any; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to suspend user');
+  return data;
+}
+
+export async function activateCustomer(id: string) {
+  const res = await fetch(`${API_BASE}/api/admin/customers/${id}/activate`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+  const data = (await res.json()) as { user?: any; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to activate user');
+  return data;
+}
+
+export async function adjustCustomerBalance(id: string, amount: number, note?: string) {
+  const res = await fetch(`${API_BASE}/api/admin/customers/${id}/balance`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ amount, note }),
+  });
+  const data = (await res.json()) as { user?: any; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Failed to adjust balance');
+  return data;
+}
+
 export async function fetchEmailConfig() {
   const res = await fetch(`${API_BASE}/api/admin/email-config`, { headers: authHeaders() });
   if (!res.ok) throw new Error('Failed to load email config');

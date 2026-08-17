@@ -33,7 +33,7 @@ import EmailTab from '../components/admin/EmailTab';
 import ManagementDashboard from '../components/admin/ManagementDashboard';
 import ModerationPanel from '../components/admin/ModerationPanel';
 import RegionsTab from '../components/admin/RegionsTab';
-import CustomersTab from '../components/admin/CustomersTab';
+import UsersTab from '../components/admin/UsersTab';
 import DeliveryTab from '../components/admin/DeliveryTab';
 import RidersTab from '../components/admin/RidersTab';
 import ModeratorsTab from '../components/admin/ModeratorsTab';
@@ -48,7 +48,6 @@ import {
   fetchPaymentMethods,
   fetchSettings,
   fetchSides,
-  fetchCustomers,
   fetchRiders,
   fetchRiderLocations,
   fetchCookLocations,
@@ -116,7 +115,6 @@ export default function Admin() {
   const [zones, setZones] = useState<any[]>([]);
   const [methods, setMethods] = useState<any[]>([]);
   const [sides, setSides] = useState<any[]>([]);
-  const [customers, setCustomers] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>({});
   const [pendingRiders, setPendingRiders] = useState<any[]>([]);
   const [riderLocations, setRiderLocations] = useState<any[]>([]);
@@ -150,9 +148,6 @@ export default function Admin() {
       } else if (tab === 'sides') {
         const { sides } = await fetchSides();
         setSides(sides);
-      } else if (tab === 'customers') {
-        const { customers } = await fetchCustomers();
-        setCustomers(customers);
       } else if (tab === 'settings') {
         const { settings } = await fetchSettings();
         setSettings(settings ?? {});
@@ -265,7 +260,7 @@ export default function Admin() {
           { id: 'menu', label: 'Menu', icon: Utensils },
           { id: 'orders', label: 'Orders', icon: Package },
           { id: 'sides', label: 'Sides', icon: Salad },
-          { id: 'customers', label: 'Customers', icon: Users },
+          { id: 'customers', label: 'Users', icon: Users },
           { id: 'delivery', label: 'Delivery', icon: Truck },
           { id: 'payments', label: 'Payments', icon: CreditCard },
           { id: 'riders', label: 'Riders', icon: Bike },
@@ -324,7 +319,7 @@ export default function Admin() {
       {mobileNavOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={() => setMobileNavOpen(false)} />
-          <div className="absolute left-0 top-0 h-full w-64 bg-brand-800 p-4 shadow-2xl">
+          <div className="absolute left-0 top-0 h-full w-64 overflow-y-auto bg-brand-800 p-4 shadow-2xl">
             <div className="mb-4 flex items-center justify-between">
               <h1 className="px-4 text-2xl font-black text-white">OYE Admin</h1>
               <button onClick={() => setMobileNavOpen(false)} className="rounded-2xl p-2 text-white hover:bg-white/10">
@@ -428,7 +423,7 @@ export default function Admin() {
         {tab === 'orders' && <OrdersTabNew orders={orders} onRefresh={loadTab} />}
         {tab === 'delivery' && <DeliveryTab zones={zones} onRefresh={loadTab} />}
         {tab === 'sides' && <SidesTabNew sides={sides} onRefresh={loadTab} />}
-        {tab === 'customers' && <CustomersTab customers={customers} onRefresh={loadTab} />}
+        {tab === 'customers' && <UsersTab />}
         {tab === 'payments' && <PaymentsTabNew methods={methods} onRefresh={loadTab} />}
         {tab === 'settings' && <SettingsTab settings={settings} onRefresh={loadTab} />}
         {tab === 'regions' && <RegionsTab />}

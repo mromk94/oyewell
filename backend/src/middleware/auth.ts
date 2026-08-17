@@ -8,7 +8,7 @@ export interface AuthRequest extends Request {
   user?: { id: string; email: string; role: string; roles: string[] };
 }
 
-export function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
+export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   const token = header?.startsWith('Bearer ') ? header.slice(7) : undefined;
   if (!token) {
@@ -17,7 +17,15 @@ export function requireAuth(req: AuthRequest, res: Response, next: NextFunction)
   }
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as { id: string; email: string; role: string; roles: string[] };
-    req.user = { ...decoded, roles: Array.isArray(decoded.roles) ? decoded.roles : [decoded.role] };
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.id },
+      select: { id: true, email: true, role: true, roles: true, isActive: true, banReason: true },
+    });
+    if (!user || !user.isActive) {
+      res.status(401).json({ error: 'Unauthorized or suspended' });
+      return;
+    }
+    req.user = { id: user.id, email: user.email, role: user.role, roles: Array.isArray(user.roles) ? user.roles : [user.role] };
     next();
   } catch {
     res.status(401).json({ error: 'Invalid token' });

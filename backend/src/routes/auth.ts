@@ -46,6 +46,10 @@ router.post('/login', adminLoginRateLimit, async (req, res, next) => {
       res.status(401).json({ error: 'Invalid credentials' });
       return;
     }
+    if (!user.isActive) {
+      res.status(403).json({ error: user.banReason ? `Account banned: ${user.banReason}` : 'Account suspended. Contact support.' });
+      return;
+    }
     const roles = user.roles.length ? user.roles : [user.role];
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role, roles }, JWT_SECRET, {
       expiresIn: JWT_EXPIRES_IN,

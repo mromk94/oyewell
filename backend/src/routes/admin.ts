@@ -4,7 +4,7 @@ import { requireAuth, requireAdmin, type AuthRequest } from '../middleware/auth.
 import { ApiError } from '../lib/errors.js';
 import { applyMapSettingsFromDB } from '../lib/map-settings.js';
 import { cache } from '../lib/cache.js';
-import { logAudit } from '../lib/audit.js';
+import { logAudit, getAuditLogs } from '../lib/audit.js';
 import { dispatchOrder, findEligibleRiders } from '../lib/assignment.js';
 import { isLocationFresh } from '../lib/location.js';
 import { emitEvent } from '../lib/realtime.js';
@@ -476,14 +476,47 @@ router.delete('/sides/:id', async (req, res, next) => {
   }
 });
 
-router.get('/customers', async (_req, res, next) => {
+router.get('/customers', async (req, res, next) => {
   try {
-    const customers = await prisma.user.findMany({
-      where: { role: 'CUSTOMER' },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true, email: true, firstName: true, lastName: true, phone: true, createdAt: true, _count: { select: { orders: true } } },
-    });
-    res.json({ customers });
+    const { q, role, status, skip = '0', limit = '100' } = req.query as Record<string, string | undefined>;
+    const where: any = {};
+    if (role && ['CUSTOMER', 'ADMIN', 'RIDER', 'COOK'].includes(role)) where.role = role;
+    if (status === 'active') where.isActive = true;
+    if (status === 'banned') where.isActive = false, where.banReason = { not: null };
+    if (status === 'suspended') where.isActive = false, where.banReason = null;
+    if (q) {
+      const term = q.trim();
+      where.OR = [
+        { email: { contains: term, mode: 'insensitive' } },
+        { firstName: { contains: term, mode: 'insensitive' } },
+        { lastName: { contains: term, mode: 'insensitive' } },
+        { phone: { contains: term, mode: 'insensitive' } },
+      ];
+    }
+    const [customers, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: Math.max(Number(skip) || 0, 0),
+        take: Math.min(Math.max(Number(limit) || 100, 1), 200),
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          phone: true,
+          isActive: true,
+          banReason: true,
+          balanceKobo: true,
+          role: true,
+          createdAt: true,
+          addresses: { orderBy: { createdAt: 'desc' }, take: 5 },
+          _count: { select: { orders: true } },
+        },
+      }),
+      prisma.user.count({ where }),
+    ]);
+    res.json({ customers, total, skip: Math.max(Number(skip) || 0, 0), limit: Math.min(Math.max(Number(limit) || 100, 1), 200) });
   } catch (err) {
     next(err);
   }
@@ -493,13 +526,13 @@ router.patch('/customers/:id/role', async (req, res, next) => {
   try {
     const { id } = req.params;
     const { role } = req.body as { role?: string };
-    if (!role || !['CUSTOMER', 'ADMIN'].includes(role)) {
-      throw new ApiError(400, 'Valid role (CUSTOMER or ADMIN) required');
+    if (!role || !['CUSTOMER', 'ADMIN', 'RIDER', 'COOK'].includes(role)) {
+      throw new ApiError(400, 'Valid role required');
     }
     const user = await prisma.user.update({
       where: { id },
       data: { role: role as any },
-      select: { id: true, email: true, firstName: true, lastName: true, phone: true, role: true },
+      select: { id: true, email: true, firstName: true, lastName: true, phone: true, role: true, isActive: true, banReason: true, balanceKobo: true },
     });
     res.json({ user });
   } catch (err) {
@@ -515,6 +548,92 @@ router.get('/customers/:id/orders', async (req, res, next) => {
       include: { items: true, payment: true },
     });
     res.json({ orders });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get('/customers/:id/audit', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const [targeted, actor] = await Promise.all([
+      getAuditLogs({ targetId: id, take: 50 }),
+      getAuditLogs({ actorId: id, take: 50 }),
+    ]);
+    res.json({ logs: [...targeted, ...actor].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, 100) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/customers/:id/ban', async (req: AuthRequest, res, next) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body as { reason?: string };
+    const user = await prisma.user.update({
+      where: { id },
+      data: { isActive: false, banReason: reason || 'Banned by admin' },
+      select: { id: true, email: true, firstName: true, lastName: true, isActive: true, banReason: true },
+    });
+    await logAudit({ actorId: req.user!.id, action: 'USER_BANNED', targetId: id, targetType: 'User', reason: reason || 'Banned by admin', newState: { isActive: false, banReason: user.banReason } });
+    res.json({ user });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/customers/:id/suspend', async (req: AuthRequest, res, next) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body as { reason?: string };
+    const user = await prisma.user.update({
+      where: { id },
+      data: { isActive: false, banReason: null },
+      select: { id: true, email: true, firstName: true, lastName: true, isActive: true, banReason: true },
+    });
+    await logAudit({ actorId: req.user!.id, action: 'USER_SUSPENDED', targetId: id, targetType: 'User', reason: reason || 'Suspended by admin', newState: { isActive: false } });
+    res.json({ user });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/customers/:id/activate', async (req: AuthRequest, res, next) => {
+  try {
+    const { id } = req.params;
+    const user = await prisma.user.update({
+      where: { id },
+      data: { isActive: true, banReason: null },
+      select: { id: true, email: true, firstName: true, lastName: true, isActive: true, banReason: true },
+    });
+    await logAudit({ actorId: req.user!.id, action: 'USER_ACTIVATED', targetId: id, targetType: 'User', newState: { isActive: true } });
+    res.json({ user });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/customers/:id/balance', async (req: AuthRequest, res, next) => {
+  try {
+    const { id } = req.params;
+    const { amount, note } = req.body as { amount?: number; note?: string };
+    if (typeof amount !== 'number' || amount === 0) throw new ApiError(400, 'Non-zero numeric amount required');
+    const current = await prisma.user.findUnique({ where: { id }, select: { balanceKobo: true } });
+    if (!current) throw new ApiError(404, 'User not found');
+    const user = await prisma.user.update({
+      where: { id },
+      data: { balanceKobo: { increment: amount } },
+      select: { id: true, email: true, firstName: true, lastName: true, balanceKobo: true },
+    });
+    await logAudit({
+      actorId: req.user!.id,
+      action: 'USER_BALANCE_ADJUSTED',
+      targetId: id,
+      targetType: 'User',
+      reason: note || `Balance adjusted by ${amount} kobo`,
+      newState: { balanceKobo: user.balanceKobo },
+    });
+    res.json({ user });
   } catch (err) {
     next(err);
   }

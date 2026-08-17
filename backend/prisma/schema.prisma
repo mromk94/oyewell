@@ -23,6 +23,8 @@ model User {
   lastName    String?
   phone       String?
   balanceKobo Int        @default(0)
+  isActive    Boolean    @default(true)
+  banReason   String?
   role        UserRole   @default(CUSTOMER)
   roles       String[]   @default([])
   createdAt   DateTime   @default(now())
