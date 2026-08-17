@@ -410,6 +410,7 @@ export function serializeOrder(
     platformFee: formatKobo(order.totalKobo - order.subtotalKobo - order.deliveryFeeKobo),
     deliveryFee: formatKobo(order.deliveryFeeKobo),
     total: formatKobo(order.totalKobo),
+    totalKobo: order.totalKobo,
     address: showCustomerInfo ? order.address : maskAddress(order.address),
     phone: showCustomerInfo ? order.phone : maskPhone(order.phone),
     approximateArea: order.deliveryZone?.name || maskAddress(order.address),

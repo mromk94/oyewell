@@ -162,6 +162,7 @@ export interface CreatedOrder {
     platformFee: string;
     deliveryFee: string;
     total: string;
+    totalKobo: number;
     address: string;
     phone: string;
     estimatedMinutes: number | null;

@@ -309,7 +309,7 @@ export default function CartModal() {
                   <p className='mt-1 text-sm text-white/60'>
                     Pay to the {order.payment.provider === 'BANK_TRANSFER' ? 'account' : 'address'} below, then upload proof.
                   </p>
-                  {selectedMethod && <PaymentDetails method={selectedMethod} totalKobo={selectedDelivery?.totalKobo ?? totalKobo} currencies={currencies} />}
+                  {selectedMethod && <PaymentDetails method={selectedMethod} totalKobo={order.order.totalKobo} currencies={currencies} />}
 
                   {proofUploaded ? (
                     <motion.div
