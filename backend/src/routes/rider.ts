@@ -7,6 +7,7 @@ import { requireAuth, requireRider, type AuthRequest } from '../middleware/auth.
 import { serializeOrder } from '../lib/order.js';
 import { isRiderEligibleForType } from '../lib/assignment.js';
 import { validateLocation, haversineMeters } from '../lib/location.js';
+import { assertCanServe } from '../lib/region.js';
 import { resolveRegionByName } from '../lib/region.js';
 import { normalizeNeighborhood, resolveNeighborhood } from '../lib/neighborhood.js';
 import { ApiError } from '../lib/errors.js';
@@ -328,10 +329,11 @@ router.get('/orders', requireAuth, requireRider, async (req: AuthRequest, res, n
 router.post('/orders/:orderNumber/claim', requireAuth, requireRider, async (req: AuthRequest, res, next) => {
   try {
     const { orderNumber } = req.params;
-    const rider = await prisma.rider.findUnique({ where: { userId: req.user!.id } });
+    const rider = await prisma.rider.findUnique({ where: { userId: req.user!.id }, include: { region: true } });
     if (!rider) throw new ApiError(404, 'Rider not found');
-    const order = await prisma.order.findUnique({ where: { orderNumber } });
+    const order = await prisma.order.findUnique({ where: { orderNumber }, include: { region: true } });
     if (!order) throw new ApiError(404, 'Order not found');
+    assertCanServe(rider, order);
     if (!isRiderEligibleForType(rider, (order.deliveryType as any) ?? 'NEIGHBORHOOD')) {
       throw new ApiError(403, 'You are not eligible for this delivery tier');
     }

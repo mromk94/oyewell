@@ -2,6 +2,7 @@ import { DeliveryType } from '@prisma/client';
 import { prisma } from '../prisma.js';
 import { geocodeAddress } from './delivery.js';
 import { distanceMeters, isLocationFresh, eta } from './location.js';
+import { assertCanServe } from './region.js';
 
 export function isRiderEligibleForType(
   rider: { neighborhoodApproval: string; professionalApproval: string; isApproved: boolean; isActive: boolean; available: boolean },
@@ -15,7 +16,7 @@ export function isRiderEligibleForType(
 export async function findEligibleRiders(orderId: string, maxRadiusMeters?: number) {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { deliveryZone: true },
+    include: { deliveryZone: true, region: true },
   });
   if (!order || !order.deliveryType || !order.deliveryZoneId) return [];
 
@@ -29,7 +30,7 @@ export async function findEligibleRiders(orderId: string, maxRadiusMeters?: numb
       available: true,
       ...(type === DeliveryType.PROFESSIONAL ? { professionalApproval: 'APPROVED' } : { neighborhoodApproval: 'APPROVED' }),
     },
-    include: { location: true, user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+    include: { location: true, region: true, user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
   });
 
   const candidates = riders
@@ -37,6 +38,11 @@ export async function findEligibleRiders(orderId: string, maxRadiusMeters?: numb
       if (!rider.isActive || !rider.available) return false;
       if (rider.operationalStatus !== 'ONLINE') return false;
       if (!rider.location || !isLocationFresh(rider.location.updatedAt)) return false;
+      try {
+        assertCanServe({ region: rider.region }, { region: order.region });
+      } catch {
+        return false;
+      }
       return true;
     })
     .map((rider) => {

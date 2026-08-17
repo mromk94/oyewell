@@ -304,6 +304,7 @@ export async function createOrder(payload: OrderPayload) {
         customerId,
         address,
         phone,
+        regionId: delivery.regionId,
         deliveryZoneId: delivery.zone.id,
         deliveryType: deliveryType as any,
         idempotencyKey: idempotencyKey || undefined,

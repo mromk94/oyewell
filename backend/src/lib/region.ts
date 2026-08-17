@@ -50,6 +50,12 @@ export async function resolveRegionByName(name: string | undefined) {
   return null;
 }
 
+export function assertCanServe(actor: { region?: { id: string; path: string } | null }, target: { region?: { id: string; path: string } | null }) {
+  if (!actor.region) return;
+  if (!target.region) return;
+  if (!target.region.path.startsWith(actor.region.path)) throw new ApiError(403, 'You cannot serve outside your region');
+}
+
 export function assertHigherRegion(actor: { region?: { id: string; path: string } | null }, target: { region?: { id: string; path: string } | null }) {
   if (!actor.region) return; // admin (or unscoped main admin) has full authority
   if (!target.region) throw new ApiError(403, 'Target is not assigned to a region');

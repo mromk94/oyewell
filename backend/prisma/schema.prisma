@@ -230,6 +230,11 @@ enum RegionType {
   CONTINENT
   COUNTRY
   STATE
+  CITY
+  LGA
+  POPULAR_STREET
+  MARKET
+  BUS_STOP
 }
 
 model Region {
@@ -248,6 +253,7 @@ model Region {
   cookProfiles CookProfile[]
   riders       Rider[]
   managementEmployees ManagementEmployee[]
+  orders       Order[]
 
   @@index([parentId])
   @@index([path])
@@ -279,6 +285,8 @@ model Order {
   sides                    OrderSide[]
   address                  String
   phone                    String
+  region                   Region?              @relation(fields: [regionId], references: [id], onDelete: SetNull)
+  regionId                 String?
   deliveryZone             DeliveryZone?        @relation(fields: [deliveryZoneId], references: [id])
   deliveryZoneId           String?
   deliveryType             DeliveryType         @default(NEIGHBORHOOD)

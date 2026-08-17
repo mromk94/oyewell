@@ -1,11 +1,6 @@
-export interface RegionNode {
-  id: string;
-  type: 'CONTINENT' | 'COUNTRY' | 'STATE';
-  name: string;
-  code: string;
-  isCovered?: boolean;
-  children?: RegionNode[];
-}
+import { RegionNode, lagosGranular, fctGranular, edoGranular, accraGranular, nairobiGranular } from './regions-data-granular.js';
+
+export { RegionNode, lagosGranular, fctGranular, edoGranular, accraGranular, nairobiGranular };
 
 export const regionTree: RegionNode[] = [
   {
@@ -33,7 +28,7 @@ export const regionTree: RegionNode[] = [
           { id: 'ng-cross-river', type: 'STATE', name: 'Cross River', code: 'CR' },
           { id: 'ng-delta', type: 'STATE', name: 'Delta', code: 'DE' },
           { id: 'ng-ebonyi', type: 'STATE', name: 'Ebonyi', code: 'EB' },
-          { id: 'ng-edo', type: 'STATE', name: 'Edo', code: 'ED' },
+          edoGranular,
           { id: 'ng-ekiti', type: 'STATE', name: 'Ekiti', code: 'EK' },
           { id: 'ng-enugu', type: 'STATE', name: 'Enugu', code: 'EN' },
           { id: 'ng-gombe', type: 'STATE', name: 'Gombe', code: 'GO' },
@@ -45,7 +40,7 @@ export const regionTree: RegionNode[] = [
           { id: 'ng-kebbi', type: 'STATE', name: 'Kebbi', code: 'KE' },
           { id: 'ng-kogi', type: 'STATE', name: 'Kogi', code: 'KO' },
           { id: 'ng-kwara', type: 'STATE', name: 'Kwara', code: 'KW' },
-          { id: 'ng-lagos', type: 'STATE', name: 'Lagos', code: 'LA' },
+          lagosGranular,
           { id: 'ng-nasarawa', type: 'STATE', name: 'Nasarawa', code: 'NA' },
           { id: 'ng-niger', type: 'STATE', name: 'Niger', code: 'NI' },
           { id: 'ng-ogun', type: 'STATE', name: 'Ogun', code: 'OG' },
@@ -58,7 +53,7 @@ export const regionTree: RegionNode[] = [
           { id: 'ng-taraba', type: 'STATE', name: 'Taraba', code: 'TA' },
           { id: 'ng-yobe', type: 'STATE', name: 'Yobe', code: 'YO' },
           { id: 'ng-zamfara', type: 'STATE', name: 'Zamfara', code: 'ZA' },
-          { id: 'ng-fct', type: 'STATE', name: 'Federal Capital Territory', code: 'FC' },
+          fctGranular,
         ],
       },
       {
@@ -74,7 +69,7 @@ export const regionTree: RegionNode[] = [
           { id: 'gh-bono-east', type: 'STATE', name: 'Bono East', code: 'BE' },
           { id: 'gh-central', type: 'STATE', name: 'Central', code: 'CE' },
           { id: 'gh-eastern', type: 'STATE', name: 'Eastern', code: 'EA' },
-          { id: 'gh-greater-accra', type: 'STATE', name: 'Greater Accra', code: 'GA' },
+          accraGranular,
           { id: 'gh-northern', type: 'STATE', name: 'Northern', code: 'NO' },
           { id: 'gh-north-east', type: 'STATE', name: 'North East', code: 'NE' },
           { id: 'gh-oti', type: 'STATE', name: 'Oti', code: 'OT' },
@@ -122,7 +117,7 @@ export const regionTree: RegionNode[] = [
           { id: 'ke-migori', type: 'STATE', name: 'Migori', code: 'MI' },
           { id: 'ke-mombasa', type: 'STATE', name: 'Mombasa', code: 'MM' },
           { id: 'ke-muranga', type: 'STATE', name: "Murang'a", code: 'MU' },
-          { id: 'ke-nairobi', type: 'STATE', name: 'Nairobi', code: 'NB' },
+          nairobiGranular,
           { id: 'ke-nakuru', type: 'STATE', name: 'Nakuru', code: 'NK' },
           { id: 'ke-nyandarua', type: 'STATE', name: 'Nyandarua', code: 'NY' },
           { id: 'ke-nyamira', type: 'STATE', name: 'Nyamira', code: 'NA' },

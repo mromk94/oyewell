@@ -1,5 +1,6 @@
 import { prisma } from '../prisma.js';
 import { isFeatureEnabled } from './features.js';
+import { resolveRegionByName } from './region.js';
 import { DeliveryType, DeliveryZone, DeliveryZoneType } from '@prisma/client';
 import { getMapProvider } from './maps.js';
 import { eta } from './location.js';
@@ -183,6 +184,7 @@ export async function resolveDelivery(address: string, subtotalKobo: number, typ
   const effectiveCoords = providedCoords ?? await geocodeAddress(address);
   const zone = await findDeliveryZone(address, effectiveCoords);
   if (!zone) return null;
+  const region = await resolveRegionByName(address);
 
   const rule = await prisma.deliveryPricingRule.findFirst({
     where: { deliveryZoneId: zone.id, deliveryType: type, enabled: true },
@@ -231,5 +233,7 @@ export async function resolveDelivery(address: string, subtotalKobo: number, typ
     available: true,
     estimatedMinutes,
     coords: effectiveCoords ?? undefined,
+    regionId: region?.id,
+    region,
   };
 }
