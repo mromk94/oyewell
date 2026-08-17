@@ -24,7 +24,7 @@ export function FoodImage({ src, alt, className = '' }: FoodImageProps) {
   }
 
   return (
-    <div className={`${className} relative overflow-hidden`}>
+    <div className={`${className} overflow-hidden`}>
       {!ready && (
         <div className="absolute inset-0 z-10 animate-pulse bg-white/10" />
       )}

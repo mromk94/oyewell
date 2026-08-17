@@ -87,7 +87,7 @@ export default function FoodCard({ food }: Props) {
 function buildMedia(food: FoodItem): { type: 'image' | 'video'; url: string }[] {
   const out: { type: 'image' | 'video'; url: string }[] = [];
   if (food.heroImage?.trim()) out.push({ type: 'image', url: food.heroImage });
-  food.galleryImages?.filter((url) => url?.trim()).forEach((url) => out.push({ type: 'image', url }));
-  food.videos?.filter((url) => url?.trim()).forEach((url) => out.push({ type: 'video', url }));
+  food.galleryImage?.filter((url: string) => url?.trim()).forEach((url: string) => out.push({ type: 'image', url }));
+  food.videos?.filter((url: string) => url?.trim()).forEach((url: string) => out.push({ type: 'video', url }));
   return out;
 }

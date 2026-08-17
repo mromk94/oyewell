@@ -93,7 +93,7 @@ router.get('/foods', async (_req, res, next) => {
 router.post('/foods', async (req: AuthRequest, res, next) => {
   try {
     const body = req.body as Record<string, unknown>;
-    const { name, slug, description, heroImage, galleryImages, videos, orderingMode, packagingCostKobo, options } = body;
+    const { name, slug, description, heroImage, galleryImage, videos, orderingMode, packagingCostKobo, options } = body;
     if (!name || !slug) throw new ApiError(400, 'Name and slug required');
 
     const food = await prisma.food.create({
@@ -102,7 +102,7 @@ router.post('/foods', async (req: AuthRequest, res, next) => {
         slug: String(slug),
         description: description ? String(description) : undefined,
         heroImage: heroImage ? String(heroImage) : undefined,
-        galleryImages: Array.isArray(galleryImages) ? galleryImages.map(String) : [],
+        galleryImage: Array.isArray(galleryImage) ? galleryImage.map(String) : [],
         videos: Array.isArray(videos) ? videos.map(String) : [],
         orderingMode: String(orderingMode) as 'PLATE' | 'PORTION' | 'PIECE',
         packagingCostKobo: typeof packagingCostKobo === 'number' ? Number(packagingCostKobo) : 0,
@@ -136,7 +136,8 @@ router.patch('/foods/:id', async (req, res, next) => {
     if (body.slug !== undefined) data.slug = String(body.slug);
     if (body.description !== undefined) data.description = body.description ? String(body.description) : null;
     if (body.heroImage !== undefined) data.heroImage = body.heroImage ? String(body.heroImage) : null;
-    if (body.galleryImages !== undefined) data.galleryImages = Array.isArray(body.galleryImages) ? body.galleryImages.map(String) : [];
+    const galleryInput = (body.galleryImage ?? body.galleryImages) as unknown[] | undefined;
+    if (galleryInput !== undefined) data.galleryImage = Array.isArray(galleryInput) ? galleryInput.map((v) => String(v)) : [];
     if (body.videos !== undefined) data.videos = Array.isArray(body.videos) ? body.videos.map(String) : [];
     if (body.orderingMode !== undefined) data.orderingMode = String(body.orderingMode) as any;
     if (typeof body.packagingCostKobo === 'number') data.packagingCostKobo = Number(body.packagingCostKobo);

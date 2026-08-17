@@ -43,7 +43,7 @@ export interface FoodItem {
   name: string;
   description: string | null;
   heroImage: string | null;
-  galleryImages: string[];
+  galleryImage: string[];
   videos: string[];
   packagingCostKobo: number;
   isAvailable: boolean;
