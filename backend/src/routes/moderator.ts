@@ -3,6 +3,7 @@ import { prisma } from '../prisma.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { ApiError } from '../lib/errors.js';
 import { logAudit } from '../lib/audit.js';
+import { regionWhere, assertCanModerate } from '../lib/region.js';
 
 const router = Router();
 
@@ -22,23 +23,6 @@ async function requireModerator(req: AuthRequest, res: any, next: any) {
   }
   (req as any).employee = employee;
   next();
-}
-
-function regionWhere(employee: any, relation: 'cook' | 'rider' | 'order' = 'rider') {
-  const region = employee.region;
-  if (!region) return {};
-  const path = { path: { startsWith: region.path } };
-  if (relation === 'cook') return { cook: { region: path } };
-  if (relation === 'order') return { order: { cook: { region: path } } };
-  return { region: path };
-}
-
-function assertCanModerate(employee: any, targetPath?: string | null) {
-  const region = employee.region;
-  if (!region) return; // main admin / no region can moderate everything
-  if (!targetPath || !targetPath.startsWith(region.path)) {
-    throw new ApiError(403, 'Target is outside your region');
-  }
 }
 
 router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {

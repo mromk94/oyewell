@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { type PublicRegion } from '../lib/regionsPublic';
 import { Search, X, SlidersHorizontal, Trash2 } from 'lucide-react';
 
 export interface DiscoveryFiltersState {
@@ -6,6 +7,7 @@ export interface DiscoveryFiltersState {
   cuisine: string;
   maxPrice: string;
   available: boolean;
+  regionId: string;
 }
 
 interface Props {
@@ -13,6 +15,7 @@ interface Props {
   filters: DiscoveryFiltersState;
   onChange: (filters: DiscoveryFiltersState) => void;
   cuisines?: string[];
+  regions?: PublicRegion[];
 }
 
 const PLACEHOLDERS: Record<Props['view'], string> = {
@@ -22,7 +25,7 @@ const PLACEHOLDERS: Record<Props['view'], string> = {
   nearby: 'Search nearby food...',
 };
 
-export default function DiscoveryFilters({ view, filters, onChange, cuisines = [] }: Props) {
+export default function DiscoveryFilters({ view, filters, onChange, cuisines = [], regions }: Props) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<DiscoveryFiltersState>(filters);
 
@@ -33,7 +36,7 @@ export default function DiscoveryFilters({ view, filters, onChange, cuisines = [
   const showCuisine = view === 'cooks' || view === 'nearby';
   const cuisineOptions = useMemo(() => ['All cuisine', ...cuisines.filter(Boolean)], [cuisines]);
   const activeCount = useMemo(
-    () => [filters.q, filters.cuisine, filters.maxPrice, filters.available].filter(Boolean).length,
+    () => [filters.q, filters.cuisine, filters.maxPrice, filters.available, filters.regionId].filter(Boolean).length,
     [filters]
   );
 
@@ -62,7 +65,7 @@ export default function DiscoveryFilters({ view, filters, onChange, cuisines = [
             {!!activeCount && (
               <button
                 onClick={() => {
-                  const cleared: DiscoveryFiltersState = { q: '', cuisine: '', maxPrice: '', available: false };
+                  const cleared: DiscoveryFiltersState = { q: '', cuisine: '', maxPrice: '', available: false, regionId: '' };
                   setDraft(cleared);
                   onChange(cleared);
                 }}
@@ -122,12 +125,30 @@ export default function DiscoveryFilters({ view, filters, onChange, cuisines = [
               />
               Available now
             </label>
+
+            {!!regions?.length && (
+              <div>
+                <label className='mb-1 block text-xs font-bold text-white/60'>Region</label>
+                <select
+                  value={draft.regionId}
+                  onChange={(e) => setDraft({ ...draft, regionId: e.target.value })}
+                  className='w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none focus:border-emerald-400'
+                >
+                  <option value='' className='bg-black'>All regions</option>
+                  {regions.map((r) => (
+                    <option key={r.id} value={r.id} className='bg-black'>
+                      {r.type}: {r.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <div className='mt-5 flex gap-2'>
             <button
               onClick={() => {
-                const cleared: DiscoveryFiltersState = { q: '', cuisine: '', maxPrice: '', available: false };
+                const cleared: DiscoveryFiltersState = { q: '', cuisine: '', maxPrice: '', available: false, regionId: '' };
                 setDraft(cleared);
                 onChange(cleared);
               }}

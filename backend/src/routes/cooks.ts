@@ -7,12 +7,13 @@ import { dispatchOrder } from '../lib/assignment.js';
 import { emitEvent } from '../lib/realtime.js';
 import { assertOrderTransition, afterOrderTransition, generateVerificationCode } from '../lib/order-state.js';
 import { resolveNeighborhood, normalizeNeighborhood } from '../lib/neighborhood.js';
+import { resolveRegionByName } from '../lib/region.js';
 
 const router = Router();
 
 router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {
   try {
-    const { displayName, bio, latitude, longitude, neighborhood: neighborhoodInput, serviceRadiusKm, cuisineSpecialty, profilePhoto, categories, signatureDishes, capacity, prepTime, availability, packagingPhotos, safetyAcknowledgements } = req.body as Record<string, any>;
+    const { displayName, bio, latitude, longitude, neighborhood: neighborhoodInput, serviceRadiusKm, cuisineSpecialty, profilePhoto, categories, signatureDishes, capacity, prepTime, availability, packagingPhotos, safetyAcknowledgements, region: regionInput, regionId } = req.body as Record<string, any>;
     if (!displayName) throw new ApiError(400, 'Display name is required');
     const user = await prisma.user.findUnique({ where: { id: req.user!.id }, include: { cookProfile: true } });
     if (!user) throw new ApiError(404, 'User not found');
@@ -28,6 +29,8 @@ router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {
       neighborhood = normalizeNeighborhood(await resolveNeighborhood({ lat: latNum, lng: lngNum })) ?? null;
     }
 
+    const resolvedRegionId = regionId || (regionInput ? (await resolveRegionByName(regionInput))?.id : undefined) || (neighborhood ? (await resolveRegionByName(neighborhood))?.id : undefined);
+
     const cook = await prisma.$transaction(async (tx) => {
       const profile = await tx.cookProfile.create({
         data: {
@@ -37,6 +40,7 @@ router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {
           latitude: latNum,
           longitude: lngNum,
           neighborhood,
+          regionId: resolvedRegionId,
           serviceRadiusKm: serviceRadiusKm ? Number(serviceRadiusKm) : 5,
           cuisineSpecialty,
           profilePhoto,
@@ -77,7 +81,7 @@ router.get('/me', requireAuth, requireRole('COOK'), async (req: AuthRequest, res
 
 router.put('/me', requireAuth, requireRole('COOK'), async (req: AuthRequest, res, next) => {
   try {
-    const { displayName, bio, latitude, longitude, neighborhood: neighborhoodInput, serviceRadiusKm, cuisineSpecialty, profilePhoto, categories, signatureDishes, capacity, prepTime, availability, packagingPhotos, safetyAcknowledgements, onboardingStep } = req.body as Record<string, any>;
+    const { displayName, bio, latitude, longitude, neighborhood: neighborhoodInput, serviceRadiusKm, cuisineSpecialty, profilePhoto, categories, signatureDishes, capacity, prepTime, availability, packagingPhotos, safetyAcknowledgements, onboardingStep, region: regionInput, regionId } = req.body as Record<string, any>;
 
     const latNum = latitude != null ? Number(latitude) : undefined;
     const lngNum = longitude != null ? Number(longitude) : undefined;
@@ -87,6 +91,8 @@ router.put('/me', requireAuth, requireRole('COOK'), async (req: AuthRequest, res
       if (neighborhood) neighborhood = normalizeNeighborhood(neighborhood) ?? undefined;
     }
 
+    const resolvedRegionId = regionId || (regionInput ? (await resolveRegionByName(regionInput))?.id : undefined) || (neighborhood ? (await resolveRegionByName(neighborhood))?.id : undefined);
+
     const cook = await prisma.cookProfile.update({
       where: { userId: req.user!.id },
       data: {
@@ -95,6 +101,7 @@ router.put('/me', requireAuth, requireRole('COOK'), async (req: AuthRequest, res
         latitude: latNum,
         longitude: lngNum,
         neighborhood,
+        regionId: resolvedRegionId,
         serviceRadiusKm: serviceRadiusKm != null ? Number(serviceRadiusKm) : undefined,
         cuisineSpecialty,
         profilePhoto,

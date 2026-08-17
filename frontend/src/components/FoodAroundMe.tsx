@@ -19,7 +19,7 @@ export default function FoodAroundMe({ filters }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetchCookListingsAroundMe(search, 8, 10);
+      const res = await fetchCookListingsAroundMe(search, 8, 10, filters?.regionId);
       setListings(res.listings);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load nearby food');

@@ -65,6 +65,7 @@ router.get('/', async (req, res, next) => {
     const status = (req.query.status as string) ?? 'APPROVED';
     const cuisine = req.query.cuisine as string | undefined;
     const cookId = req.query.cookId as string | undefined;
+    const regionId = req.query.regionId as string | undefined;
     const take = Math.min(Math.max(Number(req.query.take) || 20, 1), 100);
     const skip = Math.max(Number(req.query.skip) || 0, 0);
 
@@ -76,6 +77,7 @@ router.get('/', async (req, res, next) => {
     };
     if (cuisine) where.cuisine = { contains: cuisine, mode: 'insensitive' };
     if (cookId) where.cookId = cookId;
+    if (regionId) where.cook = { ...where.cook, regionId };
 
     const [listings, total] = await Promise.all([
       prisma.cookListing.findMany({
@@ -110,7 +112,8 @@ router.get('/around-me', async (req, res, next) => {
     }
 
     const bucket = geoBucket(lat, lng, 2);
-    const cacheKey = `listings:around-me:${bucket}:${minResults}:${customRadiusKm ?? 'default'}:${req.query.neighborhood ?? 'all'}`;
+    const regionId = req.query.regionId as string | undefined;
+    const cacheKey = `listings:around-me:${bucket}:${minResults}:${customRadiusKm ?? 'default'}:${req.query.neighborhood ?? 'all'}:${regionId ?? 'all'}`;
     const data = await cache.getOrSet(
       cacheKey,
       async () => {
@@ -127,6 +130,7 @@ router.get('/around-me', async (req, res, next) => {
               latitude: { not: null },
               longitude: { not: null },
               ...(neighborhood ? { neighborhood } : {}),
+              ...(regionId ? { regionId } : {}),
             },
           },
           include: LISTING_INCLUDE,

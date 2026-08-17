@@ -92,6 +92,7 @@ export async function applyAsCook(body: {
   latitude?: number;
   longitude?: number;
   neighborhood?: string;
+  regionId?: string;
   serviceRadiusKm?: number;
   cuisineSpecialty?: string;
   profilePhoto?: string;

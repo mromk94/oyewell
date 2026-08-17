@@ -421,6 +421,7 @@ export async function applyAsDeliveryPartner(payload: {
   vehicle?: string;
   operatingArea: string;
   serviceRadiusMeters: number;
+  regionId?: string;
   kycSubmitted: boolean;
   onboardingData?: Record<string, any>;
 }) {

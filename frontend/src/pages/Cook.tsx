@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { fetchCoveredRegions, type PublicRegion } from '../lib/regionsPublic';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChefHat,
@@ -242,6 +243,7 @@ function CookApply() {
     prepTime: '',
     packagingPhotos: '',
     neighborhood: '',
+    regionId: '',
     latitude: '',
     longitude: '',
     safety: {
@@ -253,6 +255,11 @@ function CookApply() {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [regions, setRegions] = useState<PublicRegion[]>([]);
+
+  useEffect(() => {
+    fetchCoveredRegions().then(setRegions).catch(() => {});
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -274,6 +281,7 @@ function CookApply() {
         capacity: form.capacity,
         prepTime: form.prepTime,
         neighborhood: form.neighborhood || undefined,
+        regionId: form.regionId || undefined,
         latitude: form.latitude ? Number(form.latitude) : undefined,
         longitude: form.longitude ? Number(form.longitude) : undefined,
         packagingPhotos,
@@ -358,6 +366,18 @@ function CookApply() {
                 className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
                 required
               />
+              <select
+                value={form.regionId}
+                onChange={(e) => setForm({ ...form, regionId: e.target.value })}
+                className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
+              >
+                <option value='' className='bg-brand-900'>Select region (optional)</option>
+                {regions.map((r) => (
+                  <option key={r.id} value={r.id} className='bg-brand-900'>
+                    {r.type}: {r.name}
+                  </option>
+                ))}
+              </select>
               <div className='flex gap-2'>
                 <input
                   type='number'

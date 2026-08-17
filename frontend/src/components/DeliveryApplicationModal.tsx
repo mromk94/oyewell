@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, User, Bike, CheckCircle, ChevronRight, ChevronLeft, Loader2, FileText } from 'lucide-react';
 import { applyAsDeliveryPartner, fetchRiderOnboardingFields, type OnboardingField } from '../lib/api';
+import { fetchCoveredRegions, type PublicRegion } from '../lib/regionsPublic';
 
 const MODES = [
   { id: 'WALK', label: 'Walking', icon: 'W' },
@@ -43,6 +44,8 @@ export default function DeliveryApplicationModal({
   const [mode, setMode] = useState(existing?.deliveryMode || 'MOTORCYCLE');
   const [vehicle, setVehicle] = useState(existing?.vehicle || '');
   const [area, setArea] = useState(existing?.operatingArea || '');
+  const [regionId, setRegionId] = useState('');
+  const [regions, setRegions] = useState<PublicRegion[]>([]);
   const [radius, setRadius] = useState(existing?.serviceRadiusMeters || 5000);
   const [fields, setFields] = useState<OnboardingField[]>([]);
   const [fieldsLoading, setFieldsLoading] = useState(true);
@@ -55,6 +58,7 @@ export default function DeliveryApplicationModal({
       .then((res) => setFields(res.fields))
       .catch(() => setError('Could not load onboarding form'))
       .finally(() => setFieldsLoading(false));
+    fetchCoveredRegions().then(setRegions).catch(() => {});
   }, []);
 
   const visibleFields = fields.filter((f) => {
@@ -75,6 +79,7 @@ export default function DeliveryApplicationModal({
         deliveryMode: mode,
         vehicle,
         operatingArea: area,
+        regionId: regionId || undefined,
         serviceRadiusMeters: radius,
         kycSubmitted: !!(onboardingData.idDocumentUrl || onboardingData.facePhotoUrl),
         onboardingData,
@@ -196,7 +201,22 @@ export default function DeliveryApplicationModal({
             {step === 2 && (
               <StepPanel key='area'>
                 <p className='mb-4 text-sm text-white/70'>Where do you want to deliver?</p>
-                <label className='block text-sm text-white/60'>
+                <label className='mb-2 block text-sm font-bold text-white/80'>
+                  Your region
+                  <select
+                    value={regionId}
+                    onChange={(e) => setRegionId(e.target.value)}
+                    className='w-full rounded-xl border border-white/10 bg-white/5 p-3 text-white outline-none focus:border-emerald-400'
+                  >
+                    <option value='' className='bg-brand-900'>Select region</option>
+                    {regions.map((r) => (
+                      <option key={r.id} value={r.id} className='bg-brand-900'>
+                        {r.type}: {r.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className='mb-2 mt-4 block text-sm font-bold text-white/80'>
                   Your area or neighborhood
                   <input
                     value={area}

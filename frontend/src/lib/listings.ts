@@ -59,12 +59,13 @@ export interface CookListing {
   point?: { lat: number; lng: number };
 }
 
-export async function fetchCookListingsPublic(params?: { cuisine?: string; skip?: number; take?: number; cookId?: string }) {
+export async function fetchCookListingsPublic(params?: { cuisine?: string; skip?: number; take?: number; cookId?: string; regionId?: string }) {
   const query = new URLSearchParams();
   if (params?.cuisine) query.set('cuisine', params.cuisine);
   if (params?.skip !== undefined) query.set('skip', String(params.skip));
   if (params?.take !== undefined) query.set('take', String(params.take));
   if (params?.cookId) query.set('cookId', params.cookId);
+  if (params?.regionId) query.set('regionId', params.regionId);
   const res = await fetch(`${API_BASE}/api/listings?${query.toString()}`);
   if (!res.ok) throw new Error('Failed to load listings');
   const data = (await res.json()) as { listings: CookListing[]; total: number; skip: number; take: number };
@@ -86,11 +87,13 @@ export async function fetchCookListingsNearby(lat: number, lng: number, radiusKm
 export async function fetchCookListingsAroundMe(
   center: { lat: number; lng: number } | { address: string } | { neighborhood: string },
   minResults = 5,
-  radiusKm = 10
+  radiusKm = 10,
+  regionId?: string
 ) {
   const qs = new URLSearchParams();
   qs.set('minResults', String(minResults));
   qs.set('radiusKm', String(radiusKm));
+  if (regionId) qs.set('regionId', regionId);
   if ('address' in center) {
     qs.set('address', center.address);
   } else if ('neighborhood' in center) {

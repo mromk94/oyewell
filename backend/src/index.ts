@@ -33,6 +33,7 @@ import moderatorRouter from './routes/moderator.js';
 import moderatorsAdminRouter from './routes/moderatorsAdmin.js';
 import moderatorHierarchyRouter from './routes/moderator-hierarchy.js';
 import regionsRouter from './routes/regions.js';
+import regionsPublicRouter from './routes/regionsPublic.js';
 import webhooksRouter from './routes/webhooks.js';
 import { rateLimit } from './middleware/rateLimit.js';
 import { ApiError } from './lib/errors.js';
@@ -94,6 +95,7 @@ app.use('/api/moderator', moderatorRouter);
 app.use('/api/moderator/hierarchy', moderatorHierarchyRouter);
 app.use('/api/admin/moderators', moderatorsAdminRouter);
 app.use('/api/admin/regions', regionsRouter);
+app.use('/api/regions', regionsPublicRouter);
 app.use('/api/neighborhoods', neighborhoodsRouter);
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {

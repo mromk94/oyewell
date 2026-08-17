@@ -7,6 +7,7 @@ import { requireAuth, requireRider, type AuthRequest } from '../middleware/auth.
 import { serializeOrder } from '../lib/order.js';
 import { isRiderEligibleForType } from '../lib/assignment.js';
 import { validateLocation, haversineMeters } from '../lib/location.js';
+import { resolveRegionByName } from '../lib/region.js';
 import { normalizeNeighborhood, resolveNeighborhood } from '../lib/neighborhood.js';
 import { ApiError } from '../lib/errors.js';
 import { formatKobo } from '../lib/money.js';
@@ -25,7 +26,7 @@ const router = Router();
 router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {
   try {
     const userId = req.user!.id;
-    const { deliveryMode, vehicle, operatingArea, serviceRadiusMeters, onboardingData } = req.body as Record<string, any>;
+    const { deliveryMode, vehicle, operatingArea, serviceRadiusMeters, onboardingData, region: regionInput, regionId } = req.body as Record<string, any>;
     if (!deliveryMode || !['WALK', 'BICYCLE', 'MOTORCYCLE', 'CAR'].includes(String(deliveryMode))) {
       throw new ApiError(400, 'Valid delivery mode is required');
     }
@@ -46,6 +47,8 @@ router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {
     dataRecord = { ...preservedMeta, ...dataRecord };
 
     const neighborhood = normalizeNeighborhood(operatingArea) ?? null;
+    const resolvedRegionId = regionId || (regionInput ? (await resolveRegionByName(regionInput))?.id : undefined) || (neighborhood ? (await resolveRegionByName(neighborhood))?.id : undefined);
+
     const rider = await prisma.rider.upsert({
       where: { userId },
       create: {
@@ -54,6 +57,7 @@ router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {
         deliveryMode: String(deliveryMode) as any,
         operatingArea: operatingArea ? String(operatingArea) : undefined,
         neighborhood,
+        regionId: resolvedRegionId,
         serviceRadiusMeters: radius,
         kycStatus: dataRecord.idDocumentUrl || dataRecord.facePhotoUrl ? 'SUBMITTED' : 'NOT_STARTED',
         neighborhoodApproval: 'PENDING',
@@ -67,6 +71,7 @@ router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {
         deliveryMode: String(deliveryMode) as any,
         operatingArea: operatingArea ? String(operatingArea) : undefined,
         neighborhood,
+        regionId: resolvedRegionId,
         serviceRadiusMeters: radius,
         kycStatus: dataRecord.idDocumentUrl || dataRecord.facePhotoUrl ? 'SUBMITTED' : 'NOT_STARTED',
         neighborhoodApproval: 'PENDING',

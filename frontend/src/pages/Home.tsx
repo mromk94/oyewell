@@ -6,6 +6,7 @@ import FoodCard from '../components/FoodCard';
 import FoodAroundMe from '../components/FoodAroundMe';
 import CookListingFeed from '../components/CookListingFeed';
 import DiscoveryFilters, { type DiscoveryFiltersState } from '../components/DiscoveryFilters';
+import { fetchCoveredRegions, type PublicRegion } from '../lib/regionsPublic';
 import Logo from '../components/Logo';
 import Preloader from '../components/Preloader';
 import ScrollHint from '../components/ScrollHint';
@@ -28,16 +29,21 @@ export default function Home() {
   const [view, setView] = useState<'home' | 'cooks' | 'restaurants' | 'nearby'>('home');
   const [reps, setReps] = useState(1);
   const [postModal, setPostModal] = useState(false);
-  const [filters, setFilters] = useState<DiscoveryFiltersState>({ q: '', cuisine: '', maxPrice: '', available: false });
+  const [filters, setFilters] = useState<DiscoveryFiltersState>({ q: '', cuisine: '', maxPrice: '', available: false, regionId: '' });
+  const [regions, setRegions] = useState<PublicRegion[]>([]);
   const mainRef = useRef<HTMLElement>(null);
   const isAppending = useRef(false);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
+    fetchCoveredRegions().then(setRegions).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     const minTimer = setTimeout(() => setMinReady(true), 2500);
     Promise.all([
       fetchFoods(),
-      fetchCookListingsPublic({ take: 20 }),
+      fetchCookListingsPublic({ take: 20, regionId: filters.regionId || undefined }),
     ])
       .then(([data, listings]) => {
         setFoods(data.foods);
@@ -64,7 +70,7 @@ export default function Home() {
     setReps(1);
     isAppending.current = false;
     mainRef.current?.scrollTo({ top: 0, behavior: 'auto' });
-  }, [view, filters.q, filters.cuisine, filters.maxPrice, filters.available]);
+  }, [view, filters.q, filters.cuisine, filters.maxPrice, filters.available, filters.regionId]);
 
   function handleScroll() {
     const el = mainRef.current;
@@ -114,6 +120,15 @@ export default function Home() {
     }
     return list;
   }, [foods, filters]);
+
+  useEffect(() => {
+    if (view !== 'cooks' && view !== 'restaurants') return;
+    setCooksLoading(true);
+    fetchCookListingsPublic({ take: 20, regionId: filters.regionId || undefined })
+      .then((listings) => setCookListings(listings.listings))
+      .catch(() => setError('Failed to load listings'))
+      .finally(() => setCooksLoading(false));
+  }, [filters.regionId]);
 
   const filteredCookListings = useMemo(() => {
     let list = cookListings;
@@ -166,7 +181,7 @@ export default function Home() {
       <div className="fixed left-0 right-0 top-20 z-30 flex justify-center bg-gradient-to-b from-black/70 via-black/40 to-transparent pb-6 pt-3">
         <DiscoveryNav current={view} onChange={handleViewChange} />
       </div>
-      <DiscoveryFilters view={view} filters={filters} onChange={setFilters} cuisines={cuisines} />
+      <DiscoveryFilters view={view} filters={filters} onChange={setFilters} cuisines={cuisines} regions={regions} />
       <main
         ref={mainRef}
         onScroll={handleScroll}
