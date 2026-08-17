@@ -1,7 +1,41 @@
 import { PrismaClient, OrderingMode, FoodStatus, DeliveryZoneType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { regionTree } from './regions-data.js';
 
 const prisma = new PrismaClient();
+
+async function seedRegions() {
+  async function createRegion(node: any, parentPath = ''): Promise<void> {
+    const path = parentPath ? `${parentPath}${node.id}/` : `/${node.id}/`;
+    await prisma.region.upsert({
+      where: { id: node.id },
+      update: {
+        name: node.name,
+        type: node.type,
+        code: node.code,
+        isCovered: node.isCovered ?? false,
+        path,
+      },
+      create: {
+        id: node.id,
+        name: node.name,
+        type: node.type,
+        code: node.code,
+        isCovered: node.isCovered ?? false,
+        path,
+      },
+    });
+    if (node.children?.length) {
+      for (const child of node.children) {
+        await createRegion({ ...child, parentId: node.id }, path);
+      }
+    }
+  }
+
+  for (const continent of regionTree) {
+    await createRegion(continent);
+  }
+}
 
 async function main() {
   const adminEmail = process.env.ADMIN_EMAIL ?? 'admin@oyewell.com';
@@ -123,6 +157,8 @@ async function main() {
       },
     });
   }
+
+  await seedRegions();
 
   console.log('Seed complete');
 }

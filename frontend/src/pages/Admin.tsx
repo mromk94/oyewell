@@ -32,6 +32,7 @@ import { OrdersTab as OrdersTabNew } from '../components/admin/OrdersTab';
 import EmailTab from '../components/admin/EmailTab';
 import ManagementDashboard from '../components/admin/ManagementDashboard';
 import ModerationPanel from '../components/admin/ModerationPanel';
+import RegionsTab from '../components/admin/RegionsTab';
 import CustomersTab from '../components/admin/CustomersTab';
 import DeliveryTab from '../components/admin/DeliveryTab';
 import RidersTab from '../components/admin/RidersTab';
@@ -69,7 +70,7 @@ import {
   settleCookEarnings,
 } from '../lib/admin';
 
-type Tab = 'dashboard' | 'menu' | 'orders' | 'sides' | 'customers' | 'delivery' | 'payments' | 'settings' | 'email' | 'riders' | 'live-map' | 'cooks' | 'cook-listings' | 'cook-earnings' | 'management' | 'moderation' | 'moderators';
+type Tab = 'dashboard' | 'menu' | 'orders' | 'sides' | 'customers' | 'delivery' | 'payments' | 'settings' | 'email' | 'riders' | 'live-map' | 'cooks' | 'cook-listings' | 'cook-earnings' | 'management' | 'moderation' | 'moderators' | 'regions';
 
 const TABS: Tab[] = [
   'dashboard',
@@ -87,6 +88,7 @@ const TABS: Tab[] = [
   'management',
   'moderation',
   'moderators',
+  'regions',
   'settings',
   'email',
 ];
@@ -171,6 +173,8 @@ export default function Admin() {
       } else if (tab === 'cook-earnings') {
         const earnings = await fetchAdminCookEarnings();
         setCookEarnings(earnings);
+      } else if (tab === 'regions') {
+        // RegionsTab loads its own data
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load');
@@ -420,6 +424,7 @@ export default function Admin() {
         {tab === 'customers' && <CustomersTab customers={customers} onRefresh={loadTab} />}
         {tab === 'payments' && <PaymentsTabNew methods={methods} onRefresh={loadTab} />}
         {tab === 'settings' && <SettingsTab settings={settings} onRefresh={loadTab} />}
+        {tab === 'regions' && <RegionsTab />}
         {tab === 'email' && <EmailTab />}
         {tab === 'riders' && <RidersTab riders={pendingRiders} onRefresh={loadTab} />}
         {tab === 'live-map' && <LiveMapTab riders={riderLocations} cooks={cookLocations} />}
@@ -1314,19 +1319,25 @@ function CookListingsTab() {
 function CookEarningsTab({ earnings, onRefresh }: { earnings: any; onRefresh: () => void }) {
   const [processing, setProcessing] = useState<string | null>(null);
   const [selected, setSelected] = useState<any | null>(null);
+  const { showConfirm, Modal } = useConfirm();
   const cooks = earnings?.cooks ?? [];
 
-  async function handleSettle(cookId: string) {
-    if (!confirm('Settle all pending earnings for this cook?')) return;
-    setProcessing(cookId);
-    try {
-      await settleCookEarnings(cookId);
-      onRefresh();
-    } catch (e) {
-      alert(e instanceof Error ? e.message : 'Settle failed');
-    } finally {
-      setProcessing(null);
-    }
+  function handleSettle(cookId: string) {
+    showConfirm({
+      title: 'Settle earnings',
+      message: 'Settle all pending earnings for this cook?',
+      onConfirm: async () => {
+        setProcessing(cookId);
+        try {
+          await settleCookEarnings(cookId);
+          onRefresh();
+        } catch (e) {
+          alert(e instanceof Error ? e.message : 'Settle failed');
+        } finally {
+          setProcessing(null);
+        }
+      },
+    });
   }
 
   const pendingEarnings = (c: any) => (c.earnings ?? []).filter((e: any) => e.status === 'PENDING');
@@ -1432,6 +1443,7 @@ function CookEarningsTab({ earnings, onRefresh }: { earnings: any; onRefresh: ()
           </div>
         </div>
       )}
+      {Modal}
     </div>
   );
 }

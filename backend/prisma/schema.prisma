@@ -164,6 +164,8 @@ model Rider {
   operationalStatus          OperationalStatus @default(OFFLINE)
   onboardingData             Json              @default("{}")
   neighborhood               String?
+  regionId                   String?
+  region                     Region?   @relation(fields: [regionId], references: [id], onDelete: SetNull)
   location                   RiderLocation?
   inspections                RiderInspection[]
   payoutRequests             RiderPayoutRequest[]
@@ -222,6 +224,33 @@ enum OperationalStatus {
   OFFLINE
   ONLINE
   BUSY
+}
+
+enum RegionType {
+  CONTINENT
+  COUNTRY
+  STATE
+}
+
+model Region {
+  id        String     @id @default(cuid())
+  type      RegionType
+  name      String
+  code      String?    @unique
+  parentId  String?
+  parent    Region?    @relation("RegionChildren", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Region[]   @relation("RegionChildren")
+  path      String     @default("/")
+  isCovered Boolean    @default(false)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  cookProfiles CookProfile[]
+  riders       Rider[]
+  managementEmployees ManagementEmployee[]
+
+  @@index([parentId])
+  @@index([path])
 }
 
 enum KycStatus {
@@ -513,6 +542,8 @@ model CookProfile {
   banReason            String?
   neighborhood         String?
   neighborhoods        String[]          @default([])
+  regionId             String?
+  region               Region?   @relation(fields: [regionId], references: [id], onDelete: SetNull)
   approvedById         String?
   approvedAt           DateTime?
   approvedBy           User?             @relation("CookApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
@@ -793,6 +824,8 @@ model ManagementEmployee {
   department       String?
   status           ManagementEmployeeStatus @default(INVITED)
   limits           Json?                  @default("{}")
+  regionId         String?
+  region           Region?                @relation(fields: [regionId], references: [id], onDelete: SetNull)
   areas            ModeratorArea[]
   balanceKobo      Int                    @default(0)
   bankName         String?

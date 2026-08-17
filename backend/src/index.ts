@@ -31,6 +31,7 @@ import evidenceRouter from './routes/evidence.js';
 import legalRouter from './routes/legal.js';
 import moderatorRouter from './routes/moderator.js';
 import moderatorsAdminRouter from './routes/moderatorsAdmin.js';
+import regionsRouter from './routes/regions.js';
 import webhooksRouter from './routes/webhooks.js';
 import { rateLimit } from './middleware/rateLimit.js';
 import { ApiError } from './lib/errors.js';
@@ -90,6 +91,7 @@ app.use('/api/evidence', evidenceRouter);
 app.use('/api/legal', legalRouter);
 app.use('/api/moderator', moderatorRouter);
 app.use('/api/admin/moderators', moderatorsAdminRouter);
+app.use('/api/admin/regions', regionsRouter);
 app.use('/api/neighborhoods', neighborhoodsRouter);
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
