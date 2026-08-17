@@ -25,7 +25,7 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
       res.status(401).json({ error: 'Unauthorized or suspended' });
       return;
     }
-    req.user = { id: user.id, email: user.email, role: user.role, roles: Array.isArray(user.roles) ? user.roles : [user.role] };
+    req.user = { id: user.id, email: user.email, role: user.role, roles: user.roles?.length ? user.roles : [user.role] };
     next();
   } catch {
     res.status(401).json({ error: 'Invalid token' });

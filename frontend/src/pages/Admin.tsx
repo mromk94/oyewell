@@ -34,6 +34,7 @@ import ManagementDashboard from '../components/admin/ManagementDashboard';
 import ModerationPanel from '../components/admin/ModerationPanel';
 import RegionsTab from '../components/admin/RegionsTab';
 import UsersTab from '../components/admin/UsersTab';
+import AdminDashboard from '../components/admin/AdminDashboard';
 import DeliveryTab from '../components/admin/DeliveryTab';
 import RidersTab from '../components/admin/RidersTab';
 import ModeratorsTab from '../components/admin/ModeratorsTab';
@@ -335,89 +336,7 @@ export default function Admin() {
         {loading && <p className="text-white/60">Loading...</p>}
         {error && <p className="text-red-300">{error}</p>}
 
-        {tab === 'dashboard' && dashboard && (
-          <div className="space-y-6">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h2 className="text-2xl font-black text-white">Dashboard overview</h2>
-                <p className="text-white/60">Today's snapshot of orders, revenue and activity.</p>
-              </div>
-              <span className="text-sm text-white/50">{new Date().toLocaleDateString('en-NG', { dateStyle: 'long' })}</span>
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {[
-                { label: 'Active orders', value: dashboard.active, color: 'bg-blue-500/10 text-blue-300' },
-                { label: 'New orders', value: dashboard.new, color: 'bg-yellow-500/10 text-yellow-300' },
-                { label: 'Preparing', value: dashboard.preparing, color: 'bg-purple-500/10 text-purple-300' },
-                { label: 'Out for delivery', value: dashboard.outForDelivery, color: 'bg-cyan-500/10 text-cyan-300' },
-                { label: 'Riders online', value: dashboard.ridersOnline ?? 0, color: 'bg-emerald-500/10 text-emerald-300' },
-                { label: 'Completed', value: dashboard.completed, color: 'bg-emerald-500/10 text-emerald-300' },
-                { label: 'Revenue', value: formatPrice(dashboard.revenueKobo ?? 0), color: 'bg-white/10 text-white' },
-              ].map((stat) => (
-                <div
-                  key={stat.label}
-                  className={`rounded-2xl border border-white/10 p-5 ${stat.color}`}
-                >
-                  <p className="text-sm opacity-80">{stat.label}</p>
-                  <p className="mt-2 text-3xl font-black">{stat.value}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="grid gap-4 lg:grid-cols-2">
-              {dashboard.popularItems?.length > 0 && (
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-                  <h3 className="flex items-center gap-2 text-lg font-bold text-white">
-                    <TrendingUp className="h-5 w-5 text-emerald-300" /> Popular items
-                  </h3>
-                  <div className="mt-4 space-y-3">
-                    {dashboard.popularItems.map((item: any) => (
-                      <div key={item.foodName} className="flex items-center justify-between text-white/90">
-                        <span>{item.foodName}</span>
-                        <span className="rounded-full bg-white/10 px-2 py-1 text-xs font-bold text-white">{item._count.id} orders</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {dashboard.lowStockFoods?.length > 0 && (
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-                  <h3 className="flex items-center gap-2 text-lg font-bold text-white">
-                    <AlertTriangle className="h-5 w-5 text-yellow-300" /> Low stock alerts
-                  </h3>
-                  <div className="mt-4 space-y-3">
-                    {dashboard.lowStockFoods.map((item: any) => (
-                      <div key={item.id} className="flex items-center justify-between text-white/90">
-                        <span>{item.name}</span>
-                        <span className="rounded-full bg-red-500/20 px-2 py-1 text-xs font-bold text-red-300">No options</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-                <h3 className="flex items-center gap-2 text-lg font-bold text-white">
-                  <Map className="h-5 w-5 text-emerald-300" /> Active deliveries by zone
-                </h3>
-                <div className="mt-4 space-y-3">
-                  {dashboard.ordersByZone?.length > 0 ? (
-                    dashboard.ordersByZone.map((item: any) => (
-                      <div key={item.deliveryZoneId} className="flex items-center justify-between text-white/90">
-                        <span>{item.deliveryZoneId || 'Unzoned'}</span>
-                        <span className="rounded-full bg-white/10 px-2 py-1 text-xs font-bold text-white">{item._count.id} orders</span>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-white/50">No active deliveries right now.</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {tab === 'dashboard' && dashboard && <AdminDashboard dashboard={dashboard} />}
 
         {tab === 'menu' && <MenuTabNew foods={foods} onRefresh={loadTab} />}
         {tab === 'orders' && <OrdersTabNew orders={orders} onRefresh={loadTab} />}

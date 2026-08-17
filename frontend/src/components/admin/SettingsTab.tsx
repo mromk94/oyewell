@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Map, Store, CheckCircle, Loader2 } from 'lucide-react';
+import { Map, Store, CheckCircle, Loader2, Megaphone } from 'lucide-react';
 import { updateSettings } from '../../lib/admin';
 import { toast } from '../../lib/toast';
 
-type SubTab = 'restaurant' | 'map';
+type SubTab = 'restaurant' | 'map' | 'ads';
 
 const TABS: { id: SubTab; label: string; icon: any }[] = [
   { id: 'restaurant', label: 'Restaurant', icon: Store },
   { id: 'map', label: 'Map & Geocoding', icon: Map },
+  { id: 'ads', label: 'Google Ads', icon: Megaphone },
 ];
 
 export default function SettingsTab({ settings, onRefresh }: { settings: any; onRefresh: () => void }) {
@@ -20,6 +21,7 @@ export default function SettingsTab({ settings, onRefresh }: { settings: any; on
   const [lat, setLat] = useState(settings?.latitude != null ? String(settings.latitude) : '');
   const [lng, setLng] = useState(settings?.longitude != null ? String(settings.longitude) : '');
   const [mapSettings, setMapSettings] = useState<any>(settings?.mapSettings ?? {});
+  const [googleAds, setGoogleAds] = useState<any>(settings?.googleAds ?? { enabled: false, conversionId: '', conversionLabel: '', remarketingId: '' });
 
   useEffect(() => {
     setName(settings?.name ?? '');
@@ -28,6 +30,7 @@ export default function SettingsTab({ settings, onRefresh }: { settings: any; on
     setLat(settings?.latitude != null ? String(settings.latitude) : '');
     setLng(settings?.longitude != null ? String(settings.longitude) : '');
     setMapSettings(settings?.mapSettings ?? {});
+    setGoogleAds(settings?.googleAds ?? { enabled: false, conversionId: '', conversionLabel: '', remarketingId: '' });
   }, [settings]);
 
   async function handleSave(e: React.FormEvent) {
@@ -41,6 +44,7 @@ export default function SettingsTab({ settings, onRefresh }: { settings: any; on
         latitude: lat,
         longitude: lng,
         mapSettings,
+        googleAds,
       });
       onRefresh();
       toast.success('Settings saved and applied');
@@ -156,6 +160,42 @@ export default function SettingsTab({ settings, onRefresh }: { settings: any; on
                 />
               </>
             )}
+          </div>
+        )}
+
+        {subTab === 'ads' && (
+          <div className='space-y-4'>
+            <h3 className='text-lg font-semibold text-white'>Google Ads / Conversions</h3>
+            <p className='text-sm text-white/60'>
+              Configure Google Ads conversion tracking. The frontend will inject the gtag snippet when enabled.
+            </p>
+            <label className='flex items-center gap-2 text-white/80'>
+              <input
+                type='checkbox'
+                checked={googleAds?.enabled ?? false}
+                onChange={(e) => setGoogleAds({ ...googleAds, enabled: e.target.checked })}
+                className='h-4 w-4 accent-emerald-500'
+              />
+              Enable Google Ads conversion tracking
+            </label>
+            <input
+              placeholder='Conversion ID (e.g. AW-123456789)'
+              value={googleAds?.conversionId ?? ''}
+              onChange={(e) => setGoogleAds({ ...googleAds, conversionId: e.target.value })}
+              className='w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white'
+            />
+            <input
+              placeholder='Conversion label (e.g. abcdef)'
+              value={googleAds?.conversionLabel ?? ''}
+              onChange={(e) => setGoogleAds({ ...googleAds, conversionLabel: e.target.value })}
+              className='w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white'
+            />
+            <input
+              placeholder='Remarketing ID (optional)'
+              value={googleAds?.remarketingId ?? ''}
+              onChange={(e) => setGoogleAds({ ...googleAds, remarketingId: e.target.value })}
+              className='w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white'
+            />
           </div>
         )}
 

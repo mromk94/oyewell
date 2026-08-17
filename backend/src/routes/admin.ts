@@ -25,7 +25,11 @@ router.get('/dashboard', async (_req, res, next) => {
     const data = await cache.getOrSet(
       DASHBOARD_CACHE_KEY,
       async () => {
-        const [active, newOrders, preparing, outForDelivery, completed, revenueAgg, foods, popularItems, ridersOnline, ordersByZone] = await Promise.all([
+        const today = new Date();
+        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+        const [active, newOrders, preparing, outForDelivery, completed, revenueAgg, foods, popularItems, ridersOnline, ordersByZone, totalUsers, newUsersToday, usersByRole, usersByStatus, activeCooks, pendingApprovals, openIssues] = await Promise.all([
           prisma.order.count({
             where: { status: { in: ['PENDING_PAYMENT', 'PAID', 'CONFIRMED', 'PREPARING', 'READY_FOR_DISPATCH', 'OUT_FOR_DELIVERY'] } },
           }),
@@ -53,6 +57,62 @@ router.get('/dashboard', async (_req, res, next) => {
             where: { status: 'OUT_FOR_DELIVERY' },
             _count: { id: true },
           }),
+          prisma.user.count(),
+          prisma.user.count({ where: { createdAt: { gte: startOfDay } } }),
+          prisma.user.groupBy({ by: ['role'], _count: { id: true } }),
+          prisma.user.groupBy({ by: ['isActive'], _count: { id: true } }),
+          prisma.cookProfile.count({ where: { kitchenStatus: 'OPEN', isActive: true } }),
+          prisma.cookProfile.count({ where: { profileStatus: 'PENDING_APPROVAL' } })
+            .then(async (cooksPending) => ({
+              cooks: cooksPending,
+              foods: await prisma.food.count({ where: { status: 'PENDING_REVIEW' } }),
+              listings: await prisma.cookListing.count({ where: { status: 'PENDING_REVIEW' } }),
+              riders: await prisma.rider.count({ where: { isApproved: false } }),
+            })),
+          Promise.all([
+            prisma.ticket.count({ where: { status: 'OPEN' } }),
+            prisma.dispute.count({ where: { status: 'OPEN' } }),
+            prisma.report.count({ where: { status: 'OPEN' } }),
+          ]),
+        ]);
+
+        const [revenueByDay, ordersByDay, topRegions, recentAuditLogs, settings] = await Promise.all([
+          Promise.all(
+            Array.from({ length: 7 }).map((_, i) => {
+              const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+              const next = new Date(d.getTime() + 24 * 60 * 60 * 1000);
+              return prisma.order.aggregate({
+                where: { createdAt: { gte: d, lt: next }, paymentStatus: 'PAID' },
+                _sum: { totalKobo: true },
+                _count: { id: true },
+              }).then((agg) => ({ date: d.toISOString().slice(0, 10), revenueKobo: agg._sum?.totalKobo ?? 0, orders: agg._count?.id ?? 0 }));
+            })
+          ),
+          Promise.all(
+            Array.from({ length: 7 }).map((_, i) => {
+              const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - i);
+              const next = new Date(d.getTime() + 24 * 60 * 60 * 1000);
+              return Promise.all([
+                prisma.order.count({ where: { createdAt: { gte: d, lt: next } } }),
+                prisma.user.count({ where: { createdAt: { gte: d, lt: next } } }),
+              ]).then(([orders, users]) => ({ date: d.toISOString().slice(0, 10), orders, users }));
+            })
+          ),
+          prisma.order.groupBy({
+            by: ['regionId'],
+            take: 5,
+            _count: { id: true },
+            orderBy: { _count: { id: 'desc' } },
+          }),
+          getAuditLogs({ from: sevenDaysAgo, take: 20 }),
+          (async () => {
+            try {
+              const s = await prisma.restaurantSetting.findFirst({ select: { googleAds: true } });
+              return (s?.googleAds as any) ?? null;
+            } catch {
+              return null;
+            }
+          })(),
         ]);
 
         return {
@@ -66,6 +126,18 @@ router.get('/dashboard', async (_req, res, next) => {
           popularItems,
           ridersOnline,
           ordersByZone,
+          totalUsers,
+          newUsersToday,
+          usersByRole,
+          usersByStatus,
+          activeCooks,
+          pendingApprovals,
+          openIssues: { tickets: openIssues[0], disputes: openIssues[1], reports: openIssues[2] },
+          revenueByDay,
+          activityByDay: ordersByDay,
+          topRegions,
+          recentAuditLogs,
+          googleAds: settings,
         };
       },
       { ttlSeconds: DASHBOARD_TTL, jitter: true },
@@ -407,6 +479,9 @@ router.put('/settings', async (req, res, next) => {
     if (body.longitude !== undefined) data.longitude = body.longitude === null || body.longitude === '' ? null : Number(body.longitude);
     if (body.mapSettings !== undefined) {
       data.mapSettings = typeof body.mapSettings === 'object' ? (body.mapSettings as Record<string, unknown>) : {};
+    }
+    if (body.googleAds !== undefined) {
+      data.googleAds = typeof body.googleAds === 'object' ? (body.googleAds as Record<string, unknown>) : {};
     }
 
     const setting = await prisma.restaurantSetting.upsert({
