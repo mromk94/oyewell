@@ -13,6 +13,7 @@ async function requireModerator(req: AuthRequest, res: any, next: any) {
     include: {
       user: { select: { id: true, email: true, firstName: true, lastName: true, roles: true } },
       tier: { include: { permissions: { include: { permission: { select: { key: true } } } } } },
+      region: true,
       areas: true,
     },
   });
@@ -21,6 +22,23 @@ async function requireModerator(req: AuthRequest, res: any, next: any) {
   }
   (req as any).employee = employee;
   next();
+}
+
+function regionWhere(employee: any, relation: 'cook' | 'rider' | 'order' = 'rider') {
+  const region = employee.region;
+  if (!region) return {};
+  const path = { path: { startsWith: region.path } };
+  if (relation === 'cook') return { cook: { region: path } };
+  if (relation === 'order') return { order: { cook: { region: path } } };
+  return { region: path };
+}
+
+function assertCanModerate(employee: any, targetPath?: string | null) {
+  const region = employee.region;
+  if (!region) return; // main admin / no region can moderate everything
+  if (!targetPath || !targetPath.startsWith(region.path)) {
+    throw new ApiError(403, 'Target is outside your region');
+  }
 }
 
 router.post('/apply', requireAuth, async (req: AuthRequest, res, next) => {
@@ -230,9 +248,10 @@ router.patch('/reports/:id', async (req: AuthRequest, res, next) => {
 
 router.get('/approvals/cooks', async (req: AuthRequest, res, next) => {
   try {
+    const employee = (req as any).employee;
     const cooks = await prisma.cookProfile.findMany({
-      where: { profileStatus: 'PENDING_APPROVAL' },
-      include: { user: { select: { id: true, email: true, firstName: true, lastName: true } } },
+      where: { profileStatus: 'PENDING_APPROVAL', ...regionWhere(employee) },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true } }, region: true },
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
@@ -247,8 +266,9 @@ router.patch('/approvals/cooks/:id', async (req: AuthRequest, res, next) => {
     const employee = (req as any).employee;
     const { action, note } = req.body as { action: 'approve' | 'reject' | 'more-info'; note?: string };
     const id = req.params.id;
-    const cook = await prisma.cookProfile.findUnique({ where: { id } });
+    const cook = await prisma.cookProfile.findUnique({ where: { id }, include: { region: true } });
     if (!cook) throw new ApiError(404, 'Cook not found');
+    assertCanModerate(employee, cook.region?.path);
     const profileStatus = action === 'approve' ? 'APPROVED' : action === 'reject' ? 'REJECTED' : 'PENDING_APPROVAL';
     const approvedData = action === 'approve' ? { approvedById: employee.user.id, approvedAt: new Date() } : {};
     const updated = await prisma.cookProfile.update({
@@ -271,9 +291,10 @@ router.patch('/approvals/cooks/:id', async (req: AuthRequest, res, next) => {
 
 router.get('/approvals/foods', async (req: AuthRequest, res, next) => {
   try {
+    const employee = (req as any).employee;
     const foods = await prisma.food.findMany({
-      where: { status: 'PENDING_REVIEW' as any },
-      include: { options: true },
+      where: { status: 'PENDING_REVIEW' as any, ...regionWhere(employee, 'cook') },
+      include: { options: true, cook: { include: { region: true } } },
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
@@ -288,8 +309,9 @@ router.patch('/approvals/foods/:id', async (req: AuthRequest, res, next) => {
     const employee = (req as any).employee;
     const { action } = req.body as { action: 'approve' | 'reject' };
     const id = req.params.id;
-    const food = await prisma.food.findUnique({ where: { id } });
+    const food = await prisma.food.findUnique({ where: { id }, include: { cook: { include: { region: true } } } });
     if (!food) throw new ApiError(404, 'Food not found');
+    assertCanModerate(employee, food.cook?.region?.path);
     const status = (action === 'approve' ? 'PUBLISHED' : 'REJECTED') as any;
     const isAvailable = action === 'approve';
     const approvedFood = action === 'approve' ? { approvedById: employee.user.id, approvedAt: new Date() } : {};
@@ -312,9 +334,10 @@ router.patch('/approvals/foods/:id', async (req: AuthRequest, res, next) => {
 
 router.get('/approvals/listings', async (req: AuthRequest, res, next) => {
   try {
+    const employee = (req as any).employee;
     const listings = await prisma.cookListing.findMany({
-      where: { status: 'PENDING_REVIEW' },
-      include: { cook: true },
+      where: { status: 'PENDING_REVIEW', ...regionWhere(employee, 'cook') },
+      include: { cook: { include: { region: true } } },
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
@@ -329,8 +352,9 @@ router.patch('/approvals/listings/:id', async (req: AuthRequest, res, next) => {
     const employee = (req as any).employee;
     const { action } = req.body as { action: 'approve' | 'reject' };
     const id = req.params.id;
-    const listing = await prisma.cookListing.findUnique({ where: { id } });
+    const listing = await prisma.cookListing.findUnique({ where: { id }, include: { cook: { include: { region: true } } } });
     if (!listing) throw new ApiError(404, 'Listing not found');
+    assertCanModerate(employee, listing.cook?.region?.path);
     const status = (action === 'approve' ? 'APPROVED' : 'REJECTED') as any;
     const isActive = action === 'approve';
     const approvedListing = action === 'approve' ? { approvedById: employee.user.id, approvedAt: new Date() } : {};
@@ -353,9 +377,10 @@ router.patch('/approvals/listings/:id', async (req: AuthRequest, res, next) => {
 
 router.get('/approvals/riders', async (req: AuthRequest, res, next) => {
   try {
+    const employee = (req as any).employee;
     const riders = await prisma.rider.findMany({
-      where: { isApproved: false },
-      include: { user: { select: { id: true, email: true, firstName: true, lastName: true } } },
+      where: { isApproved: false, ...regionWhere(employee) },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true } }, region: true },
       orderBy: { createdAt: 'desc' },
       take: 100,
     });
@@ -370,8 +395,9 @@ router.patch('/approvals/riders/:id', async (req: AuthRequest, res, next) => {
     const employee = (req as any).employee;
     const { action } = req.body as { action: 'approve' | 'reject' };
     const id = req.params.id;
-    const rider = await prisma.rider.findUnique({ where: { id } });
+    const rider = await prisma.rider.findUnique({ where: { id }, include: { region: true } });
     if (!rider) throw new ApiError(404, 'Rider not found');
+    assertCanModerate(employee, rider.region?.path);
     const isApproved = action === 'approve';
     const updated = await prisma.rider.update({
       where: { id },
