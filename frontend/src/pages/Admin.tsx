@@ -20,6 +20,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Menu,
+  Shield,
 } from 'lucide-react';
 import Logo from '../components/Logo';
 import { MapView } from '../components/MapView';
@@ -34,6 +35,7 @@ import ModerationPanel from '../components/admin/ModerationPanel';
 import CustomersTab from '../components/admin/CustomersTab';
 import DeliveryTab from '../components/admin/DeliveryTab';
 import RidersTab from '../components/admin/RidersTab';
+import ModeratorsTab from '../components/admin/ModeratorsTab';
 import SettingsTab from '../components/admin/SettingsTab';
 import {
   adminLogin,
@@ -66,7 +68,7 @@ import {
   settleCookEarnings,
 } from '../lib/admin';
 
-type Tab = 'dashboard' | 'menu' | 'orders' | 'sides' | 'customers' | 'delivery' | 'payments' | 'settings' | 'email' | 'riders' | 'live-map' | 'cooks' | 'cook-listings' | 'cook-earnings' | 'management' | 'moderation';
+type Tab = 'dashboard' | 'menu' | 'orders' | 'sides' | 'customers' | 'delivery' | 'payments' | 'settings' | 'email' | 'riders' | 'live-map' | 'cooks' | 'cook-listings' | 'cook-earnings' | 'management' | 'moderation' | 'moderators';
 
 const TABS: Tab[] = [
   'dashboard',
@@ -83,6 +85,7 @@ const TABS: Tab[] = [
   'cook-earnings',
   'management',
   'moderation',
+  'moderators',
   'settings',
   'email',
 ];
@@ -262,6 +265,7 @@ export default function Admin() {
           { id: 'cook-earnings', label: 'Cook Earnings', icon: TrendingUp },
           { id: 'management', label: 'Management', icon: LayoutDashboard },
           { id: 'moderation', label: 'Moderation', icon: AlertTriangle },
+          { id: 'moderators', label: 'Moderators', icon: Shield },
           { id: 'settings', label: 'Settings', icon: Settings },
           { id: 'email', label: 'Email', icon: Mail },
         ].map(({ id, label, icon: Icon }) => (
@@ -423,6 +427,7 @@ export default function Admin() {
         {tab === 'cook-earnings' && <CookEarningsTab earnings={cookEarnings} onRefresh={loadTab} />}
         {tab === 'management' && <ManagementDashboard />}
         {tab === 'moderation' && <ModerationPanel />}
+        {tab === 'moderators' && <ModeratorsTab />}
       </main>
     </div>
   );

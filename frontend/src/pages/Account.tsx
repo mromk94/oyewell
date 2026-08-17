@@ -85,25 +85,29 @@ function QuickActions({
         >
           <ChefHat className='h-4 w-4' /> {cookProfile ? 'Cook portal' : 'Become a cook'}
         </button>
-        {deliveryApp ? (
+        {deliveryApp?.isApproved ? (
+          <Link
+            to='/rider'
+            className='inline-flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-emerald-400'
+          >
+            <Bike className='h-4 w-4' /> Open rider dashboard
+          </Link>
+        ) : deliveryApp ? (
           <button
             onClick={() => setShowApply(true)}
-            disabled={deliveryApp.isApproved}
-            className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20 disabled:opacity-50'
+            className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20'
           >
             <Bike className='h-4 w-4' />
-            {deliveryApp.isApproved
-              ? 'Delivery partner'
-              : deliveryApp.neighborhoodApproval === 'REJECTED'
-                ? 'Reapply to deliver'
-                : 'Application: ' + deliveryApp.neighborhoodApproval.toLowerCase()}
+            {deliveryApp.neighborhoodApproval === 'REJECTED'
+              ? 'Reapply to deliver'
+              : 'Application: ' + deliveryApp.neighborhoodApproval.toLowerCase()}
           </button>
         ) : (
           <button
             onClick={() => setShowApply(true)}
             className='inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-white/20'
           >
-            <Bike className='h-4 w-4' /> {hasRole(customer, 'RIDER') ? 'Delivery portal' : 'Make money on OyeWell'}
+            <Bike className='h-4 w-4' /> Make money on OyeWell
           </button>
         )}
         {hasRole(customer, 'ADMIN') && (

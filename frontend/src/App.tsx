@@ -6,6 +6,7 @@ import Rider from './pages/Rider';
 import Cook from './pages/Cook';
 import CookListingDetail from './pages/CookListingDetail';
 import Admin from './pages/Admin';
+import Moderate from './pages/Moderate';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Account from './pages/Account';
@@ -20,6 +21,8 @@ import NotificationBell from './components/NotificationBell';
 function App() {
   const location = useLocation();
   const isAdmin = location.pathname === '/admin';
+  const isModerate = location.pathname === '/moderate';
+  const hideNav = isAdmin || isModerate;
 
   return (
     <>
@@ -34,12 +37,13 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/account" element={<Account />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/moderate" element={<Moderate />} />
       </Routes>
-      {!isAdmin && <CartButton />}
-      {!isAdmin && <CartModal />}
-      {!isAdmin && <NotificationBell />}
-      {!isAdmin && <AccountButton />}
-      {!isAdmin && <AuthModal />}
+      {!hideNav && <CartButton />}
+      {!hideNav && <CartModal />}
+      {!hideNav && <NotificationBell />}
+      {!hideNav && <AccountButton />}
+      {!hideNav && <AuthModal />}
       <InstallPrompt />
       <NotificationListener />
     </>
