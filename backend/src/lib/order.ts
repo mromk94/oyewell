@@ -85,7 +85,7 @@ async function createCookOrder(payload: CookOrderPayload) {
     throw new ApiError(400, 'Not enough stock');
   }
 
-  const subtotalKobo = listing.priceKobo * quantity;
+  const subtotalKobo = (listing.priceKobo + (listing.packagingCostKobo ?? 0)) * quantity;
   const delivery = await resolveDelivery(address, subtotalKobo, deliveryType as any, [listing.cookId ?? 'restaurant'], providedCoords);
   if (!delivery || !delivery.available) {
     throw new ApiError(400, 'Delivery is not available for this address', 'DELIVERY_UNAVAILABLE');
@@ -121,6 +121,7 @@ async function createCookOrder(payload: CookOrderPayload) {
         deliveryType: deliveryType as any,
         idempotencyKey: idempotencyKey || undefined,
         deliveryFeeKobo: delivery.feeKobo,
+        riderFeeKobo: delivery.riderFeeKobo ?? delivery.feeKobo,
         subtotalKobo,
         totalKobo,
         deliveryCode: await generateDeliveryCode(),
@@ -241,7 +242,8 @@ export async function createOrder(payload: OrderPayload) {
         })
       : [];
 
-    let itemSubtotalKobo = option.priceKobo * item.quantity;
+    const packagingCostKobo = food.packagingCostKobo ?? 0;
+    let itemSubtotalKobo = (option.priceKobo + packagingCostKobo) * item.quantity;
     for (const side of sides) {
       itemSubtotalKobo += side.priceKobo * item.quantity;
       const existing = selectedSides.get(side.id);
@@ -262,7 +264,7 @@ export async function createOrder(payload: OrderPayload) {
       optionValue: option.value,
       unitPriceKobo: option.priceKobo,
       quantity: item.quantity,
-      totalKobo: option.priceKobo * item.quantity,
+      totalKobo: (option.priceKobo + packagingCostKobo) * item.quantity,
       orderingMode: food.orderingMode,
     });
   }
@@ -304,6 +306,7 @@ export async function createOrder(payload: OrderPayload) {
         deliveryType: deliveryType as any,
         idempotencyKey: idempotencyKey || undefined,
         deliveryFeeKobo: delivery.feeKobo,
+        riderFeeKobo: delivery.riderFeeKobo ?? delivery.feeKobo,
         subtotalKobo,
         totalKobo,
         deliveryCode: await generateDeliveryCode(),

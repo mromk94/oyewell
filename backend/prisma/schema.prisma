@@ -62,23 +62,24 @@ enum FoodStatus {
 }
 
 model Food {
-  id           String       @id @default(cuid())
-  name         String
-  slug         String       @unique
-  description  String?
-  heroImage    String?
-  galleryImages String[]
-  videos       String[]
-  status       FoodStatus   @default(DRAFT)
-  isAvailable  Boolean      @default(true)
-  featured     Boolean      @default(false)
-  displayOrder Int          @default(0)
-  orderingMode OrderingMode @default(PLATE)
-  cookId       String?
-  cook         CookProfile? @relation(fields: [cookId], references: [id], onDelete: SetNull)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  options      FoodOption[]
+  id                String       @id @default(cuid())
+  name              String
+  slug              String       @unique
+  description       String?
+  heroImage         String?
+  galleryImages     String[]
+  videos            String[]
+  packagingCostKobo Int          @default(0)
+  status            FoodStatus   @default(DRAFT)
+  isAvailable       Boolean      @default(true)
+  featured          Boolean      @default(false)
+  displayOrder      Int          @default(0)
+  orderingMode      OrderingMode @default(PLATE)
+  cookId            String?
+  cook              CookProfile? @relation(fields: [cookId], references: [id], onDelete: SetNull)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  options           FoodOption[]
 
   @@index([cookId])
 }
@@ -521,6 +522,7 @@ model CookListing {
   title                String
   description          String?
   priceKobo            Int
+  packagingCostKobo    Int               @default(0)
   currency             String            @default("NGN")
   portionDescription   String?
   prepTimeMinutesMin   Int?

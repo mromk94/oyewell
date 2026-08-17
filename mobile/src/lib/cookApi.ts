@@ -43,6 +43,7 @@ export interface CookListing {
   title: string;
   description?: string | null;
   priceKobo: number;
+  packagingCostKobo: number;
   price: string;
   currency: string;
   portionDescription?: string | null;
@@ -65,6 +66,7 @@ export interface CookListingInput {
   title: string;
   description?: string;
   priceKobo: number;
+  packagingCostKobo: number;
   portionDescription?: string;
   prepTimeMinutesMin?: number;
   prepTimeMinutesMax?: number;

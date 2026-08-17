@@ -21,6 +21,7 @@ export function CookListingFormScreen() {
     title: listing?.title ?? '',
     description: listing?.description ?? '',
     price: listing ? (listing.priceKobo / 100).toFixed(2) : '',
+    packaging: listing ? ((listing.packagingCostKobo ?? 0) / 100).toFixed(2) : '',
     portionDescription: listing?.portionDescription ?? '',
     prepTime: listing?.prepTimeMinutesMax ? String(listing.prepTimeMinutesMax) : '',
     quantity: listing ? String(listing.quantity ?? listing.stock ?? '') : '',
@@ -68,6 +69,11 @@ export function CookListingFormScreen() {
       setError('A valid price is required');
       return;
     }
+    const packagingCostKobo = Math.round(Number(form.packaging) * 100);
+    if (Number.isNaN(packagingCostKobo) || packagingCostKobo < 0) {
+      setError('Packaging cost must be a valid number');
+      return;
+    }
     const quantity = Number(form.quantity) || 0;
     if (quantity <= 0) {
       setError('How many can you make? is required');
@@ -91,6 +97,7 @@ export function CookListingFormScreen() {
         title: form.title.trim(),
         description: form.description.trim() || undefined,
         priceKobo,
+        packagingCostKobo,
         portionDescription: form.portionDescription.trim() || undefined,
         prepTimeMinutesMin: undefined,
         prepTimeMinutesMax: form.prepTime ? Number(form.prepTime) : undefined,
@@ -131,6 +138,14 @@ export function CookListingFormScreen() {
           placeholderTextColor={colors.muted}
           value={form.price}
           onChangeText={(v) => update('price', v)}
+          keyboardType="decimal-pad"
+        />
+        <TextInput
+          style={styles.input}
+          placeholder="Packaging cost (NGN)"
+          placeholderTextColor={colors.muted}
+          value={form.packaging}
+          onChangeText={(v) => update('packaging', v)}
           keyboardType="decimal-pad"
         />
         <TextInput style={styles.input} placeholder="Portion (e.g., 1 plate)" placeholderTextColor={colors.muted} value={form.portionDescription} onChangeText={(v) => update('portionDescription', v)} />

@@ -225,6 +225,7 @@ export async function resolveDelivery(address: string, subtotalKobo: number, typ
   return {
     zone,
     feeKobo,
+    riderFeeKobo: feeKobo,
     platformFeeKobo,
     totalKobo,
     available: true,

@@ -533,6 +533,7 @@ function AddFoodPanel({
     title: '',
     description: '',
     price: '',
+    packaging: '',
     portionDescription: '',
     prepTime: '',
     quantity: '',
@@ -552,6 +553,7 @@ function AddFoodPanel({
         title: '',
         description: '',
         price: '',
+        packaging: '',
         portionDescription: '',
         prepTime: '',
         quantity: '',
@@ -566,6 +568,7 @@ function AddFoodPanel({
       title: editing.title,
       description: editing.description ?? '',
       price: (editing.priceKobo / 100).toFixed(2),
+      packaging: ((editing.packagingCostKobo ?? 0) / 100).toFixed(2),
       portionDescription: editing.portionDescription ?? '',
       prepTime: editing.prepTimeMinutesMax ? String(editing.prepTimeMinutesMax) : '',
       quantity: String(editing.quantity ?? editing.stock ?? ''),
@@ -619,10 +622,13 @@ function AddFoodPanel({
     try {
       const priceKobo = Math.round(Number(form.price) * 100);
       if (Number.isNaN(priceKobo) || priceKobo <= 0) throw new Error('Price is required');
+      const packagingCostKobo = Math.round(Number(form.packaging) * 100);
+      if (Number.isNaN(packagingCostKobo) || packagingCostKobo < 0) throw new Error('Packaging cost must be a valid number');
       const payload = {
         title: form.title,
         description: form.description,
         priceKobo,
+        packagingCostKobo,
         portionDescription: form.portionDescription,
         prepTimeMinutesMax: Number(form.prepTime) || undefined,
         quantity: Number(form.quantity) || 0,
@@ -666,6 +672,15 @@ function AddFoodPanel({
           onChange={(e) => setForm({ ...form, price: e.target.value })}
           className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
           required
+        />
+        <input
+          type='number'
+          step='0.01'
+          min='0'
+          placeholder='Packaging cost (NGN)'
+          value={form.packaging}
+          onChange={(e) => setForm({ ...form, packaging: e.target.value })}
+          className='w-full rounded-2xl border border-white/10 bg-white/5 p-4 text-white outline-none focus:border-white'
         />
         <input
           placeholder='Portion (e.g., 1 plate)'

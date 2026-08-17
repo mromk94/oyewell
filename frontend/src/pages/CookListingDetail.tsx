@@ -43,6 +43,7 @@ export default function CookListingDetail() {
       cookName: listing.cook.displayName,
       unitLabel: listing.portionDescription ?? 'Unit',
       priceKobo: listing.priceKobo,
+      packagingCostKobo: listing.packagingCostKobo ?? 0,
       foodImage: listing.media?.[0]?.url,
       quantity,
     });
@@ -62,7 +63,7 @@ export default function CookListingDetail() {
   }
 
   const media = listing.media?.length ? listing.media : [{ url: '/food-placeholder.svg', type: 'IMAGE' } as any];
-  const subtotal = listing.priceKobo * quantity;
+  const subtotal = (listing.priceKobo + (listing.packagingCostKobo ?? 0)) * quantity;
 
   return (
     <div className="min-h-screen bg-brand-900">

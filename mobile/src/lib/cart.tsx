@@ -18,6 +18,7 @@ export interface CartItem {
   cookName?: string;
   unitLabel?: string;
   priceKobo: number;
+  packagingCostKobo: number;
   quantity: number;
 }
 
@@ -55,10 +56,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const totalKobo = useMemo(
     () =>
       items.reduce((sum, item) => {
-        if (item.source === 'COOK') return sum + item.priceKobo * item.quantity;
+        if (item.source === 'COOK') return sum + (item.priceKobo + (item.packagingCostKobo ?? 0)) * item.quantity;
         const optionTotal = (item.option?.priceKobo ?? 0) * item.quantity;
+        const packagingTotal = (item.packagingCostKobo ?? 0) * item.quantity;
         const sidesTotal = (item.sides ?? []).reduce((s, side) => s + (side?.priceKobo ?? 0), 0) * item.quantity;
-        return sum + optionTotal + sidesTotal;
+        return sum + optionTotal + packagingTotal + sidesTotal;
       }, 0),
     [items]
   );

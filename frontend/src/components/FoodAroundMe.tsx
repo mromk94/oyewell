@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { MapPin, Loader2, AlertCircle, Search } from 'lucide-react';
-import CookListingCard from './CookListingCard';
-import { MapView } from './MapView';
+import CookListingFeed from './CookListingFeed';
 import { fetchCookListingsAroundMe, type CookListing } from '../lib/listings';
 import { type DiscoveryFiltersState } from './DiscoveryFilters';
 
@@ -12,13 +9,11 @@ interface Props {
 }
 
 export default function FoodAroundMe({ filters }: Props) {
-  const navigate = useNavigate();
   const [listings, setListings] = useState<CookListing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [address, setAddress] = useState('');
   const [usingAddress, setUsingAddress] = useState(false);
-  const [center, setCenter] = useState<{ lat: number; lng: number } | null>(null);
 
   async function load(search: { lat: number; lng: number } | { address: string }) {
     setLoading(true);
@@ -26,7 +21,6 @@ export default function FoodAroundMe({ filters }: Props) {
     try {
       const res = await fetchCookListingsAroundMe(search, 8, 10);
       setListings(res.listings);
-      setCenter(res.center);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load nearby food');
     } finally {
@@ -150,14 +144,6 @@ export default function FoodAroundMe({ filters }: Props) {
     );
   }
 
-  const markers = useMemo(
-    () =>
-      filteredListings
-        .filter((l) => l.point)
-        .map((l) => ({ id: l.id, point: l.point!, label: l.cook.displayName })),
-    [filteredListings]
-  );
-
   return (
     <section className='py-6'>
       <div className='mb-4 flex items-center justify-between px-4'>
@@ -168,23 +154,7 @@ export default function FoodAroundMe({ filters }: Props) {
       </div>
       <div className='px-4'>{addressForm}</div>
       {usingAddress && address && <p className='px-4 text-xs text-white/40'>Showing results for &quot;{address}&quot;</p>}
-      {center && (
-        <div className='mt-4 px-4'>
-          <MapView center={center} markers={markers} height={240} />
-        </div>
-      )}
-      <motion.div
-        className='hide-scrollbar mt-4 flex gap-4 overflow-x-auto px-4 pb-2'
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-      >
-        {filteredListings.map((l) => (
-          <div key={l.id} className='w-72 shrink-0'>
-            <CookListingCard listing={l} distance={l.distanceKm} onClick={() => navigate(`/cook-listing/${l.id}`)} />
-          </div>
-        ))}
-      </motion.div>
+      <CookListingFeed listings={filteredListings} loading={loading} />
     </section>
   );
 }

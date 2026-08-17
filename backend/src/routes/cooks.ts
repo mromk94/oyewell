@@ -153,7 +153,7 @@ router.post('/me/listings', requireAuth, requireRole('COOK'), async (req: AuthRe
     if (!cook) throw new ApiError(404, 'Cook profile not found');
     if (cook.profileStatus !== 'APPROVED') throw new ApiError(403, 'Cook not approved');
 
-    const { title, description, priceKobo, portionDescription, prepTimeMinutesMin, prepTimeMinutesMax, quantity, stock, ingredients, allergens, cuisine, media } = req.body as any;
+    const { title, description, priceKobo, packagingCostKobo, portionDescription, prepTimeMinutesMin, prepTimeMinutesMax, quantity, stock, ingredients, allergens, cuisine, media } = req.body as any;
     if (!title) throw new ApiError(400, 'Title is required');
     if (typeof priceKobo !== 'number' || priceKobo < 0) throw new ApiError(400, 'priceKobo must be a positive number');
 
@@ -164,6 +164,7 @@ router.post('/me/listings', requireAuth, requireRole('COOK'), async (req: AuthRe
           title,
           description,
           priceKobo,
+          packagingCostKobo: typeof packagingCostKobo === 'number' ? packagingCostKobo : 0,
           portionDescription,
           prepTimeMinutesMin,
           prepTimeMinutesMax,
@@ -215,6 +216,7 @@ router.patch('/me/listings/:id', requireAuth, requireRole('COOK'), async (req: A
     if (body.title !== undefined) data.title = String(body.title);
     if (body.description !== undefined) data.description = body.description;
     if (typeof body.priceKobo === 'number') data.priceKobo = body.priceKobo;
+    if (typeof body.packagingCostKobo === 'number') data.packagingCostKobo = body.packagingCostKobo;
     if (body.portionDescription !== undefined) data.portionDescription = body.portionDescription;
     if (body.prepTimeMinutesMin !== undefined) data.prepTimeMinutesMin = body.prepTimeMinutesMin;
     if (body.prepTimeMinutesMax !== undefined) data.prepTimeMinutesMax = body.prepTimeMinutesMax;

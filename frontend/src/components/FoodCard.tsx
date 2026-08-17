@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import OrderButton from './OrderButton';
+import { FoodImage } from './FoodImage';
 import type { FoodItem } from '../lib/api';
 
 interface Props {
@@ -33,12 +34,7 @@ export default function FoodCard({ food }: Props) {
           className="absolute inset-0 h-full w-full object-cover"
         />
       ) : active?.url ? (
-        <img
-          src={active.url}
-          alt={food.name}
-          loading="lazy"
-          className="absolute inset-0 h-full w-full object-cover"
-        />
+        <FoodImage src={active.url} alt={food.name} className="absolute inset-0 h-full w-full" />
       ) : null}
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-black/20" />
       {media.length > 1 && (
@@ -67,6 +63,14 @@ export default function FoodCard({ food }: Props) {
         <p className="mt-2 line-clamp-2 max-w-xl text-sm font-light leading-relaxed text-white/80 md:text-base">
           {food.description}
         </p>
+        {(food.description?.length ?? 0) > 120 && (
+          <Link
+            to={`/food/${food.slug}`}
+            className="mt-1 inline-block text-sm font-semibold text-emerald-300 underline underline-offset-4 hover:text-emerald-200"
+          >
+            Read more
+          </Link>
+        )}
         <div className="mt-4 flex flex-wrap items-center gap-4">
           <p className="text-lg font-semibold text-white md:text-xl">
             {food.priceFrom ? `From ${food.priceFrom}` : ''}
@@ -82,8 +86,8 @@ export default function FoodCard({ food }: Props) {
 
 function buildMedia(food: FoodItem): { type: 'image' | 'video'; url: string }[] {
   const out: { type: 'image' | 'video'; url: string }[] = [];
-  if (food.heroImage) out.push({ type: 'image', url: food.heroImage });
-  food.galleryImages?.forEach((url) => out.push({ type: 'image', url }));
-  food.videos?.forEach((url) => out.push({ type: 'video', url }));
+  if (food.heroImage?.trim()) out.push({ type: 'image', url: food.heroImage });
+  food.galleryImages?.filter((url) => url?.trim()).forEach((url) => out.push({ type: 'image', url }));
+  food.videos?.filter((url) => url?.trim()).forEach((url) => out.push({ type: 'video', url }));
   return out;
 }

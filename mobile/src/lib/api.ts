@@ -103,6 +103,7 @@ export interface FoodItem {
   heroImage: string | null;
   galleryImages: string[];
   videos: string[];
+  packagingCostKobo: number;
   isAvailable: boolean;
   featured: boolean;
   orderingMode: 'PLATE' | 'PORTION' | 'PIECE';

@@ -63,6 +63,7 @@ export function FoodDetailScreen() {
       sides: selectedSides,
       sideIds: selectedSides.map((s) => s.id),
       priceKobo: selectedOption.priceKobo,
+      packagingCostKobo: food.packagingCostKobo ?? 0,
       quantity,
     });
     setAdded(true);
@@ -209,7 +210,7 @@ export function FoodDetailScreen() {
           </TouchableOpacity>
         ) : (
           <TouchableOpacity style={[styles.addButton, !canOrder && styles.addButtonDisabled]} onPress={handleAddToCart} activeOpacity={0.8} disabled={!canOrder}>
-            <Text style={styles.addText}>Order now — {formatPrice(((selectedOption?.priceKobo ?? 0) * quantity) + selectedSides.reduce((s, x) => s + x.priceKobo * quantity, 0))}</Text>
+            <Text style={styles.addText}>Order now — {formatPrice(((selectedOption?.priceKobo ?? 0) + (food?.packagingCostKobo ?? 0)) * quantity + selectedSides.reduce((s, x) => s + x.priceKobo * quantity, 0))}</Text>
           </TouchableOpacity>
         )}
       </View>

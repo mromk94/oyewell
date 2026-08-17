@@ -26,6 +26,7 @@ async function loadPublicFoods() {
       isAvailable: f.isAvailable,
       featured: f.featured,
       orderingMode: f.orderingMode,
+      packagingCostKobo: f.packagingCostKobo ?? 0,
       priceFromKobo: f.options.length ? Math.min(...f.options.map((o) => o.priceKobo)) : undefined,
       priceFrom: f.options.length
         ? formatKobo(Math.min(...f.options.map((o) => o.priceKobo)))
@@ -77,6 +78,7 @@ router.get('/:slug', async (req, res, next) => {
           isAvailable: food.isAvailable,
           featured: food.featured,
           orderingMode: food.orderingMode,
+          packagingCostKobo: food.packagingCostKobo ?? 0,
           options: food.options.map((o) => ({
             id: o.id,
             label: o.label,

@@ -53,6 +53,7 @@ export function CookListingDetailScreen() {
       cookName: listing.cook.displayName,
       unitLabel: listing.portionDescription ?? 'portion',
       priceKobo: listing.priceKobo,
+      packagingCostKobo: listing.packagingCostKobo ?? 0,
       foodImage: listing.media?.[0]?.url ?? null,
       quantity,
       sideIds: [],
@@ -63,7 +64,7 @@ export function CookListingDetailScreen() {
   if (loading) return <Preloader />;
   if (error || !listing) return <Text style={styles.error}>{error ?? 'Not found'}</Text>;
 
-  const subtotal = listing.priceKobo * quantity;
+  const subtotal = (listing.priceKobo + (listing.packagingCostKobo ?? 0)) * quantity;
   const canAdd = listing.isActive && listing.stock > 0 && quantity <= listing.stock;
 
   return (

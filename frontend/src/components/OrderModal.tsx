@@ -77,6 +77,7 @@ export default function OrderModal({ food, open, onClose }: OrderModalProps) {
       foodName: food.name,
       foodImage: food.heroImage,
       priceKobo: selectedOption.priceKobo,
+      packagingCostKobo: food.packagingCostKobo ?? 0,
       option: selectedOption,
       quantity,
       sides: sides.filter((s) => selectedSideIds.has(s.id)),

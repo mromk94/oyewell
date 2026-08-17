@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ImageBackground, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors, radii, spacing, fontSizes } from '../theme';
+import { FoodImage } from './FoodImage';
 import type { FoodItem } from '../lib/api';
 
 interface Props {
@@ -24,7 +25,7 @@ export const FoodCard = React.memo(function FoodCard({ food, onPress, insets, ta
 
   return (
     <View style={styles.card}>
-      <ImageBackground source={{ uri: active?.url }} style={styles.media} resizeMode="cover" imageStyle={{ backgroundColor: colors.brand800 }}>
+      <FoodImage source={{ uri: active?.url }} style={styles.media} resizeMode="cover" imageStyle={{ backgroundColor: colors.brand800 }}>
         <View style={styles.overlay} />
         <View style={[styles.indicators, { top: insets.top + 108 }]}>
           {media.map((_, i) => (
@@ -39,6 +40,11 @@ export const FoodCard = React.memo(function FoodCard({ food, onPress, insets, ta
           </View>
           <Text style={styles.name} numberOfLines={2} adjustsFontSizeToFit>{food.name}</Text>
           {food.description && <Text style={styles.description} numberOfLines={2}>{food.description}</Text>}
+          {(food.description?.length ?? 0) > 120 && (
+            <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
+              <Text style={styles.readMore}>Read more</Text>
+            </TouchableOpacity>
+          )}
           <View style={styles.row}>
             {food.priceFrom && <Text style={styles.price}>{food.priceFrom}</Text>}
             <TouchableOpacity style={styles.orderButton} onPress={onPress} activeOpacity={0.8}>
@@ -46,16 +52,16 @@ export const FoodCard = React.memo(function FoodCard({ food, onPress, insets, ta
             </TouchableOpacity>
           </View>
         </View>
-      </ImageBackground>
+      </FoodImage>
     </View>
   );
 });
 
 function buildMedia(food: FoodItem): { url: string }[] {
   const out: { url: string }[] = [];
-  if (food.heroImage) out.push({ url: food.heroImage });
-  food.galleryImages?.forEach((url) => out.push({ url }));
-  food.videos?.forEach((url) => out.push({ url }));
+  if (food.heroImage?.trim()) out.push({ url: food.heroImage });
+  food.galleryImages?.filter((url) => url?.trim()).forEach((url) => out.push({ url }));
+  food.videos?.filter((url) => url?.trim()).forEach((url) => out.push({ url }));
   return out;
 }
 
@@ -71,6 +77,7 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: fontSizes.xs, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   name: { color: colors.white, fontSize: fontSizes.xxl, fontWeight: '800', lineHeight: fontSizes.xxl + 4 },
   description: { color: 'rgba(255,255,255,0.8)', fontSize: fontSizes.sm, marginTop: spacing.xs, lineHeight: 20 },
+  readMore: { color: colors.success, fontSize: fontSizes.sm, fontWeight: '700', marginTop: spacing.xs },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.md },
   price: { color: colors.white, fontSize: fontSizes.base, fontWeight: '600' },
   orderButton: { backgroundColor: colors.white, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radii.full },

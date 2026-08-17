@@ -233,22 +233,16 @@ router.post('/register', async (req, res, next) => {
 
 router.get('/me', requireAuth, requireRider, async (req: AuthRequest, res, next) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user!.id },
-      include: { rider: true },
-    });
-    if (!user) throw new ApiError(404, 'User not found');
-    res.json({
-      rider: user.rider,
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phone: user.phone,
-        balanceKobo: user.balanceKobo,
+    const rider = await prisma.rider.findUnique({
+      where: { userId: req.user!.id },
+      include: {
+        user: {
+          select: { id: true, email: true, firstName: true, lastName: true, phone: true, balanceKobo: true },
+        },
       },
     });
+    if (!rider) throw new ApiError(404, 'Rider not found');
+    res.json({ rider, user: rider.user });
   } catch (e) {
     next(e);
   }
@@ -261,7 +255,7 @@ router.put('/me/availability', requireAuth, requireRider, async (req: AuthReques
     const rider = await prisma.rider.update({
       where: { userId: req.user!.id },
       data: { available },
-      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } } },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true, balanceKobo: true } } },
     });
     res.json({ rider });
   } catch (e) {
@@ -277,7 +271,7 @@ router.put('/me', requireAuth, requireRider, async (req: AuthRequest, res, next)
       where: { userId: req.user!.id },
       data: { vehicle, bankName, bankAccountName, bankAccountNumber, operatingArea, neighborhood },
       include: {
-        user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true } },
+        user: { select: { id: true, email: true, firstName: true, lastName: true, phone: true, balanceKobo: true } },
       },
     });
     res.json({ rider });

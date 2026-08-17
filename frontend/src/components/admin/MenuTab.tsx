@@ -22,6 +22,7 @@ type FoodDraft = {
   name: string;
   slug: string;
   description: string;
+  packaging: string;
   heroImage: string;
   imageName: string;
   galleryImages: string[];
@@ -39,6 +40,7 @@ function emptyDraft(): FoodDraft {
     name: '',
     slug: '',
     description: '',
+    packaging: '',
     heroImage: '',
     imageName: '',
     galleryImages: [],
@@ -54,6 +56,7 @@ function foodToDraft(food: any): FoodDraft {
     name: food.name ?? '',
     slug: food.slug ?? '',
     description: food.description ?? '',
+    packaging: food.packagingCostKobo ? (food.packagingCostKobo / 100).toFixed(2) : '',
     heroImage: food.heroImage ?? '',
     imageName: '',
     galleryImages: food.galleryImages ?? [],
@@ -195,6 +198,7 @@ export function MenuTab({ foods, onRefresh }: { foods: any[]; onRefresh: () => v
         galleryImages: draft.galleryImages.filter(Boolean),
         videos: draft.videos.filter(Boolean),
         orderingMode: draft.orderingMode,
+        packagingCostKobo: Math.round(Number(draft.packaging) * 100) || 0,
         options: payloadOptions,
       };
       if (draft.id) {
@@ -323,6 +327,19 @@ export function MenuTab({ foods, onRefresh }: { foods: any[]; onRefresh: () => v
                 <option value='PORTION'>Portion (e.g. soup by portion)</option>
                 <option value='PIECE'>Piece (e.g. meat by piece)</option>
               </select>
+            </label>
+
+            <label className='block'>
+              <span className='text-sm font-medium text-white/90'>Packaging cost (NGN)</span>
+              <input
+                type='number'
+                step='0.01'
+                min='0'
+                value={draft.packaging}
+                onChange={(e) => setField('packaging', e.target.value)}
+                placeholder='0.00'
+                className='mt-1 w-full rounded-2xl border border-white/20 bg-white/5 p-3 text-white'
+              />
             </label>
 
             <label className='block'>

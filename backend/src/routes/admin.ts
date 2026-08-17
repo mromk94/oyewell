@@ -93,7 +93,7 @@ router.get('/foods', async (_req, res, next) => {
 router.post('/foods', async (req: AuthRequest, res, next) => {
   try {
     const body = req.body as Record<string, unknown>;
-    const { name, slug, description, heroImage, galleryImages, videos, orderingMode, options } = body;
+    const { name, slug, description, heroImage, galleryImages, videos, orderingMode, packagingCostKobo, options } = body;
     if (!name || !slug) throw new ApiError(400, 'Name and slug required');
 
     const food = await prisma.food.create({
@@ -105,6 +105,7 @@ router.post('/foods', async (req: AuthRequest, res, next) => {
         galleryImages: Array.isArray(galleryImages) ? galleryImages.map(String) : [],
         videos: Array.isArray(videos) ? videos.map(String) : [],
         orderingMode: String(orderingMode) as 'PLATE' | 'PORTION' | 'PIECE',
+        packagingCostKobo: typeof packagingCostKobo === 'number' ? Number(packagingCostKobo) : 0,
         status: 'DRAFT',
         options: {
           create: ((options as any[]) ?? []).map((o: any, i: number) => ({
@@ -138,6 +139,7 @@ router.patch('/foods/:id', async (req, res, next) => {
     if (body.galleryImages !== undefined) data.galleryImages = Array.isArray(body.galleryImages) ? body.galleryImages.map(String) : [];
     if (body.videos !== undefined) data.videos = Array.isArray(body.videos) ? body.videos.map(String) : [];
     if (body.orderingMode !== undefined) data.orderingMode = String(body.orderingMode) as any;
+    if (typeof body.packagingCostKobo === 'number') data.packagingCostKobo = Number(body.packagingCostKobo);
     if (body.isAvailable !== undefined) data.isAvailable = Boolean(body.isAvailable);
     if (body.featured !== undefined) data.featured = Boolean(body.featured);
     if (body.status !== undefined) data.status = String(body.status) as any;
