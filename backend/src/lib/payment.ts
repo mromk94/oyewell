@@ -41,6 +41,8 @@ export async function createPaymentForOrder(
         rate: currency.rate,
         decimals: currency.decimals,
         foreignAmountMinor,
+        redirectUrl: providerPayment.redirectUrl,
+        authorization: providerPayment.authorization as Record<string, any> | undefined,
       },
     },
   });
@@ -191,8 +193,16 @@ export async function verifyPayment(
   const adapter = getProvider(payment.provider);
   const verification = await adapter.verify(payment.providerRef ?? payment.order.idempotencyKey);
 
-  if (verification.status !== 'SUCCESS') {
-    throw new ApiError(400, `Payment ${verification.status.toLowerCase()}`);
+  if (verification.status === 'FAILED') {
+    const { payment: failedPayment, order: failedOrder } = await failPayment(prisma, payment.id, {
+      actor: 'payment-system',
+      note: `Failed via ${payment.provider}`,
+    });
+    return { payment: failedPayment, order: failedOrder, failed: true };
+  }
+
+  if (verification.status === 'PENDING') {
+    return { payment, order: payment.order, pending: true };
   }
 
   // Server-side amount/currency validation where the provider reports it.

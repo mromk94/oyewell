@@ -185,6 +185,8 @@ async function createCookOrder(payload: CookOrderPayload) {
       id: order.payment.id,
       idempotencyKey: order.idempotencyKey,
       provider: order.payment.provider,
+      redirectUrl: (order.payment.metadata as any)?.redirectUrl || undefined,
+      authorization: (order.payment.metadata as any)?.authorization || undefined,
     },
   };
 }
@@ -359,6 +361,8 @@ export async function createOrder(payload: OrderPayload) {
       id: order.payment.id,
       idempotencyKey: order.idempotencyKey,
       provider: order.payment.provider,
+      redirectUrl: (order.payment.metadata as any)?.redirectUrl || undefined,
+      authorization: (order.payment.metadata as any)?.authorization || undefined,
     },
   };
 }

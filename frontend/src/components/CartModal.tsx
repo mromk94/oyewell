@@ -8,7 +8,6 @@ import {
   fetchPaymentMethods,
   checkDelivery,
   createOrder,
-  verifyPayment,
   uploadPaymentProof,
   getCustomerToken,
   type PaymentMethod,
@@ -92,7 +91,6 @@ export default function CartModal() {
 
   const [order, setOrder] = useState<CreatedOrder | null>(null);
   const [placing, setPlacing] = useState(false);
-  const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [proofImage, setProofImage] = useState('');
@@ -197,17 +195,12 @@ export default function CartModal() {
       setOrder(created);
       clear();
       if (!isManualProvider(created.payment.provider)) {
-        setVerifying(true);
-        try {
-          await verifyPayment(created.payment.id, created.payment.idempotencyKey);
-          navigate(`/track/${created.order.orderNumber}`);
-          setIsOpen(false);
-        } catch {
-          navigate(`/track/${created.order.orderNumber}`);
-          setIsOpen(false);
-        } finally {
-          setVerifying(false);
+        if (created.payment.redirectUrl) {
+          window.location.href = created.payment.redirectUrl;
+          return;
         }
+        navigate(`/track/${created.order.orderNumber}`);
+        setIsOpen(false);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not place order');
@@ -368,11 +361,6 @@ export default function CartModal() {
                       </button>
                     </>
                   )}
-                </div>
-              ) : verifying ? (
-                <div className='mt-6 flex items-center justify-center gap-2 text-white/70'>
-                  <Loader2 className='h-5 w-5 animate-spin' />
-                  Verifying payment…
                 </div>
               ) : null}
 

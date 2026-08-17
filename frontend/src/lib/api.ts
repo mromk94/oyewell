@@ -166,7 +166,7 @@ export interface CreatedOrder {
     phone: string;
     estimatedMinutes: number | null;
   };
-  payment: { id: string; idempotencyKey: string; provider: string; status?: string };
+  payment: { id: string; idempotencyKey: string; provider: string; status?: string; redirectUrl?: string; authorization?: Record<string, any> };
 }
 
 export async function createOrder(
@@ -240,8 +240,19 @@ export async function verifyPayment(paymentId: string, idempotencyKey: string) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ idempotencyKey }),
   });
-  const data = (await res.json()) as { ok: boolean; order: { orderNumber: string }; error?: string };
+  const data = (await res.json()) as { ok?: boolean; payment?: any; order?: any; error?: string };
   if (!res.ok) throw new Error(data.error ?? 'Payment verification failed');
+  return data;
+}
+
+export async function callbackPayment(idempotencyKey: string, reference?: string) {
+  const res = await fetch(`${API_BASE}/api/payments/callback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idempotencyKey, reference }),
+  });
+  const data = (await res.json()) as { ok?: boolean; orderNumber?: string; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Payment callback failed');
   return data;
 }
 
@@ -302,6 +313,23 @@ export async function createReview(payload: { orderNumber: string; rating: numbe
   });
   const data = (await res.json()) as { review?: any; error?: string };
   if (!res.ok) throw new Error(data.error ?? 'Review failed');
+  return data;
+}
+
+export async function createDispute(payload: {
+  type: string;
+  orderId: string;
+  cookId?: string;
+  riderId?: string;
+  description: string;
+}) {
+  const res = await fetch(`${API_BASE}/api/disputes`, {
+    method: 'POST',
+    headers: authHeaders(getCustomerToken()),
+    body: JSON.stringify(payload),
+  });
+  const data = (await res.json()) as { dispute?: any; error?: string };
+  if (!res.ok) throw new Error(data.error ?? 'Dispute failed');
   return data;
 }
 

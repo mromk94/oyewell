@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Loader2, CheckCircle, XCircle, Clock, Upload, UserPlus, Package, Utensils, Truck, Home, Star, Flag } from 'lucide-react';
 import { toast } from '../lib/toast';
-import { fetchOrder, formatPrice, type OrderSummary, uploadPaymentProof, register, createReview, getCustomerToken } from '../lib/api';
+import { fetchOrder, formatPrice, type OrderSummary, uploadPaymentProof, register, createReview, createDispute, getCustomerToken } from '../lib/api';
 import Logo from '../components/Logo';
 import { DeliveryMap } from '../components/DeliveryMap';
 import ReportModal from '../components/ReportModal';
@@ -576,12 +576,32 @@ export default function TrackOrder() {
 }
 
 function ReviewSection({ order, onSubmitted }: { order: OrderSummary; onSubmitted: () => void }) {
+  const [mode, setMode] = useState<'review' | 'dispute'>('review');
+
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
+  const DISPUTE_TYPES = [
+    { value: 'COOK_COMPLAINT', label: 'Cook complaint' },
+    { value: 'RIDER_COMPLAINT', label: 'Rider complaint' },
+    { value: 'FOOD_NOT_RECEIVED', label: 'Food not received' },
+    { value: 'WRONG_FOOD', label: 'Wrong food' },
+    { value: 'MISSING_ITEM', label: 'Missing item' },
+    { value: 'FOOD_QUALITY', label: 'Food quality' },
+    { value: 'DELIVERY_ISSUE', label: 'Delivery issue' },
+    { value: 'PAYMENT_PROBLEM', label: 'Payment problem' },
+    { value: 'UNAUTHORIZED_ACTION', label: 'Unauthorized action' },
+    { value: 'OTHER', label: 'Other' },
+  ];
+
+  const [disputeType, setDisputeType] = useState('COOK_COMPLAINT');
+  const [disputeDescription, setDisputeDescription] = useState('');
+  const [disputeSubmitting, setDisputeSubmitting] = useState(false);
+  const [disputeSubmitted, setDisputeSubmitted] = useState(false);
+
+  async function handleReview(e: React.FormEvent) {
     e.preventDefault();
     if (!rating) return;
     setSubmitting(true);
@@ -602,7 +622,29 @@ function ReviewSection({ order, onSubmitted }: { order: OrderSummary; onSubmitte
     }
   }
 
-  if (submitted) {
+  async function handleDispute(e: React.FormEvent) {
+    e.preventDefault();
+    if (!disputeDescription.trim()) return;
+    setDisputeSubmitting(true);
+    try {
+      await createDispute({
+        type: disputeType,
+        orderId: order.id,
+        cookId: order.cookId,
+        riderId: order.riderId,
+        description: disputeDescription.trim(),
+      });
+      setDisputeSubmitted(true);
+      toast.success('Dispute filed. A moderator will review it.');
+      onSubmitted();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Dispute failed');
+    } finally {
+      setDisputeSubmitting(false);
+    }
+  }
+
+  if (submitted && mode === 'review') {
     return (
       <div className='mt-8 rounded-3xl border border-emerald-500/30 bg-emerald-500/10 p-6 sm:p-8 text-center'>
         <CheckCircle className='mx-auto h-10 w-10 text-emerald-300' />
@@ -612,40 +654,95 @@ function ReviewSection({ order, onSubmitted }: { order: OrderSummary; onSubmitte
     );
   }
 
+  if (disputeSubmitted && mode === 'dispute') {
+    return (
+      <div className='mt-8 rounded-3xl border border-emerald-500/30 bg-emerald-500/10 p-6 sm:p-8 text-center'>
+        <CheckCircle className='mx-auto h-10 w-10 text-emerald-300' />
+        <h2 className='mt-4 text-xl font-bold text-white'>Dispute filed</h2>
+        <p className='mt-2 text-emerald-100'>A moderator will review your case.</p>
+      </div>
+    );
+  }
+
   return (
     <div className='mt-8 rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8'>
-      <h2 className='text-xl font-bold text-white'>Rate your cook</h2>
-      <p className='mt-1 text-sm text-white/60'>How was your food?</p>
-      <form onSubmit={handleSubmit} className='mt-4 space-y-4'>
-        <div className='flex gap-2'>
-          {[1, 2, 3, 4, 5].map((n) => (
-            <button
-              key={n}
-              type='button'
-              onClick={() => setRating(n)}
-              onMouseEnter={() => setRating(n)}
-              onMouseLeave={() => {}}
-              className='text-amber-400 transition hover:scale-110'
-            >
-              <Star className={`h-8 w-8 ${n <= rating ? 'fill-amber-400' : 'text-white/30'}`} />
-            </button>
-          ))}
-        </div>
-        <textarea
-          value={comment}
-          onChange={(e) => setComment(e.target.value)}
-          placeholder='Share a few words about your experience (optional)'
-          className='w-full rounded-2xl border border-white/20 bg-white/5 p-4 text-white placeholder-white/40'
-          rows={3}
-        />
+      <div className='mb-4 flex items-center justify-between'>
+        <h2 className='text-xl font-bold text-white'>
+          {mode === 'review' ? 'Rate your cook' : 'File a dispute'}
+        </h2>
         <button
-          type='submit'
-          disabled={!rating || submitting}
-          className='w-full rounded-full bg-emerald-500 py-3 font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50'
+          type='button'
+          onClick={() => setMode(mode === 'review' ? 'dispute' : 'review')}
+          className='text-sm font-semibold text-emerald-300 underline underline-offset-4 hover:text-emerald-200'
         >
-          {submitting ? <Loader2 className='mx-auto h-5 w-5 animate-spin' /> : 'Submit review'}
+          {mode === 'review' ? 'File a dispute' : 'Write a review'}
         </button>
-      </form>
+      </div>
+
+      {mode === 'review' ? (
+        <>
+          <p className='text-sm text-white/60'>How was your food?</p>
+          <form onSubmit={handleReview} className='mt-4 space-y-4'>
+            <div className='flex gap-2'>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type='button'
+                  onClick={() => setRating(n)}
+                  onMouseEnter={() => setRating(n)}
+                  onMouseLeave={() => {}}
+                  className='text-amber-400 transition hover:scale-110'
+                >
+                  <Star className={`h-8 w-8 ${n <= rating ? 'fill-amber-400' : 'text-white/30'}`} />
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder='Share a few words about your experience (optional)'
+              className='w-full rounded-2xl border border-white/20 bg-white/5 p-4 text-white placeholder-white/40'
+              rows={3}
+            />
+            <button
+              type='submit'
+              disabled={!rating || submitting}
+              className='w-full rounded-full bg-emerald-500 py-3 font-bold text-black transition hover:bg-emerald-400 disabled:opacity-50'
+            >
+              {submitting ? <Loader2 className='mx-auto h-5 w-5 animate-spin' /> : 'Submit review'}
+            </button>
+          </form>
+        </>
+      ) : (
+        <form onSubmit={handleDispute} className='mt-4 space-y-4'>
+          <select
+            value={disputeType}
+            onChange={(e) => setDisputeType(e.target.value)}
+            className='w-full rounded-2xl border border-white/20 bg-white/5 p-4 text-white'
+          >
+            {DISPUTE_TYPES.map((t) => (
+              <option key={t.value} value={t.value} className='bg-brand-900 text-white'>
+                {t.label}
+              </option>
+            ))}
+          </select>
+          <textarea
+            value={disputeDescription}
+            onChange={(e) => setDisputeDescription(e.target.value)}
+            placeholder='Describe the issue in detail'
+            required
+            className='w-full rounded-2xl border border-white/20 bg-white/5 p-4 text-white placeholder-white/40'
+            rows={4}
+          />
+          <button
+            type='submit'
+            disabled={!disputeDescription.trim() || disputeSubmitting}
+            className='w-full rounded-full bg-amber-500 py-3 font-bold text-black transition hover:bg-amber-400 disabled:opacity-50'
+          >
+            {disputeSubmitting ? <Loader2 className='mx-auto h-5 w-5 animate-spin' /> : 'Submit dispute'}
+          </button>
+        </form>
+      )}
     </div>
   );
 }

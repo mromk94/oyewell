@@ -112,7 +112,23 @@ router.post('/:paymentId/verify', async (req, res, next) => {
     const { paymentId } = req.params;
     const { idempotencyKey } = paymentVerifySchema.parse(req.body);
     const result = await verifyPayment(prisma, paymentId, idempotencyKey);
-    res.json({ ok: true, payment: result.payment, order: result.order });
+    res.json({ ok: true, payment: result.payment, order: result.order, pending: result.pending, failed: result.failed });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/callback', async (req, res, next) => {
+  try {
+    const { idempotencyKey } = req.body as { idempotencyKey?: string; reference?: string };
+    if (!idempotencyKey) throw new ApiError(400, 'idempotencyKey is required');
+    const order = await prisma.order.findUnique({
+      where: { idempotencyKey },
+      include: { payment: true, customer: { select: { email: true } } },
+    });
+    if (!order || !order.payment) throw new ApiError(404, 'Order not found');
+    const result = await verifyPayment(prisma, order.payment.id, idempotencyKey);
+    res.json({ ok: true, orderNumber: order.orderNumber, pending: result.pending, failed: result.failed, payment: result.payment });
   } catch (err) {
     next(err);
   }

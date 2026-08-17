@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Shield, Check, X, Loader2, AlertCircle, LogOut, Home, Utensils, ChefHat, Bike, MessageSquare, AlertTriangle, Inbox, Package } from 'lucide-react';
 import { login as apiLogin, setCustomerToken, getCustomerToken, removeCustomerToken, fetchMe, type User, hasRole } from '../lib/api';
 import { fetchModeratorMe, fetchModeratorDashboard, fetchModeratorTickets, updateModeratorTicket, fetchModeratorDisputes, updateModeratorDispute, fetchModeratorReports, updateModeratorReport, fetchModeratorCooks, decideCookApproval, fetchModeratorFoods, decideFoodApproval, fetchModeratorListings, decideListingApproval, fetchModeratorRiders, decideRiderApproval } from '../lib/moderator';
+import ConfirmModal from '../components/ConfirmModal';
 
 type Tab = 'dashboard' | 'pending' | 'open' | 'closed' | 'cooks' | 'foods';
 
@@ -421,6 +422,7 @@ function ApprovalList({ cooks, listings, riders, foods, type, onError, onRefresh
 
 function CookRow({ cook, onError, onRefresh }: { cook: any; onError: (e: string) => void; onRefresh: () => void }) {
   const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState<'approve' | 'reject' | null>(null);
   async function act(action: 'approve' | 'reject') {
     setBusy(true);
     try {
@@ -441,15 +443,31 @@ function CookRow({ cook, onError, onRefresh }: { cook: any; onError: (e: string)
       </div>
       <p className='text-sm text-white/60'>{cook.user?.email}</p>
       <div className='mt-2 flex gap-2'>
-        <button onClick={() => act('approve')} disabled={busy} className='inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-emerald-400 disabled:opacity-50'><Check className='h-3 w-3' /> Approve</button>
-        <button onClick={() => act('reject')} disabled={busy} className='inline-flex items-center gap-1.5 rounded-lg bg-red-500/20 px-3 py-1.5 text-sm font-bold text-red-300 transition hover:bg-red-500/30 disabled:opacity-50'><X className='h-3 w-3' /> Reject</button>
+        <button onClick={() => setConfirm('approve')} disabled={busy} className='inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-emerald-400 disabled:opacity-50'><Check className='h-3 w-3' /> Approve</button>
+        <button onClick={() => setConfirm('reject')} disabled={busy} className='inline-flex items-center gap-1.5 rounded-lg bg-red-500/20 px-3 py-1.5 text-sm font-bold text-red-300 transition hover:bg-red-500/30 disabled:opacity-50'><X className='h-3 w-3' /> Reject</button>
       </div>
+      {confirm && (
+        <ConfirmModal
+          open={!!confirm}
+          title={confirm === 'approve' ? 'Approve' : 'Reject'}
+          message={confirm === 'approve' ? 'Are you sure you want to approve this?' : 'Are you sure you want to reject this?'}
+          confirmLabel={confirm === 'approve' ? 'Approve' : 'Reject'}
+          danger={confirm === 'reject'}
+          onConfirm={() => {
+            const action = confirm;
+            setConfirm(null);
+            if (action) act(action);
+          }}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
     </div>
   );
 }
 
 function RiderRow({ rider, onError, onRefresh }: { rider: any; onError: (e: string) => void; onRefresh: () => void }) {
   const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState<'approve' | 'reject' | null>(null);
   async function act(action: 'approve' | 'reject') {
     setBusy(true);
     try {
@@ -469,15 +487,31 @@ function RiderRow({ rider, onError, onRefresh }: { rider: any; onError: (e: stri
       </div>
       <p className='text-sm text-white/60'>{rider.vehicle} • {rider.operatingArea}</p>
       <div className='mt-2 flex gap-2'>
-        <button onClick={() => act('approve')} disabled={busy} className='inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-emerald-400 disabled:opacity-50'><Check className='h-3 w-3' /> Approve</button>
-        <button onClick={() => act('reject')} disabled={busy} className='inline-flex items-center gap-1.5 rounded-lg bg-red-500/20 px-3 py-1.5 text-sm font-bold text-red-300 transition hover:bg-red-500/30 disabled:opacity-50'><X className='h-3 w-3' /> Reject</button>
+        <button onClick={() => setConfirm('approve')} disabled={busy} className='inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-emerald-400 disabled:opacity-50'><Check className='h-3 w-3' /> Approve</button>
+        <button onClick={() => setConfirm('reject')} disabled={busy} className='inline-flex items-center gap-1.5 rounded-lg bg-red-500/20 px-3 py-1.5 text-sm font-bold text-red-300 transition hover:bg-red-500/30 disabled:opacity-50'><X className='h-3 w-3' /> Reject</button>
       </div>
+      {confirm && (
+        <ConfirmModal
+          open={!!confirm}
+          title={confirm === 'approve' ? 'Approve' : 'Reject'}
+          message={confirm === 'approve' ? 'Are you sure you want to approve this?' : 'Are you sure you want to reject this?'}
+          confirmLabel={confirm === 'approve' ? 'Approve' : 'Reject'}
+          danger={confirm === 'reject'}
+          onConfirm={() => {
+            const action = confirm;
+            setConfirm(null);
+            if (action) act(action);
+          }}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
     </div>
   );
 }
 
 function FoodRow({ food, onError, onRefresh }: { food: any; onError: (e: string) => void; onRefresh: () => void }) {
   const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState<'approve' | 'reject' | null>(null);
   async function act(action: 'approve' | 'reject') {
     setBusy(true);
     try {
@@ -497,15 +531,31 @@ function FoodRow({ food, onError, onRefresh }: { food: any; onError: (e: string)
       </div>
       <p className='text-sm text-white/60'>{food.description}</p>
       <div className='mt-2 flex gap-2'>
-        <button onClick={() => act('approve')} disabled={busy} className='inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-emerald-400 disabled:opacity-50'><Check className='h-3 w-3' /> Approve</button>
-        <button onClick={() => act('reject')} disabled={busy} className='inline-flex items-center gap-1.5 rounded-lg bg-red-500/20 px-3 py-1.5 text-sm font-bold text-red-300 transition hover:bg-red-500/30 disabled:opacity-50'><X className='h-3 w-3' /> Reject</button>
+        <button onClick={() => setConfirm('approve')} disabled={busy} className='inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-emerald-400 disabled:opacity-50'><Check className='h-3 w-3' /> Approve</button>
+        <button onClick={() => setConfirm('reject')} disabled={busy} className='inline-flex items-center gap-1.5 rounded-lg bg-red-500/20 px-3 py-1.5 text-sm font-bold text-red-300 transition hover:bg-red-500/30 disabled:opacity-50'><X className='h-3 w-3' /> Reject</button>
       </div>
+      {confirm && (
+        <ConfirmModal
+          open={!!confirm}
+          title={confirm === 'approve' ? 'Approve' : 'Reject'}
+          message={confirm === 'approve' ? 'Are you sure you want to approve this?' : 'Are you sure you want to reject this?'}
+          confirmLabel={confirm === 'approve' ? 'Approve' : 'Reject'}
+          danger={confirm === 'reject'}
+          onConfirm={() => {
+            const action = confirm;
+            setConfirm(null);
+            if (action) act(action);
+          }}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
     </div>
   );
 }
 
 function ListingRow({ listing, onError, onRefresh }: { listing: any; onError: (e: string) => void; onRefresh: () => void }) {
   const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState<'approve' | 'reject' | null>(null);
   async function act(action: 'approve' | 'reject') {
     setBusy(true);
     try {
@@ -525,9 +575,24 @@ function ListingRow({ listing, onError, onRefresh }: { listing: any; onError: (e
       </div>
       <p className='text-sm text-white/60'>{listing.description}</p>
       <div className='mt-2 flex gap-2'>
-        <button onClick={() => act('approve')} disabled={busy} className='inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-emerald-400 disabled:opacity-50'><Check className='h-3 w-3' /> Approve</button>
-        <button onClick={() => act('reject')} disabled={busy} className='inline-flex items-center gap-1.5 rounded-lg bg-red-500/20 px-3 py-1.5 text-sm font-bold text-red-300 transition hover:bg-red-500/30 disabled:opacity-50'><X className='h-3 w-3' /> Reject</button>
+        <button onClick={() => setConfirm('approve')} disabled={busy} className='inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-bold text-white transition hover:bg-emerald-400 disabled:opacity-50'><Check className='h-3 w-3' /> Approve</button>
+        <button onClick={() => setConfirm('reject')} disabled={busy} className='inline-flex items-center gap-1.5 rounded-lg bg-red-500/20 px-3 py-1.5 text-sm font-bold text-red-300 transition hover:bg-red-500/30 disabled:opacity-50'><X className='h-3 w-3' /> Reject</button>
       </div>
+      {confirm && (
+        <ConfirmModal
+          open={!!confirm}
+          title={confirm === 'approve' ? 'Approve' : 'Reject'}
+          message={confirm === 'approve' ? 'Are you sure you want to approve this?' : 'Are you sure you want to reject this?'}
+          confirmLabel={confirm === 'approve' ? 'Approve' : 'Reject'}
+          danger={confirm === 'reject'}
+          onConfirm={() => {
+            const action = confirm;
+            setConfirm(null);
+            if (action) act(action);
+          }}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
     </div>
   );
 }
