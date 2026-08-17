@@ -42,12 +42,13 @@ export interface CookListing {
   point?: { lat: number; lng: number };
 }
 
-export async function fetchCookListingsPublic(params?: { cuisine?: string; skip?: number; take?: number; cookId?: string }) {
+export async function fetchCookListingsPublic(params?: { cuisine?: string; skip?: number; take?: number; cookId?: string; regionId?: string }) {
   const query = new URLSearchParams();
   if (params?.cuisine) query.set('cuisine', params.cuisine);
   if (params?.skip !== undefined) query.set('skip', String(params.skip));
   if (params?.take !== undefined) query.set('take', String(params.take));
   if (params?.cookId) query.set('cookId', params.cookId);
+  if (params?.regionId) query.set('regionId', params.regionId);
   const res = await api<{ listings: CookListing[]; total: number; skip: number; take: number }>(`/api/listings?${query.toString()}`);
   return {
     ...res,
@@ -58,7 +59,8 @@ export async function fetchCookListingsPublic(params?: { cuisine?: string; skip?
 export async function fetchCookListingsAroundMe(
   center: { lat: number; lng: number } | { address: string },
   minResults = 5,
-  radiusKm = 10
+  radiusKm = 10,
+  regionId?: string
 ) {
   const qs = new URLSearchParams();
   qs.set('minResults', String(minResults));
@@ -69,6 +71,7 @@ export async function fetchCookListingsAroundMe(
     qs.set('lat', String(center.lat));
     qs.set('lng', String(center.lng));
   }
+  if (regionId) qs.set('regionId', regionId);
   const res = await api<{ sections: { listings: (CookListing & { distanceKm: number })[] }[]; center: { lat: number; lng: number } | null }>(`/api/listings/around-me?${qs.toString()}`);
   const seen = new Set<string>();
   const listings: (CookListing & { distanceKm: number })[] = [];
