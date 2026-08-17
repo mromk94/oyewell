@@ -270,6 +270,10 @@ export default function CartModal() {
       ? formatPrice(selectedDelivery.totalKobo)
       : formatPrice(totalKobo);
 
+  const orderTotalKobo = order
+    ? (Number.isFinite(order.order.totalKobo) ? order.order.totalKobo : parseFloat((order.order.total ?? '').replace(/[₦,]/g, '')) * 100)
+    : (selectedDelivery?.totalKobo ?? totalKobo);
+
   return createPortal(
     <div
       className='fixed inset-0 z-50 flex items-end justify-center bg-black/80 p-0 backdrop-blur-sm sm:items-center sm:p-4'
@@ -309,7 +313,7 @@ export default function CartModal() {
                   <p className='mt-1 text-sm text-white/60'>
                     Pay to the {order.payment.provider === 'BANK_TRANSFER' ? 'account' : 'address'} below, then upload proof.
                   </p>
-                  {selectedMethod && <PaymentDetails method={selectedMethod} totalKobo={order.order.totalKobo} currencies={currencies} />}
+                  {selectedMethod && <PaymentDetails method={selectedMethod} totalKobo={orderTotalKobo} currencies={currencies} />}
 
                   {proofUploaded ? (
                     <motion.div
