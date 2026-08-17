@@ -22,6 +22,7 @@ import {
 import { useAuth, hasRole } from '../lib/auth';
 import { formatPrice } from '../lib/api';
 import ConfirmModal from '../components/ConfirmModal';
+import Logo from '../components/Logo';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   type CookProfile,
@@ -121,7 +122,7 @@ export default function Cook() {
       <header className='sticky top-0 z-30 border-b border-white/10 bg-brand-900/95 backdrop-blur-sm'>
         <div className='mx-auto flex max-w-4xl items-center justify-between px-4 py-4'>
           <div className='flex items-center gap-2'>
-            <ChefHat className='h-6 w-6 text-emerald-400' />
+            <Logo />
             <h1 className='text-lg font-black'>Cook Portal</h1>
           </div>
           <button

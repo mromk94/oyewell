@@ -21,6 +21,7 @@ import {
 import { riderLogin, riderRegister, riderLogout, fetchRiderMe, updateRiderMe, updateRiderAvailability, fetchRiderOrders, fetchAvailableOrders, claimOrder, pickupOrder, startTrip, verifyDeliveryCode, fetchRiderEarnings, fetchRiderPayouts, withdrawRiderEarnings, type RiderOrder, type Rider } from '../lib/rider';
 import { formatPrice } from '../lib/api';
 import PromptModal from '../components/PromptModal';
+import Logo from '../components/Logo';
 import ConfirmModal from '../components/ConfirmModal';
 import ProfessionalUpgradeModal from '../components/ProfessionalUpgradeModal';
 
@@ -62,7 +63,7 @@ export default function Rider() {
       <header className='sticky top-0 z-30 border-b border-white/10 bg-brand-900/95 backdrop-blur-sm'>
         <div className='mx-auto flex max-w-4xl items-center justify-between px-4 py-4'>
           <div className='flex items-center gap-2'>
-            <Bike className='h-6 w-6 text-emerald-400' />
+            <Logo />
             <h1 className='text-lg font-black'>Rider Portal</h1>
           </div>
           <button

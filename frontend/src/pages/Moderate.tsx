@@ -4,6 +4,7 @@ import { Shield, Check, X, Loader2, AlertCircle, LogOut, Home, Utensils, ChefHat
 import { login as apiLogin, setCustomerToken, getCustomerToken, removeCustomerToken, fetchMe, type User, hasRole } from '../lib/api';
 import { fetchModeratorMe, fetchModeratorDashboard, fetchModeratorTickets, updateModeratorTicket, fetchModeratorDisputes, updateModeratorDispute, fetchModeratorReports, updateModeratorReport, fetchModeratorCooks, decideCookApproval, fetchModeratorFoods, decideFoodApproval, fetchModeratorListings, decideListingApproval, fetchModeratorRiders, decideRiderApproval } from '../lib/moderator';
 import ConfirmModal from '../components/ConfirmModal';
+import Logo from '../components/Logo';
 import ModeratorHierarchy from '../components/moderator/ModeratorHierarchy';
 
 type Tab = 'dashboard' | 'pending' | 'open' | 'closed' | 'cooks' | 'foods' | 'moderators';
@@ -175,7 +176,7 @@ export default function Moderate() {
       <header className='sticky top-0 z-30 border-b border-white/10 bg-brand-900/95 px-4 py-4 backdrop-blur-sm'>
         <div className='mx-auto flex max-w-6xl items-center justify-between'>
           <div className='flex items-center gap-2'>
-            <Shield className='h-6 w-6 text-emerald-400' />
+            <Logo />
             <h1 className='text-lg font-black'>Moderator Portal</h1>
           </div>
           <div className='flex items-center gap-3'>

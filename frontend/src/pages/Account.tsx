@@ -6,6 +6,7 @@ import { fetchMe, fetchMyOrders, changePassword, updateProfile, fetchDeliveryApp
 import { fetchCookMe, type CookProfile } from '../lib/cook';
 import { useAuth, hasRole } from '../lib/auth';
 import DeliveryApplicationModal from '../components/DeliveryApplicationModal';
+import DisputeModal from '../components/DisputeModal';
 import {
   ArrowLeft,
   LogOut,
@@ -26,6 +27,7 @@ import {
   Plus,
   X,
   Wallet,
+  AlertTriangle,
 } from 'lucide-react';
 import Logo from '../components/Logo';
 
@@ -211,7 +213,7 @@ export default function Account() {
   const previousOrders = orders.filter((o) => o.status === 'DELIVERED');
 
   return (
-    <div className='min-h-screen bg-brand-900 px-6 py-12 md:px-12'>
+    <div className='min-h-screen bg-brand-900 px-6 pb-12 pt-20 md:px-12'>
       <Logo />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -450,11 +452,21 @@ function OrderSection({
 }
 
 function OrderList({ orders }: { orders: OrderSummary[] }) {
+  const [dispute, setDispute] = useState<OrderSummary | null>(null);
   if (orders.length === 0) {
     return <p className='mt-4 text-white/60'>No orders in this section yet.</p>;
   }
+  const canDispute = (order: OrderSummary) => order.status !== 'DELIVERED' && order.status !== 'CANCELLED';
   return (
     <div className='mt-5 space-y-4'>
+      {dispute && (
+        <DisputeModal
+          orderId={dispute.id}
+          cookId={dispute.cookId}
+          riderId={dispute.riderId}
+          onClose={() => setDispute(null)}
+        />
+      )}
       {orders.map((order, i) => (
         <motion.div
           key={order.id}
@@ -462,51 +474,63 @@ function OrderList({ orders }: { orders: OrderSummary[] }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: i * 0.05 }}
         >
-          <Link
-            to={`/track/${order.orderNumber}`}
-            className='block rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:bg-white/10'
-          >
-            <div className='flex flex-wrap items-start justify-between gap-3'>
-              <div>
-                <div className='flex items-center gap-2'>
-                  <Package className='h-4 w-4 text-white/60' />
-                  <span className='font-bold text-white'>{order.orderNumber}</span>
+          <div className='rounded-2xl border border-white/10 bg-white/5 p-5 transition hover:bg-white/10'>
+            <Link to={`/track/${order.orderNumber}`}>
+              <div className='flex flex-wrap items-start justify-between gap-3'>
+                <div>
+                  <div className='flex items-center gap-2'>
+                    <Package className='h-4 w-4 text-white/60' />
+                    <span className='font-bold text-white'>{order.orderNumber}</span>
+                  </div>
+                  <p className='mt-1 text-xs text-white/50'>
+                    {new Date(order.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
                 </div>
-                <p className='mt-1 text-xs text-white/50'>
-                  {new Date(order.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </p>
+                <div className='flex flex-wrap gap-2'>
+                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${STATUS_COLORS[order.status] ?? 'bg-white/10 text-white/70'}`}>
+                    {order.status.replace(/_/g, ' ')}
+                  </span>
+                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${PAYMENT_COLORS[order.paymentStatus] ?? 'bg-white/10 text-white/70'}`}>
+                    {order.paymentStatus}
+                  </span>
+                </div>
               </div>
-              <div className='flex flex-wrap gap-2'>
-                <span className={`rounded-full px-3 py-1 text-xs font-bold ${STATUS_COLORS[order.status] ?? 'bg-white/10 text-white/70'}`}>
-                  {order.status.replace(/_/g, ' ')}
-                </span>
-                <span className={`rounded-full px-3 py-1 text-xs font-bold ${PAYMENT_COLORS[order.paymentStatus] ?? 'bg-white/10 text-white/70'}`}>
-                  {order.paymentStatus}
-                </span>
-              </div>
-            </div>
 
-            <div className='mt-4 space-y-1 text-sm text-white/70'>
-              {order.items.map((item, idx) => (
-                <p key={idx}>
-                  {item.quantity}× {item.foodName} — {item.optionLabel}
-                </p>
-              ))}
-              {order.sides.length > 0 && (
-                <p className='text-white/50'>
-                  + {order.sides.map((s) => `${s.quantity}× ${s.name}`).join(', ')}
-                </p>
-              )}
-            </div>
-
-            <div className='mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4'>
-              <div className='flex items-center gap-2 text-sm text-white/60'>
-                <MapPin className='h-4 w-4' />
-                <span className='truncate'>{order.address}</span>
+              <div className='mt-4 space-y-1 text-sm text-white/70'>
+                {order.items.map((item, idx) => (
+                  <p key={idx}>
+                    {item.quantity}× {item.foodName} — {item.optionLabel}
+                  </p>
+                ))}
+                {order.sides.length > 0 && (
+                  <p className='text-white/50'>
+                    + {order.sides.map((s) => `${s.quantity}× ${s.name}`).join(', ')}
+                  </p>
+                )}
               </div>
-              <span className='text-lg font-bold text-white'>{order.total}</span>
-            </div>
-          </Link>
+
+              <div className='mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-4'>
+                <div className='flex items-center gap-2 text-sm text-white/60'>
+                  <MapPin className='h-4 w-4' />
+                  <span className='truncate'>{order.address}</span>
+                </div>
+                <span className='text-lg font-bold text-white'>{order.total}</span>
+              </div>
+            </Link>
+            {canDispute(order) && (
+              <div className='mt-3 flex justify-end border-t border-white/10 pt-3'>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setDispute(order);
+                  }}
+                  className='inline-flex items-center gap-1.5 rounded-full bg-red-500/20 px-3 py-1.5 text-xs font-bold text-red-300 transition hover:bg-red-500/30'
+                >
+                  <AlertTriangle className='h-3.5 w-3.5' /> Dispute
+                </button>
+              </div>
+            )}
+          </div>
         </motion.div>
       ))}
     </div>

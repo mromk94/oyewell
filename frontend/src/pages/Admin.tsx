@@ -199,9 +199,11 @@ export default function Admin() {
 
   if (!token) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-brand-900 px-6">
-        <Logo />
+      <div className="flex min-h-screen flex-col items-center justify-center bg-brand-900 px-6">
         <div className="w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-8">
+          <div className="mb-6">
+            <Logo />
+          </div>
           <h1 className="text-2xl font-bold text-white">Admin Login</h1>
           <p className="mt-2 text-white/60">Sign in to manage OYE Well.</p>
           {error && <p className="mt-4 text-sm text-red-300">{error}</p>}
@@ -253,7 +255,10 @@ export default function Admin() {
 
   const navItems = (
     <>
-      <h1 className="hidden px-4 text-2xl font-black text-white md:block">OYE Admin</h1>
+      <div className="px-4">
+        <Logo />
+      </div>
+      <h1 className="hidden mt-4 px-4 text-2xl font-black text-white md:block">OYE Admin</h1>
       <nav className="mt-4 flex flex-col gap-1 md:mt-6">
         {[
           { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -300,14 +305,16 @@ export default function Admin() {
 
   return (
     <div className="flex min-h-screen flex-col bg-brand-900 md:flex-row">
-      <Logo />
       <header className="flex items-center justify-between border-b border-white/10 bg-brand-800 p-4 md:hidden">
         <div className="flex items-center gap-3">
-          <button onClick={() => setMobileNavOpen(true)} className="rounded-2xl p-2 text-white hover:bg-white/10">
-            <Menu className="h-6 w-6" />
-          </button>
+          <div className="px-2">
+            <Logo />
+          </div>
           <span className="font-bold text-white">{activeLabel?.label ?? 'Admin'}</span>
         </div>
+        <button onClick={() => setMobileNavOpen(true)} className="rounded-2xl p-2 text-white hover:bg-white/10">
+          <Menu className="h-6 w-6" />
+        </button>
       </header>
 
       <aside className="hidden shrink-0 border-r border-white/10 bg-brand-800 p-4 md:block md:w-64">
