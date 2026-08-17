@@ -4,8 +4,9 @@ import { Shield, Check, X, Loader2, AlertCircle, LogOut, Home, Utensils, ChefHat
 import { login as apiLogin, setCustomerToken, getCustomerToken, removeCustomerToken, fetchMe, type User, hasRole } from '../lib/api';
 import { fetchModeratorMe, fetchModeratorDashboard, fetchModeratorTickets, updateModeratorTicket, fetchModeratorDisputes, updateModeratorDispute, fetchModeratorReports, updateModeratorReport, fetchModeratorCooks, decideCookApproval, fetchModeratorFoods, decideFoodApproval, fetchModeratorListings, decideListingApproval, fetchModeratorRiders, decideRiderApproval } from '../lib/moderator';
 import ConfirmModal from '../components/ConfirmModal';
+import ModeratorHierarchy from '../components/moderator/ModeratorHierarchy';
 
-type Tab = 'dashboard' | 'pending' | 'open' | 'closed' | 'cooks' | 'foods';
+type Tab = 'dashboard' | 'pending' | 'open' | 'closed' | 'cooks' | 'foods' | 'moderators';
 
 export default function Moderate() {
   const navigate = useNavigate();
@@ -191,7 +192,7 @@ export default function Moderate() {
 
       <main className='mx-auto max-w-6xl p-4'>
         <div className='mb-4 flex flex-wrap gap-2'>
-          {(['dashboard', 'pending', 'open', 'closed', 'cooks', 'foods'] as Tab[]).map((t) => (
+          {(['dashboard', 'pending', 'open', 'closed', 'cooks', 'foods', 'moderators'] as Tab[]).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -203,6 +204,7 @@ export default function Moderate() {
               {t === 'closed' && 'Closed issues'}
               {t === 'cooks' && 'Cook approvals'}
               {t === 'foods' && 'Food approvals'}
+              {t === 'moderators' && 'Moderators'}
             </button>
           ))}
         </div>
@@ -219,6 +221,7 @@ export default function Moderate() {
         {tab === 'closed' && <IssueList tickets={tickets} disputes={disputes} reports={reports} onError={setError} onRefresh={loadClosed} />}
         {tab === 'cooks' && <ApprovalList cooks={cooks} listings={listings} riders={riders} type='cooks' onError={setError} onRefresh={loadApprovals} />}
         {tab === 'foods' && <ApprovalList cooks={cooks} listings={listings} riders={riders} foods={foods} type='foods' onError={setError} onRefresh={loadApprovals} />}
+        {tab === 'moderators' && <ModeratorHierarchy onError={setError} />}
       </main>
     </div>
   );
