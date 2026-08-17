@@ -47,6 +47,7 @@ router.get('/', async (_req, res, next) => {
       include: {
         user: { select: { id: true, email: true, firstName: true, lastName: true, roles: true } },
         tier: true,
+        region: true,
         areas: true,
       },
       orderBy: { createdAt: 'desc' },
@@ -59,7 +60,7 @@ router.get('/', async (_req, res, next) => {
 
 router.post('/', async (req: AuthRequest, res, next) => {
   try {
-    const { email, firstName, lastName, employeeId, department } = req.body as Record<string, any>;
+    const { email, firstName, lastName, employeeId, department, regionId } = req.body as Record<string, any>;
     if (!email || !employeeId) throw new ApiError(400, 'email and employeeId are required');
     const tier = await ensureModeratorTier();
     const password = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
@@ -86,8 +87,8 @@ router.post('/', async (req: AuthRequest, res, next) => {
     if (existing) {
       const updated = await prisma.managementEmployee.update({
         where: { id: existing.id },
-        data: { adminTierId: tier.id, employeeId: String(employeeId), department, status: 'ACTIVE' },
-        include: { user: { select: { id: true, email: true, firstName: true, lastName: true } }, tier: true },
+        data: { adminTierId: tier.id, employeeId: String(employeeId), department, regionId: regionId ?? null, status: 'ACTIVE' },
+        include: { user: { select: { id: true, email: true, firstName: true, lastName: true } }, tier: true, region: true },
       });
       return res.json({ moderator: updated, tempPassword: existing ? undefined : password });
     }
@@ -97,9 +98,10 @@ router.post('/', async (req: AuthRequest, res, next) => {
         adminTierId: tier.id,
         employeeId: String(employeeId),
         department,
+        regionId: regionId ?? null,
         status: 'ACTIVE',
       },
-      include: { user: { select: { id: true, email: true, firstName: true, lastName: true } }, tier: true },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true } }, tier: true, region: true },
     });
     res.status(201).json({ moderator, tempPassword: password });
   } catch (e) {
@@ -109,7 +111,7 @@ router.post('/', async (req: AuthRequest, res, next) => {
 
 router.patch('/:id', async (req: AuthRequest, res, next) => {
   try {
-    const { status, adminTierId, department, limits } = req.body as Record<string, any>;
+    const { status, adminTierId, department, limits, regionId } = req.body as Record<string, any>;
     const id = req.params.id;
     const existing = await prisma.managementEmployee.findUnique({ where: { id } });
     if (!existing) throw new ApiError(404, 'Moderator not found');
@@ -118,10 +120,11 @@ router.patch('/:id', async (req: AuthRequest, res, next) => {
     if (adminTierId) data.adminTierId = adminTierId;
     if (department !== undefined) data.department = department;
     if (limits !== undefined) data.limits = limits;
+    if (regionId !== undefined) data.regionId = regionId ?? null;
     const updated = await prisma.managementEmployee.update({
       where: { id },
       data,
-      include: { user: { select: { id: true, email: true, firstName: true, lastName: true } }, tier: true },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true } }, tier: true, region: true },
     });
     if (status === 'ACTIVE') {
       await prisma.user.update({
@@ -177,7 +180,7 @@ router.post('/:id/balance', async (req: AuthRequest, res, next) => {
     const updated = await prisma.managementEmployee.update({
       where: { id },
       data: { balanceKobo: newBalance },
-      include: { user: { select: { id: true, email: true, firstName: true, lastName: true } }, tier: true, areas: true },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true } }, tier: true, region: true, areas: true },
     });
     await logAudit({
       actorId: req.user!.id,
@@ -204,7 +207,7 @@ router.patch('/:id/bank', async (req: AuthRequest, res, next) => {
     const updated = await prisma.managementEmployee.update({
       where: { id },
       data: { bankName, bankAccountNumber, bankAccountName },
-      include: { user: { select: { id: true, email: true, firstName: true, lastName: true } }, tier: true, areas: true },
+      include: { user: { select: { id: true, email: true, firstName: true, lastName: true } }, tier: true, region: true, areas: true },
     });
     res.json({ moderator: updated });
   } catch (e) {

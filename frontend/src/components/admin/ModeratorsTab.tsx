@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Shield, Plus, Loader2, MapPin, Trash, History, Coins, Landmark } from 'lucide-react';
 import { fetchModerators, createModerator, updateModerator, deleteModerator, addModeratorArea, fetchModeratorAudit, updateModeratorBalance, updateModeratorBank, type ModeratorRecord } from '../../lib/moderatorAdmin';
+import { fetchRegions, type Region } from '../../lib/regions';
 
 export default function ModeratorsTab() {
   const [moderators, setModerators] = useState<ModeratorRecord[]>([]);
+  const [regions, setRegions] = useState<Region[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ email: '', firstName: '', lastName: '', employeeId: '', department: '' });
+  const [form, setForm] = useState({ email: '', firstName: '', lastName: '', employeeId: '', department: '', regionId: '' });
   const [temp, setTemp] = useState<string | null>(null);
   const [areaForm, setAreaForm] = useState<{ employeeId: string; country: string; region: string; city: string; district: string; area: string } | null>(null);
   const [detail, setDetail] = useState<{ type: 'audit' | 'balance' | 'bank'; id: string } | null>(null);
@@ -16,8 +18,9 @@ export default function ModeratorsTab() {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchModerators();
+      const [data, regionData] = await Promise.all([fetchModerators(), fetchRegions()]);
       setModerators(data.moderators);
+      setRegions(regionData);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load moderators');
     } finally {
@@ -33,11 +36,20 @@ export default function ModeratorsTab() {
     try {
       const res = await createModerator(form);
       setTemp(res.tempPassword ?? null);
-      setForm({ email: '', firstName: '', lastName: '', employeeId: '', department: '' });
+      setForm({ email: '', firstName: '', lastName: '', employeeId: '', department: '', regionId: '' });
       setShowForm(false);
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to create moderator');
+    }
+  }
+
+  async function setRegion(id: string, regionId: string) {
+    try {
+      await updateModerator(id, { regionId });
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Region update failed');
     }
   }
 
@@ -103,6 +115,12 @@ export default function ModeratorsTab() {
           <input value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} placeholder='Last name' className='rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white' />
           <input required value={form.employeeId} onChange={(e) => setForm({ ...form, employeeId: e.target.value })} placeholder='Employee ID' className='rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white' />
           <input value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} placeholder='Department' className='rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white sm:col-span-2' />
+          <select value={form.regionId} onChange={(e) => setForm({ ...form, regionId: e.target.value })} className='rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-white sm:col-span-2'>
+            <option value=''>Assign region (optional)</option>
+            {regions.map((r) => (
+              <option key={r.id} value={r.id}>{r.name} ({r.type})</option>
+            ))}
+          </select>
           <div className='flex gap-2 sm:col-span-2'>
             <button type='submit' className='rounded-lg bg-emerald-500 px-4 py-2 text-sm font-bold text-white'>Create</button>
             <button onClick={() => setShowForm(false)} className='rounded-lg bg-white/10 px-4 py-2 text-sm font-bold text-white'>Cancel</button>
@@ -125,6 +143,7 @@ export default function ModeratorsTab() {
                     <p className='font-bold text-white'>{m.user.firstName} {m.user.lastName}</p>
                     <p className='text-sm text-white/60'>{m.user.email}</p>
                     <p className='text-xs text-white/40'>{m.employeeId} • {m.department || 'No department'}</p>
+                    {m.region && <p className='text-xs text-emerald-300'>Tier: {m.region.type} • {m.region.name}</p>}
                     <div className='mt-1 flex flex-wrap gap-1'>
                       {m.areas.map((a) => (
                         <span key={a.id} className='inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/70'>
@@ -135,6 +154,12 @@ export default function ModeratorsTab() {
                   </div>
                 </div>
                 <div className='flex flex-wrap items-center gap-2'>
+                  <select value={m.regionId ?? ''} onChange={(e) => setRegion(m.id, e.target.value)} className='rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white'>
+                    <option value=''>No region</option>
+                    {regions.map((r) => (
+                      <option key={r.id} value={r.id}>{r.name}</option>
+                    ))}
+                  </select>
                   <select value={m.status} onChange={(e) => setStatus(m.id, e.target.value)} className='rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white'>
                     <option value='ACTIVE'>Active</option>
                     <option value='INACTIVE'>Inactive</option>

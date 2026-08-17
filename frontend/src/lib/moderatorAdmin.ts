@@ -13,6 +13,8 @@ export interface ModeratorRecord {
   employeeId: string;
   status: string;
   department?: string;
+  regionId?: string;
+  region?: { id: string; name: string; type: 'CONTINENT' | 'COUNTRY' | 'STATE' };
   user: { id: string; email: string; firstName: string | null; lastName: string | null; roles: string[] };
   tier: { id: string; name: string };
   areas: any[];
@@ -24,7 +26,7 @@ export async function fetchModerators() {
   return res.json() as Promise<{ moderators: ModeratorRecord[] }>;
 }
 
-export async function createModerator(payload: { email: string; firstName?: string; lastName?: string; employeeId: string; department?: string }) {
+export async function createModerator(payload: { email: string; firstName?: string; lastName?: string; employeeId: string; department?: string; regionId?: string }) {
   const res = await fetch(`${API_BASE}/api/admin/moderators`, {
     method: 'POST',
     headers: authHeaders(),
@@ -34,7 +36,7 @@ export async function createModerator(payload: { email: string; firstName?: stri
   return res.json() as Promise<{ moderator: ModeratorRecord; tempPassword?: string }>;
 }
 
-export async function updateModerator(id: string, payload: { status?: string; department?: string }) {
+export async function updateModerator(id: string, payload: { status?: string; department?: string; regionId?: string }) {
   const res = await fetch(`${API_BASE}/api/admin/moderators/${id}`, {
     method: 'PATCH',
     headers: authHeaders(),
